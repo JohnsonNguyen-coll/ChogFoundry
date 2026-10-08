@@ -1,0 +1,22 @@
+{
+  "name": "chog-foundry",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Chog Foundry — local technical foundation; no public deployment",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:domain": "node --test tests/domain.test.mjs",
+    "test:contracts": "node --test tests/contracts.test.mjs",
+    "demo": "node scripts/demo.mjs",
+    "compile": "node scripts/compile.mjs"
+  },
+  "devDependencies": {
+    "ethers": "6.17.0",
+    "ganache": "7.9.2",
+    "solc": "0.8.36"
+  }
+}
