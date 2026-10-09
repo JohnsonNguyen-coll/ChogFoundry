@@ -84,3 +84,56 @@ Implementation choices: immutable registrar/treasury and per-launch curve/gradua
 The final registrar must be the approved factory/launch coordinator. Recorders must be verified protocol contracts enforcing trade amounts, pool identity, lifecycle and reserves. Test-only EOA roles are not production configuration. The vault itself cannot certify that money originated from a swap rather than an authorized recorder funding a credit.
 
 Real-state fork tests use actual CHOG and Chog Genesis contracts, disposable local Anvil state and local impersonation. They do not create mock contracts, application seed data or live-network transactions.
+
+## CHOG compatibility increment — 2026-10-09
+
+Actual CHOG fork tests passed for exact transfer balances, transferFrom, finite allowance consumption, revocation, events and failed-transfer rollback. Observed paths are compatible with current vault balance checks. Source/admin verification and settlement approval remain false; sampled behavior cannot certify all paths or future states.
+
+No curve, fees, AMM or token transfer restrictions were selected. Results and their limits are in research/CHOG_COMPATIBILITY.md. The shared Anvil harness remains local-only and never substitutes fork results for application data.
+
+## Wallet discovery and Explore - 2026-10-09
+
+Implementation choice: read the verified Chog Genesis tokensOfOwner(address) getter and balanceOf at the same canonical snapshot. Reject duplicate IDs or a count mismatch. Discovery grants no authority; studio opening reads ownerOf again and writes retain full ownership/session checks. Explore displays only persisted local profiles, preserving original authorship and never presenting the historical save author as current owner. No economic decision changed.
+
+## User-approved launch baseline - 2026-10-09
+
+Authority: the user explicitly accepted all five proposals and the testnet-first demo in the current conversation ("ok toi dong y het nha, hop li do"). This update supersedes older statements that all supply/allocation/vesting/curve fee decisions are undecided. It does not supersede pending verification of curve parameters, AMM or deployment assets.
+
+| ID | Approved decision | Remaining boundary |
+|---|---|---|
+| D12 | Fixed supply of 1,000,000,000 launch tokens; no additional minting. 20% creator allocation; 80% combined curve and graduation liquidity allocation. | Split of the 80% between curve sales and pool seeding is not decided. |
+| D13 | Creator allocation locked for 30 days from launch, then released linearly over the following 180 days. No immediate allocation. Original creator remains beneficiary after NFT transfers. | Implement and test timestamp boundaries and rounding. The schedule ends 210 days after launch. |
+| D14 | Curve trading fee totals 100 basis points: creator 30 bps, studio 30 bps, platform 40 bps. | Quote notional, integer rounding and exact-input/output semantics must be specified. LP-inclusive post-graduation total fee remains pending AMM verification. |
+| D15 | Design a rising-price bonding curve and prioritize technical verification of Uniswap v4 for graduation into TOKEN/CHOG. | Formula, opening price, graduation threshold and final AMM selection require a calculated proposal and verification; v4 is not a finalized deployment choice. |
+| D16 | Creator and current studio owner cannot withdraw graduation LP. Fees cover the Foundry curve and official Foundry pool. | Exact LP lock/custody mechanism remains pending. No fee guarantee on externally created pools. |
+| D17 | Proceed toward a clearly labeled testnet-first demo. | Select and disclose actual test assets, contract addresses and deployment configuration. No mainnet deployment, real funds, NFT purchase or real campaign authorization. |
+
+Buyback budget, treasury signers, randomness providers and service providers remain undecided. Approval does not certify CHOG implementation privileges or market compatibility. Existing source contracts are not yet wired to enforce this approved baseline.
+
+## Pending curve proposal - 2026-10-09
+
+See research/CURVE_PROPOSAL.md: proposed 500M curve sales / 300M graduation liquidity / approved 200M creator vesting, linear marginal price from p0 to 5*p0. Exact integral matches ideal pool price when all net reserve is seeded. Split, curve and T are pending user review; normalized algebra is not an AMM integration proof or application data.
+
+## User revision: no creator token allocation - 2026-10-09
+
+D18 supersedes the allocation portions of D12 and all of D13: creator allocation is zero; there is no creator allocation vesting. Creator receives the approved creator fee and may choose an optional paid first purchase. Entire fixed one-billion supply is reserved for curve sales and graduation liquidity; split must be recalculated. Purchased tokens are not a free allocation. Initial purchase amount is user-selected, subject to available supply, quote, fees and transaction safeguards; no amount/cap was approved. Atomic create-and-buy is the intended implementation approach, not yet implemented. Curve/fee integration remains incomplete.
+
+The earlier 500M/300M/200M proposal is withdrawn. No replacement split, formula, graduation threshold or AMM was approved by this revision.
+
+## Launch coordinator implementation - 2026-10-09
+
+Implemented D18 in the factory source: fixed one-billion supply and no creator allocation/vesting inputs; optional exact-CHOG-input initial buy with minimum output/deadline. Factory-created fee vault binds registrar to the factory; registration, token inventory transfer, initialization and buy are atomic. These are implementation choices within the approved flow, not approval of a curve, market address, AMM or LP custody. Existing CreatorVesting is unused standalone source.
+
+## Curve market source integration - 2026-10-09
+
+Added a parameterized linear market with no default split/price/threshold. Implementation choices: cumulative integer reserve potential, fee-on-base-notional, 100-bps total rounded up with creator/studio rounded down and platform receiving remainder, maximum gross CHOG buy budget, and actual-spend refund from factory. These semantics are documented for review; the user has not approved numerical curve/deployment inputs. No sniping penalty, allocation or vesting is introduced.
+
+Source supports actual pre-graduation trading/fee accrual. Full curve inventory remains redeemable because no migration adapter is implemented; graduationReady never claims a pool exists. No AMM, LP custody or post-graduation total fee decision changed.
+
+## V4 integration increment - 2026-10-09
+
+Added optional immutable v4 migration adapter and direct permanently held full-range position source. All seeding uses actual reserves and reserved tokens, not fee debt. LP fee is an explicit constructor argument, not a selected product rate. Full-range/tick-spacing-1 custody and dust retention are reviewable implementation choices; no final AMM/LP/fee configuration was approved. Current hook is zero, so post-graduation studio/creator/platform fee capture remains false. Permissionless incompatible pool preinitialization is a known gate requiring initialization authorization in the future hook.
+
+## Hook fee implementation - 2026-10-09
+
+Implemented pool-bound post-graduation fee capture with immutable configurable category bps, exact-input/output quote delta handling, funded vault credits and authenticated official initialization. Actual fork verification confirms NFT-owner-at-accrual and historical claims. Numerical post-graduation fee rates/LP-inclusive total are still not approved; fork constructor 30/30/40 bps and LP fee 3000 are evidence inputs only. No external-pool fee guarantee or Universal Router integration is claimed. Quote-specified partial fills reject atomically; LP fees remain in locked position.

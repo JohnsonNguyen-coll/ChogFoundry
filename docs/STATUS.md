@@ -59,3 +59,42 @@
 - No fee rates or AMM were selected. Launch, trade and claims remain unavailable in the application.
 
 - Fee-vault verification record: docs/research/FEE_VAULT_VERIFICATION.md. Latest final-source fork test passed at upstream block 111846511; one earlier run timed out at the real RPC and was rerun without fabricated fallback. npm test 7/7, test:live 3/3 and build passed.
+
+## CHOG compatibility increment — 2026-10-09
+
+- Added exact transfer, approval/allowance/event, revocation, failed transaction rollback and one-day idle-state observations using actual CHOG on a disposable Monad fork.
+- Both contract fork suites pass (2/2): quote behavior and NFT-linked vault accounting. Source/admin/settlement review remains incomplete.
+- Extracted shared guarded fork harness; test writes only to local child processes and ignored artifacts. Historical evidence is recorded explicitly in docs/research/CHOG_COMPATIBILITY.json.
+- No application data, deployed contract configuration or financial action was changed.
+
+- Final validation for the compatibility increment: npm run test:fork 2/2, npm test 7/7 and npm run test:live 3/3 passed. Four Solidity sources compiled during fork validation. No frontend/runtime or economic configuration changes were made.
+
+## NFT discovery and studio directory - 2026-10-09
+
+Wallet responses include actual Chog Genesis token IDs, getter method and canonical provenance. The frontend opens these NFTs through fresh studio reads. Explore shows real persisted profiles or a truthful empty/unavailable state; saving a profile reloads the directory. No seeded profiles or RPC fallback.
+
+Validation: 7 local tests, 3 live RPC/signature tests and contracts/frontend build passed. Desktop (1440px) and mobile (390px) Chromium verified the actual empty directory, refresh and live NFT 1557 lookup; no browser errors or horizontal overflow. Screenshots under ignored artifacts/discovery-*.png were visually checked. Owner-signed profile creation and connected-wallet UI still need an actual user wallet; no wallet provider was simulated.
+
+## Zero-allocation launch coordinator - 2026-10-09
+
+Implemented fixed one-billion factory supply, zero creator allocation, no factory vesting inputs, factory-owned registrar vault, atomic registration/market initialization and optional paid first buy. Incoming/spent quote amounts, actual creator token output, deadline, minimum output and final NFT ownership are checked. Initial-buy events record CHOG input and token output. Source remains undeployed.
+
+Validation: contracts/frontend build passed; all three real-state fork suites passed (CHOG compatibility, fee vault transfer/claims, coordinator NFT authority and actual reverted-transaction rollback). The new coordinator test deliberately calls existing incompatible CHOG code as a market and deploys no mock. Successful initial buy, compatible market, fee calculation, graduation and UI transaction flow remain unverified/unimplemented and are not claimed complete.
+
+## Actual pre-graduation market integration - 2026-10-09
+
+StudioCurveMarket and the updated factory now execute real initial purchases, public buy/sell and funded fee accrual together on an isolated real-state Monad fork. Creator allocation stays zero. At fork block 111857383, the integration suite passed actual initial buy, zero-buy launch, original creator fee continuity, NFT transfer fee ownership, old-beneficiary claim, slippage/launch rollback, capped initial-buy refunds, inventory exhaustion/redemption and donation isolation. All four fork suites passed; five source contracts/frontend build passed. No mock market, live-network writes or application seed data.
+
+Reserve potential, price/supply constructor inputs and integer fee semantics are documented in contracts/README.md. Fork test amounts are not approved product economics. Final curve configuration, real AMM graduation, LP custody, post-graduation fees, testnet deployment and application trading/claim UI remain incomplete. graduationReady is only readiness; no pool is created and sells remain enabled. The requested candles/realtime/holders/profile work is queued after contract flow per user steering.
+
+## Actual v4 migration and held liquidity - 2026-10-09
+
+Implemented StudioV4LiquidityLock and optional atomic market graduation. Actual v4 pool initialization, liquidity settlement and bidirectional swaps passed on real-state Monad fork block 111859589; independent StateView confirmed price/liquidity. Slippage rollback, duplicate graduation, curve closure, failed-migration redemption, NFT transfer custody and historical claim passed. All five contract fork suites passed. Evidence: research/V4_GRADUATION.md/json.
+
+No public deployment. Current pool has hooks=0 and LP fees only; post-graduation studio/creator/platform fee hook is still missing. Pool preinitialization authorization, final numerical economics, reviewed dust/LP fee collection policy and security review remain gates. This completes an actual AMM behavior proof, not the complete product/demo.
+
+## Pool-bound post-graduation fees - 2026-10-09
+
+StudioV4FeeHook and optional immutable lock hook are implemented. Six real-state fork suites passed; strengthened hook tests passed independently at block 111862120. Four swap modes funded creator/studio/platform credits from actual PoolManager quote settlement, including an independent callback caller. PoolManager event comparisons, NFT transfer ownership, original creator continuity, old claim, unauthorized initialization and slippage rollback passed. Evidence: research/V4_HOOK.md/json.
+
+No mainnet/public deployment or mock AMM. Final post-graduation rates/LP-inclusive fees remain open deployment decisions; external routing matrix, partial fills, custody/source/security review and testnet assets/configuration remain gates. LP fees are separate from hook credits and stay in the locked position.

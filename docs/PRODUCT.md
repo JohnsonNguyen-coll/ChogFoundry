@@ -91,3 +91,13 @@ Kiểm tra folder/hướng dẫn, giữ file hiện hữu, lưu PRODUCT/DECISION
 ## 14. Chỉ dẫn bổ sung — 09/10/2026
 
 Người dùng yêu cầu chia code thành contracts/, backend/, frontend/ và tiếp tục triển khai; mọi dữ liệu ứng dụng phải thật, không mock. Chỉ dẫn này thay thế cách làm demo mô phỏng của giai đoạn trước. Phần chưa có deployment, dữ liệu hoặc quyết định kinh tế phải hiển thị chưa khả dụng, không tự tạo số liệu. Không suy diễn yêu cầu dữ liệu thật thành quyền deploy mainnet hay dùng tiền thật.
+
+## 15. Approved launch baseline - 2026-10-09
+
+The user approved fixed supply of one billion tokens per launch; 20% original creator allocation, with 30 days locked followed by 180 days linear vesting; 80% combined curve/graduation liquidity allocation. Curve trading fees total 1%: creator 0.3%, studio 0.3%, platform 0.4%.
+
+Approved direction: design a rising-price curve, verify Uniswap v4 as a graduation candidate for TOKEN/CHOG, prohibit creator/studio-owner LP withdrawals, and scope fees to the curve and official Foundry pool. A testnet-first demo is authorized. Exact curve formula/prices/threshold, the 80% sales/pool split, final AMM, LP custody and LP-inclusive post-graduation fee remain pending. Mainnet and real funds remain unauthorized. See DECISIONS.md D12-D17 for authoritative boundaries.
+
+## 16. Latest user revision - 2026-10-09
+
+Creator token allocation is zero. Creator allocation vesting is removed from the product baseline. Creator may fund an optional first purchase; tokens bought through the launch market are purchased holdings, not allocated tokens. The fixed one-billion supply is entirely for curve sales and graduation liquidity. Creator fee remains unchanged. This supersedes the 20% creator allocation and 80% combined curve/liquidity allocation in section 15. Final sales/liquidity split must be recalculated.

@@ -30,6 +30,13 @@ test('live API matches independent RPC reads at recorded Monad blocks; no mocks'
     assert.equal(studio.studio.fees, null);
     const wallet = await read(`/api/wallets/${studio.nft.owner}`);
     assert.equal(String(await quote.balanceOf(studio.nft.owner, { blockTag: wallet.provenance.blockNumber })), wallet.balances.chogRaw);
+    const ownedIds = await nft.tokensOfOwner(studio.nft.owner, { blockTag: wallet.provenance.blockNumber });
+    assert.deepEqual(wallet.nfts.tokenIds, ownedIds.map(String));
+    assert.equal(wallet.balances.nftCount, String(ownedIds.length));
+    assert.equal(wallet.nfts.grantsAuthority, false);
+    if (ownedIds.length) assert.equal(await nft.ownerOf(ownedIds[0], { blockTag: wallet.provenance.blockNumber }), wallet.wallet);
+    const saved = await read('/api/studios');
+    assert.deepEqual(saved.profiles, []); // Actual fresh SQLite database, without seed data.
     const transfers = await read(`/api/studios/${tokenId}/transfers`);
     assert.equal(transfers.range.completeHistory, false);
     const events = await nft.queryFilter(nft.filters.Transfer(null, null, tokenId), transfers.range.fromBlock, transfers.range.toBlock);

@@ -69,3 +69,35 @@ All runtime reads came from Monad RPC, pinned to block 111841097 with canonical 
 - OpenZeppelin ReentrancyGuard: https://docs.openzeppelin.com/contracts/5.x/api/utils — shared guard around all mutating vault operations.
 - Official Anvil: https://www.getfoundry.sh/anvil/index.html and https://github.com/foundry-rs/foundry — isolated local fork testing. Official npm Windows binary @foundry-rs/anvil-win32-amd64 version 1.7.1 was used from an ignored tool directory.
 - Fork source: actual Monad RPC, finalized block recorded by each test. Local chain ID 31337; source chain ID 143. No mainnet state overrides, transactions or signatures.
+
+## CHOG compatibility sources — 2026-10-09
+
+- ERC-20: https://eips.ethereum.org/EIPS/eip-20 — transfer, transferFrom, allowance and event expectations. Maximum allowance decrement behavior is observed separately, not prescribed by the standard.
+- Actual Monad fork observation: research/CHOG_COMPATIBILITY.json; interpretation in research/CHOG_COMPATIBILITY.md. Fresh test output is ignored under contracts/artifacts/, never application fallback.
+- Bytecode-linked compiler metadata retrieval retried via public Filebase, Lighthouse and 4everland gateways. Two attempts timed out; Lighthouse returned HTTP 402. No verified implementation source was recovered.
+
+## NFT discovery - 2026-10-09
+
+The explorer-published ChogMint source exposes tokensOfOwner(address): https://monadscan.com/address/0xc96d31F8626c6D03Fae5dCD3d61e3FB9F4a73763#code. Direct finalized RPC observation at block 111849306 returned 73 IDs for the dynamically read owner of token 1557. The live integration check repeated getter/balance and sampled ownerOf comparison at its own recorded block. This is collection-specific discovery, not ERC-721 Enumerable or administrative authorization. Owners and IDs are never hardcoded as application data.
+
+## External launch flows reviewed - 2026-10-09
+
+- Pump official program documentation: https://github.com/pump-fun/pump-public-docs/blob/main/docs/PUMP_PROGRAM_README.md - separate create/buy instructions, virtual reserve pricing, and migration. Configuration snippets are examples, not independently read current state.
+- Pump official curve description: https://pump.fun/docs/bonding-curve - current documented creator/protocol fee and graduation behavior.
+- NadFun V2 official integration documentation: https://github.com/Naddotfun/nadfun-v2-intergration/blob/main/BONDING_CURVE_INTEGRATION.md and ROUTER_INTEGRATION.md - optional initial buy during create, creator fees, virtual constant-product reserves and sniping-penalty exception for initial buy. Documentation evidence only; not independent bytecode verification or approval to integrate its contracts. No assumption of CHOG pair/studio fee support.
+
+## V4 settlement interfaces reviewed - 2026-10-09
+
+- https://raw.githubusercontent.com/Uniswap/v4-core/v4.0.0/src/interfaces/IPoolManager.sol - initialize, unlock callback, modifyLiquidity, swap, sync/settle/take semantics.
+- https://raw.githubusercontent.com/Uniswap/v4-core/v4.0.0/src/types/BalanceDelta.sol - signed packed 128-bit currency deltas.
+- https://raw.githubusercontent.com/Uniswap/v4-core/v4.0.0/src/libraries/TickMath.sol - full-range tick/sqrt-price bounds.
+
+StudioV4LiquidityLock declares an ABI-compatible subset without vendoring upstream implementation. Fork verification uses officially documented Monad PoolManager/StateView, checks actual bytecode/state and settles against real contracts. This is behavior evidence, not full deployed-source equivalence or audit.
+
+## V4 hook source review - 2026-10-09
+
+- https://raw.githubusercontent.com/Uniswap/v4-core/v4.0.0/src/interfaces/IHooks.sol - callback ABI and specified/unspecified currency return deltas.
+- https://raw.githubusercontent.com/Uniswap/v4-core/v4.0.0/src/libraries/Hooks.sol - permission-bit validation, before/after swap accounting, and hook-self-call exclusions.
+- https://raw.githubusercontent.com/Uniswap/v4-core/v4.0.0/src/PoolManager.sol - hook delta accounting and actual take/settlement.
+
+Real fork reports record actual official Monad PoolManager code hash, CREATE2 hook address, key and block. Source review plus behavior is not an audit or certificate that every routing path is supported.

@@ -1,0 +1,19 @@
+{
+  "mode": "isolated-real-state-fork",
+  "sourceChainId": 143,
+  "localChainId": 31337,
+  "blockNumber": 111859589,
+  "blockHash": "0x49a9db6a368df4e00d62cd734cec3515169b961f6f703fdb97111aa2950e5997",
+  "poolManager": "0x188d586ddcf52439676ca21a244753fa19f9ea8e",
+  "poolManagerCodeHash": "0xf5d7a45765367807b101f825ec74004078c79bd96c621e481c608ee22f7336d4",
+  "poolId": "0x0e494658456332d406a7b139ca2f75198bf26ea107531728cf79f595a260b0e8",
+  "actualPoolInitialization": true,
+  "actualLiquiditySettlement": true,
+  "actualBidirectionalSwaps": true,
+  "failedMigrationRedemption": true,
+  "withdrawalEntryPoint": false,
+  "postGraduationStudioFeeImplemented": false,
+  "hook": "0x0000000000000000000000000000000000000000",
+  "lpFeeTestUnits": 3000,
+  "liveWrites": false
+}

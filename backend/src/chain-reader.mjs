@@ -76,11 +76,14 @@ export class ChainReader {
   wallet(wallet) {
     return this.snapshot(async blockTag => {
       await this.assertContracts(blockTag);
-      const [mon, chog, count, decimals] = await Promise.all([
+      const [mon, chog, count, decimals, ownedIds] = await Promise.all([
         this.provider.getBalance(wallet, blockTag), this.quote.balanceOf(wallet, { blockTag }),
-        this.nft.balanceOf(wallet, { blockTag }), this.quote.decimals({ blockTag })
+        this.nft.balanceOf(wallet, { blockTag }), this.quote.decimals({ blockTag }),
+        this.nft.tokensOfOwner(wallet, { blockTag })
       ]);
-      return { wallet: getAddress(wallet), balances: { mon: formatUnits(mon, 18), chog: formatUnits(chog, decimals), chogRaw: String(chog), nftCount: String(count) } };
+      const tokenIds = ownedIds.map(String);
+      if (BigInt(tokenIds.length) !== count || new Set(tokenIds).size !== tokenIds.length) throw new AppError(503, 'NFT_DISCOVERY_MISMATCH', 'The NFT list does not match the onchain balance. Please reload.');
+      return { wallet: getAddress(wallet), nfts: { collection: chain.collection, tokenIds, method: 'tokensOfOwner(address)', grantsAuthority: false }, balances: { mon: formatUnits(mon, 18), chog: formatUnits(chog, decimals), chogRaw: String(chog), nftCount: String(count) } };
     });
   }
   transfers(id, fromBlock, toBlock) {

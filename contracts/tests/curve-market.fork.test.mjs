@@ -1,0 +1,136 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { Contract, ContractFactory, getCreateAddress, parseEther, toBeHex, ZeroAddress } from 'ethers';
+import { chain, nftAbi } from '../../backend/src/config.mjs';
+import { candidates } from '../../backend/scripts/market-inspection.mjs';
+import { withMonadFork } from './helpers/monad-fork.mjs';
+
+test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and old claims', { timeout: 180000 }, async () => {
+  await withMonadFork(async ({ local, block }) => {
+    const accounts = await local.send('eth_accounts', []);
+    const [deployer, buyer, treasury] = await Promise.all(accounts.slice(0, 3).map(a => local.getSigner(a)));
+    const nft = new Contract(chain.collection, [...nftAbi, 'function transferFrom(address,address,uint256)'], local);
+    const owner = await nft.ownerOf(1557n), buyerAddress = await buyer.getAddress();
+    await local.send('anvil_impersonateAccount', [owner]);
+    await local.send('anvil_setBalance', [owner, toBeHex(parseEther('10'))]);
+    const creator = await local.getSigner(owner);
+    const quote = new Contract(chain.quote, ['function balanceOf(address) view returns(uint256)', 'function transfer(address,uint256) returns(bool)', 'function approve(address,uint256) returns(bool)', 'function allowance(address,address) view returns(uint256)'], local);
+    const v3 = new Contract(candidates.v3Factory, ['function getPool(address,address,uint24) view returns(address)'], local);
+    const holder = await v3.getPool(chain.quote, candidates.wrappedMon, 3000);
+    assert.notEqual(holder, ZeroAddress); assert.ok(await quote.balanceOf(holder) >= parseEther('5'));
+    await local.send('anvil_impersonateAccount', [holder]);
+    await local.send('anvil_setBalance', [holder, toBeHex(parseEther('10'))]);
+    const holderSigner = await local.getSigner(holder);
+    await (await quote.connect(holderSigner).transfer(owner, parseEther('2'))).wait();
+    await (await quote.connect(holderSigner).transfer(buyerAddress, parseEther('3'))).wait();
+    const compiled = JSON.parse(await readFile(new URL('../artifacts/contracts.json', import.meta.url), 'utf8'));
+    async function deploy(source, name, args) {
+      const a = compiled['src/' + source][name];
+      const c = await new ContractFactory(a.abi, a.evm.bytecode.object, deployer).deploy(...args);
+      await c.waitForDeployment(); return c;
+    }
+    const deployerAddress = await deployer.getAddress();
+    const expectedFactory = getCreateAddress({ from: deployerAddress, nonce: await local.getTransactionCount(deployerAddress) + 1 });
+    // Local execution scales, not approved product split, prices or graduation threshold.
+    const S = parseEther('625000000'), p0 = 1000000000n, dp = 4000000000n;
+    const market = await deploy('StudioCurveMarket.sol', 'StudioCurveMarket', [expectedFactory, chain.collection, chain.quote, S, p0, dp, ZeroAddress]);
+    const marketAddress = await market.getAddress();
+    const factory = await deploy('StudioTokenFactory.sol', 'StudioTokenFactory', [chain.collection, chain.quote, marketAddress, marketAddress, await treasury.getAddress()]);
+    assert.equal(await factory.getAddress(), expectedFactory);
+    const vault = new Contract(await factory.feeVault(), compiled['src/StudioFeeVault.sol'].StudioFeeVault.abi, local);
+    const deadline = BigInt((await local.getBlock('latest')).timestamp + 7200);
+    const params = { nftId: 1557n, name: 'Actual curve fork verification', symbol: 'CURVE', initialQuoteIn: parseEther('0.2'), minTokenOut: 1n, deadline };
+    await (await quote.connect(creator).approve(expectedFactory, parseEther('2'))).wait();
+    const creatorBefore = await quote.balanceOf(owner);
+    const receipt = await (await factory.connect(creator).launch(params)).wait();
+    const launch = await factory.launches(0);
+    const token = new Contract(launch.token, compiled['src/StudioToken.sol'].StudioToken.abi, local);
+    assert.equal(await token.totalSupply(), parseEther('1000000000'));
+    assert.equal(await token.balanceOf(owner), launch.initialTokenOut);
+    assert.ok(launch.initialTokenOut > 0n);
+    assert.equal(creatorBefore - await quote.balanceOf(owner), launch.initialQuoteIn);
+    assert.ok(launch.initialQuoteIn <= params.initialQuoteIn);
+    assert.equal(await quote.balanceOf(expectedFactory), 0n);
+    assert.equal(await quote.allowance(expectedFactory, marketAddress), 0n);
+    assert.ok(receipt.logs.some(log => log.address.toLowerCase() === launch.token.toLowerCase()));
+    const potential = x => p0*x/10n**18n + dp*x*x/(2n*S*10n**18n);
+    const fees = base => { const c=base*30n/10000n, s=base*30n/10000n, total=(base*100n+9999n)/10000n; return [c,s,total-c-s]; };
+    async function conserved() {
+      assert.equal(await quote.balanceOf(marketAddress), await market.totalReserve());
+      assert.equal(await quote.balanceOf(await vault.getAddress()), await vault.liability());
+      const c = await market.curves(launch.token);
+      assert.equal(c.reserve, potential(c.sold));
+    }
+    await conserved();
+    await assert.rejects(market.connect(creator).initializeLaunch.staticCall(launch.launchId, launch.token, 1557n, owner, await vault.getAddress()));
+    await assert.rejects(market.connect(buyer).buy.staticCall(launch.token, 1n, 1n, ZeroAddress, deadline));
+    await assert.rejects(market.connect(buyer).buy.staticCall(launch.token, 1n, 1n, buyerAddress, 0n));
+    // A buy failure must revert token creation and vault registration as well.
+    const countBefore = await factory.launchCount(), creditedBefore = await vault.totalCredited();
+    await assert.rejects(async () => { await (await factory.connect(creator).launch({ ...params, minTokenOut: parseEther('1000000001') }, { gasLimit: 6000000 })).wait(); });
+    assert.equal(await factory.launchCount(), countBefore); assert.equal(await vault.totalCredited(), creditedBefore);
+    await conserved();
+    await (await factory.connect(creator).launch({ ...params, initialQuoteIn: 0n, minTokenOut: 0n })).wait();
+    const emptyLaunch = await factory.launches(1);
+    const emptyToken = new Contract(emptyLaunch.token, token.interface, local);
+    assert.equal(await emptyToken.balanceOf(owner), 0n);
+    assert.equal(await emptyToken.balanceOf(marketAddress), parseEther('1000000000'));
+    await (await quote.connect(buyer).approve(marketAddress, parseEther('3'))).wait();
+    const preview = await market.getBuyQuote(launch.token, parseEther('0.3'));
+    const curveBefore = await market.curves(launch.token);
+    assert.equal(preview.baseQuote, potential(curveBefore.sold + preview.tokenOut) - potential(curveBefore.sold));
+    assert.deepEqual([preview.creatorFee,preview.studioFee,preview.platformFee],fees(preview.baseQuote));
+    const reserveBeforeSlippage = await market.totalReserve();
+    await assert.rejects(async () => { await (await market.connect(buyer).buy(launch.token, parseEther('0.3'), preview.tokenOut + 1n, buyerAddress, deadline, { gasLimit: 3000000 })).wait(); });
+    assert.equal(await market.totalReserve(), reserveBeforeSlippage);
+    await (await market.connect(buyer).buy(launch.token, parseEther('0.3'), preview.tokenOut, buyerAddress, deadline)).wait();
+    assert.equal(await token.balanceOf(buyerAddress), preview.tokenOut); await conserved();
+    const oldCredit = await vault.credits(owner);
+    await (await nft.connect(creator).transferFrom(owner, buyerAddress, 1557n)).wait();
+    await assert.rejects(factory.connect(creator).launch.staticCall({ ...params, initialQuoteIn: 0n, minTokenOut: 0n }));
+    const sellAmount = preview.tokenOut / 2n;
+    const sellQuote = await market.getSellQuote(launch.token, sellAmount);
+    await (await token.connect(buyer).approve(marketAddress, sellAmount)).wait();
+    await (await market.connect(buyer).sell(launch.token, sellAmount, sellQuote.quoteOut, buyerAddress, deadline)).wait();
+    const nowOld = await vault.credits(owner), nowNew = await vault.credits(buyerAddress);
+    assert.equal(nowOld.studio, oldCredit.studio);
+    assert.equal(nowOld.creator, oldCredit.creator + sellQuote.creatorFee);
+    assert.equal(nowNew.studio, sellQuote.studioFee);
+    await conserved();
+    const beforeClaim = await quote.balanceOf(owner);
+    await (await vault.connect(creator).claim()).wait();
+    assert.equal(await quote.balanceOf(owner), beforeClaim + nowOld.creator + nowOld.studio);
+    await conserved();
+    // Fill actual sale inventory; readiness is not an AMM migration. Redemption stays available.
+    const fill = await market.getBuyQuote(launch.token, parseEther('3'));
+    await (await market.connect(buyer).buy(launch.token, parseEther('3'), fill.tokenOut, buyerAddress, deadline)).wait();
+    assert.equal(await market.graduationReady(launch.token), true);
+    assert.equal((await market.curves(launch.token)).reserve, await market.targetReserve());
+    await (await token.connect(buyer).approve(marketAddress, 10n**18n)).wait();
+    const redemption = await market.getSellQuote(launch.token, 10n**18n);
+    await (await market.connect(buyer).sell(launch.token, 10n**18n, redemption.quoteOut, buyerAddress, deadline)).wait();
+    assert.equal(await market.graduationReady(launch.token), false); await conserved();
+    // Capped first buy refunds excess CHOG and never gives an allocation.
+    assert.ok(await quote.balanceOf(holder) >= parseEther('2'));
+    await (await quote.connect(holderSigner).transfer(buyerAddress, parseEther('2'))).wait();
+    await (await quote.connect(buyer).approve(expectedFactory, parseEther('2'))).wait();
+    const cappedBefore = await quote.balanceOf(buyerAddress);
+    await (await factory.connect(buyer).launch({ ...params, initialQuoteIn: parseEther('2') })).wait();
+    const capped = await factory.launches(2);
+    assert.equal(capped.initialTokenOut, S);
+    const expectedCapCost = potential(S) + fees(potential(S)).reduce((a,b)=>a+b,0n);
+    assert.equal(capped.initialQuoteIn, expectedCapCost);
+    assert.equal(cappedBefore - await quote.balanceOf(buyerAddress), expectedCapCost);
+    assert.equal(await quote.balanceOf(expectedFactory), 0n);
+    assert.equal(await quote.allowance(expectedFactory, marketAddress), 0n);
+    await conserved();
+    // Unrelated donations cannot create fee credits or reserves.
+    const creditedBeforeDonation = await vault.totalCredited(), reserveBeforeDonation = await market.totalReserve();
+    await (await quote.connect(holderSigner).transfer(marketAddress, 7n)).wait();
+    assert.equal(await market.totalReserve(), reserveBeforeDonation);
+    assert.equal(await vault.totalCredited(), creditedBeforeDonation);
+    assert.equal(await quote.balanceOf(marketAddress), reserveBeforeDonation + 7n);
+    console.log(JSON.stringify({ forkBlock:block.number, actualInitialBuy:true, actualCurveBuySell:true, transferFeeOwnership:true, oldCreatorClaim:true, zeroAllocation:true, graduation:false, liveWrites:false }));
+  });
+});

@@ -1,0 +1,108 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile, writeFile } from 'node:fs/promises';
+import { Contract, ContractFactory, getCreateAddress, keccak256, parseEther, toBeHex, ZeroAddress } from 'ethers';
+import { chain, nftAbi } from '../../backend/src/config.mjs';
+import { candidates } from '../../backend/scripts/market-inspection.mjs';
+import { withMonadFork } from './helpers/monad-fork.mjs';
+
+test('real Monad v4: atomic pool seeding, held liquidity and actual bidirectional swaps', { timeout: 180000 }, async () => {
+  await withMonadFork(async ({ local, upstream, block }) => {
+    const code = await upstream.getCode(candidates.poolManager, block.number);
+    assert.notEqual(code, '0x'); assert.equal(await local.getCode(candidates.poolManager), code);
+    const [deployer, buyer, treasury] = await Promise.all((await local.send('eth_accounts', [])).slice(0,3).map(a=>local.getSigner(a)));
+    const nft = new Contract(chain.collection, [...nftAbi,'function transferFrom(address,address,uint256)'], local);
+    const owner = await nft.ownerOf(1557n), buyerAddress = await buyer.getAddress();
+    await local.send('anvil_impersonateAccount',[owner]); await local.send('anvil_setBalance',[owner,toBeHex(parseEther('10'))]);
+    const creator = await local.getSigner(owner);
+    const quote = new Contract(chain.quote,['function balanceOf(address) view returns(uint256)','function transfer(address,uint256) returns(bool)','function approve(address,uint256) returns(bool)','function allowance(address,address) view returns(uint256)'],local);
+    const v3 = new Contract(candidates.v3Factory,['function getPool(address,address,uint24) view returns(address)'],local);
+    const holder=await v3.getPool(chain.quote,candidates.wrappedMon,3000);
+    assert.notEqual(holder,ZeroAddress); assert.ok(await quote.balanceOf(holder)>=parseEther('3'));
+    await local.send('anvil_impersonateAccount',[holder]); await local.send('anvil_setBalance',[holder,toBeHex(parseEther('10'))]);
+    const holderSigner=await local.getSigner(holder);
+    await(await quote.connect(holderSigner).transfer(owner,parseEther('2'))).wait();
+    await(await quote.connect(holderSigner).transfer(buyerAddress,parseEther('1'))).wait();
+    const compiled=JSON.parse(await readFile(new URL('../artifacts/contracts.json',import.meta.url),'utf8'));
+    async function deploy(source,name,args){const a=compiled['src/'+source][name];const c=await new ContractFactory(a.abi,a.evm.bytecode.object,deployer).deploy(...args);await c.waitForDeployment();return c;}
+    const deployerAddress=await deployer.getAddress(), nonce=await local.getTransactionCount(deployerAddress);
+    const expectedMarket=getCreateAddress({from:deployerAddress,nonce:nonce+1});
+    const expectedFactory=getCreateAddress({from:deployerAddress,nonce:nonce+2});
+    // Execution scales only. LP fee and full-range policy are NOT approved deployment configuration.
+    const lock=await deploy('StudioV4LiquidityLock.sol','StudioV4LiquidityLock',[expectedMarket,chain.quote,candidates.poolManager,3000,ZeroAddress]);
+    const lockAddress=await lock.getAddress();
+    const market=await deploy('StudioCurveMarket.sol','StudioCurveMarket',[expectedFactory,chain.collection,chain.quote,parseEther('625000000'),1000000000n,4000000000n,lockAddress]);
+    assert.equal(await market.getAddress(),expectedMarket);
+    const factory=await deploy('StudioTokenFactory.sol','StudioTokenFactory',[chain.collection,chain.quote,expectedMarket,lockAddress,await treasury.getAddress()]);
+    assert.equal(await factory.getAddress(),expectedFactory);
+    const vault=new Contract(await factory.feeVault(),compiled['src/StudioFeeVault.sol'].StudioFeeVault.abi,local);
+    const deadline=BigInt((await local.getBlock('latest')).timestamp+7200);
+    await(await quote.connect(creator).approve(expectedFactory,parseEther('2'))).wait();
+    await(await factory.connect(creator).launch({nftId:1557n,name:'Actual v4 graduation verification',symbol:'GRAD',initialQuoteIn:parseEther('2'),minTokenOut:1n,deadline})).wait();
+    const launch=await factory.launches(0);
+    const token=new Contract(launch.token,compiled['src/StudioToken.sol'].StudioToken.abi,local);
+    assert.equal(await market.graduationReady(launch.token),true);
+    const reserve=await market.totalReserve(), liability=await vault.liability();
+    await assert.rejects(lock.connect(creator).seed.staticCall(launch.token,1n,1n));
+    await assert.rejects(lock.connect(creator).unlockCallback.staticCall('0x'));
+    const receipt=await(await market.connect(buyer).graduate(launch.token)).wait();
+    assert.equal((await market.curves(launch.token)).graduated,true);
+    assert.equal(await market.totalReserve(),0n); assert.equal(await quote.balanceOf(expectedMarket),0n);
+    assert.equal(await vault.liability(),liability); // No fee debt pays for migration.
+    const position=await lock.positions(launch.token);
+    assert.notEqual(position.poolId,'0x'+'00'.repeat(32)); assert.ok(position.liquidity>0n);
+    assert.equal(position.quoteSeeded+position.quoteDust,reserve);
+    assert.equal(position.tokenSeeded+position.tokenDust,parseEther('375000000'));
+    assert.ok(receipt.logs.some(log=>log.address.toLowerCase()===candidates.poolManager.toLowerCase()));
+    const stateView=new Contract(candidates.stateView,['function getSlot0(bytes32) view returns(uint160 sqrtPriceX96,int24 tick,uint24 protocolFee,uint24 lpFee)','function getLiquidity(bytes32) view returns(uint128)'],local);
+    const slot0=await stateView.getSlot0(position.poolId);
+    assert.equal(slot0.sqrtPriceX96,position.sqrtPriceX96); assert.equal(slot0.lpFee,3000n);
+    assert.equal(await stateView.getLiquidity(position.poolId),position.liquidity);
+    await assert.rejects(market.connect(buyer).graduate.staticCall(launch.token));
+    await assert.rejects(market.getSellQuote(launch.token,1n));
+    await(await quote.connect(buyer).approve(lockAddress,parseEther('0.01'))).wait();
+    const quoteBefore=await quote.balanceOf(buyerAddress);
+    await(await lock.connect(buyer).swap(launch.token,true,parseEther('0.001'),1n,buyerAddress,deadline)).wait();
+    const purchased=await token.balanceOf(buyerAddress); assert.ok(purchased>0n);
+    assert.ok(await quote.balanceOf(buyerAddress)<quoteBefore);
+    await(await token.connect(buyer).approve(lockAddress,purchased)).wait();
+    const beforeSell=await quote.balanceOf(buyerAddress);
+    await(await lock.connect(buyer).swap(launch.token,false,purchased,1n,buyerAddress,deadline)).wait();
+    assert.equal(await token.balanceOf(buyerAddress),0n); assert.ok(await quote.balanceOf(buyerAddress)>beforeSell);
+    // Slippage reverts PoolManager state and settlement, not just the frontend quote.
+    const beforeBad=await stateView.getSlot0(position.poolId), balanceBeforeBad=await quote.balanceOf(buyerAddress);
+    await assert.rejects(async()=>{await(await lock.connect(buyer).swap(launch.token,true,parseEther('0.001'),parseEther('1000000000'),buyerAddress,deadline,{gasLimit:3000000})).wait();});
+    assert.equal((await stateView.getSlot0(position.poolId)).sqrtPriceX96,beforeBad.sqrtPriceX96);
+    assert.equal(await quote.balanceOf(buyerAddress),balanceBeforeBad);
+    assert.equal(await stateView.getLiquidity(position.poolId),position.liquidity);
+    assert.ok(!lock.interface.fragments.some(f=>f.type==='function'&&/remove|withdraw|upgrade|rescue/i.test(f.name)));
+    // NFT transfer cannot change position custody or erase old fee credits.
+    await(await nft.connect(creator).transferFrom(owner,buyerAddress,1557n)).wait();
+    const old=await vault.credits(owner), oldBalance=await quote.balanceOf(owner);
+    await(await vault.connect(creator).claim()).wait();
+    assert.equal(await quote.balanceOf(owner),oldBalance+old.creator+old.studio);
+    assert.equal(await stateView.getLiquidity(position.poolId),position.liquidity);
+    // A preinitialized incompatible pool cannot consume reserves or disable redemption.
+    assert.ok(await quote.balanceOf(holder)>=parseEther('2'));
+    await(await quote.connect(holderSigner).transfer(buyerAddress,parseEther('2'))).wait();
+    await(await quote.connect(buyer).approve(expectedFactory,parseEther('2'))).wait();
+    await(await factory.connect(buyer).launch({nftId:1557n,name:'Failed migration redemption',symbol:'ROLL',initialQuoteIn:parseEther('2'),minTokenOut:1n,deadline})).wait();
+    const blocked=await factory.launches(1);
+    const manager=new Contract(candidates.poolManager,compiled['src/StudioV4LiquidityLock.sol'].IV4PoolManager.abi,buyer);
+    await(await manager.initialize(Array.from(await lock.poolKey(blocked.token)),1n<<96n)).wait();
+    const blockedReserve=await market.totalReserve(), blockedDebt=await vault.liability();
+    await assert.rejects(async()=>{await(await market.connect(buyer).graduate(blocked.token,{gasLimit:4000000})).wait();});
+    assert.equal((await market.curves(blocked.token)).graduated,false);
+    assert.equal(await market.totalReserve(),blockedReserve);
+    assert.equal(await vault.liability(),blockedDebt);
+    assert.equal((await lock.positions(blocked.token)).poolId,'0x'+'00'.repeat(32));
+    const blockedToken=new Contract(blocked.token,token.interface,buyer);
+    await(await blockedToken.approve(expectedMarket,parseEther('1'))).wait();
+    const sellAfterFailure=await market.getSellQuote(blocked.token,parseEther('1'));
+    await(await market.connect(buyer).sell(blocked.token,parseEther('1'),sellAfterFailure.quoteOut,buyerAddress,deadline)).wait();
+    assert.equal(await market.graduationReady(blocked.token),false);
+    const report={mode:'isolated-real-state-fork',sourceChainId:143,localChainId:31337,blockNumber:block.number,blockHash:block.hash,poolManager:candidates.poolManager,poolManagerCodeHash:keccak256(code),poolId:position.poolId,actualPoolInitialization:true,actualLiquiditySettlement:true,actualBidirectionalSwaps:true,failedMigrationRedemption:true,withdrawalEntryPoint:false,postGraduationStudioFeeImplemented:false,hook:ZeroAddress,lpFeeTestUnits:3000,liveWrites:false};
+    await writeFile(new URL('../artifacts/v4-graduation.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
+    console.log(JSON.stringify(report));
+  });
+});

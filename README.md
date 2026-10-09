@@ -49,7 +49,7 @@ Profile writes are authorized against a recorded canonical chain snapshot, not a
 | GET | /api/studios/:tokenId | Live NFT identity, stored profile and revision attribution |
 | GET | /api/studios/:tokenId/transfers | Public transfer window, at most 100 blocks |
 | GET | /api/studios/:tokenId/access | Session and fresh ownership/transfer check |
-| GET | /api/wallets/:address | Live MON, $CHOG and NFT balances |
+| GET | /api/wallets/:address | Live MON, $CHOG, NFT balances and owned Chog token IDs |
 | GET | /api/session | Current sign-in identity |
 | POST | /api/auth/challenge | Server-issued wallet sign-in message |
 | POST | /api/auth/verify | Verify the exact challenge and set session cookie |
@@ -68,7 +68,7 @@ npm run build
 
 Local tests use real validation and SQLite transactions. Live tests compare independent RPC reads and exercise real wallet signatures, challenge replay rejection, origin restrictions, non-owner denial and logout. They do not move NFTs or spend funds.
 
-StudioToken, CreatorVesting, StudioTokenFactory and StudioFeeVault compile and remain undeployed/unaudited. The fee vault has isolated real-state fork tests; token/factory/vesting lack comprehensive behavioral suites. Factory market initialization remains incomplete. Curve, graduation, AMM, fees and LP policy remain undecided. No club, agent, treasury buyback or campaign is live.
+StudioToken, CreatorVesting, StudioTokenFactory and StudioFeeVault compile and remain undeployed/unaudited. The fee vault has isolated real-state fork tests; token/factory/vesting lack comprehensive behavioral suites. Factory initialization and optional first-buy orchestration are implemented in source; a parameterized curve market now has actual initial-buy and buy/sell fork verification. An optional v4 adapter now has actual pool seeding/swaps verification; a pool-bound fee hook now has four-mode funded fee/ownership fork verification. Final deployment economics, routing integration and security review remain incomplete. Creator allocation is zero and curve fee rates are approved. Curve parameters, graduation, final AMM and LP custody remain pending. No club, agent, treasury buyback or campaign is live.
 
 Historical product/decision documents retain the earlier Vietnamese record; new implementation documentation and application copy use English.
 

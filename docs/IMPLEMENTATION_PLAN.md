@@ -80,3 +80,51 @@ The proposed next contract proof is a pool-bound V4 hook with funded fee credits
 Implemented and fork-tested StudioFeeVault with actual CHOG and Chog Genesis code/state. It records funded category credits, preserves creator identity, credits current NFT ownership at accrual and permits old-owner claims after transfer. Tested an actual reverted funding transaction, donation isolation and duplicate registration.
 
 This completes an isolated vault accounting proof, not M1/M3 or the full demo: no actual market/hook swap, graduation, factory-vault initialization, claim UI or real owner signature was exercised. Next integrate the vault atomically with the approved launch coordinator and fee producers; test pool routes and settlement only after quote-source and fee-scope review.
+
+## Quote compatibility proof — 2026-10-09
+
+Added actual CHOG behavior checks on a real-state Monad fork and extracted common guarded fork startup/cleanup for reuse. Both fork suites pass. Source retrieval remains unresolved; before production market integration, review implementation privileges/delegation and obtain the outstanding economic decisions.
+
+An actual AMM swap test and transaction-time fee hook proof remain separate gates. ERC-20 transfer compatibility alone does not complete them.
+
+## Discovery increment - 2026-10-09
+
+Completed wallet NFT discovery, selectable token IDs and Explore for up to 50 actual persisted studio profiles. Empty storage and failures have distinct UI states. Live tests independently compare the getter and ownerOf at the recorded wallet block. Next gates remain quote implementation privilege review, approved launch economics, actual market settlement/fee integration, durable transfer indexing and real-owner profile write verification.
+
+## Implementation order after economic baseline approval - 2026-10-09
+
+1. Prepare a calculated curve proposal: exact formula/inverse, quote units, rounding, 80% sales/pool allocation, opening and terminal prices, graduation CHOG threshold, reserve redemption and pool-seeding price continuity. Obtain approval of concrete parameters before freezing the market.
+2. Enforce the approved supply/allocation/vesting schedule in the launch coordinator; integrate token creation, vesting, market initialization and fee-vault registration atomically. Existing generic factory arguments do not yet enforce these decisions.
+3. Implement buy/sell with the approved curve fee split, funded credits at transaction-time ownerOf, slippage/deadline, reserve isolation and explicit rounding. Prove boundaries and failure atomicity on real-state local fork; no mocked RPC or contracts.
+4. Verify an actual v4 swap/settlement path and fee producer with the selected pool identity, LP custody and immutable original creator. Test direct routes, alternative routers, NFT transfer/old claims and unsupported routes. Select final AMM/post-graduation total fees only after evidence.
+5. Select and disclose testnet assets/configuration; deploy the integrated flow to testnet and wire launch, trade and claim screens to actual transactions. Verify A launch/trade, A-to-B NFT transfer, B future credits and A historical claims. Fork proofs are not testnet completion.
+
+Completion gates: no market reserves counted as fee liability; pool seeding does not consume creator allocation; creator vesting remains fixed across NFT transfers; no creator/studio-owner LP withdrawal; no mainnet writes. Real-data requirements remain unchanged.
+
+Calculated proposal prepared in research/CURVE_PROPOSAL.md. Verified allocation sum, reserve endpoint and ideal price continuity with exact rational arithmetic. Await approval of split/curve and a verified test-asset/deployment basis for T before freezing market parameters.
+
+## Revision after removal of creator allocation - 2026-10-09
+
+Implement the launch coordinator without creator allocation/vesting inputs. Support optional initial paid purchase with disclosed CHOG input, token output, ownership percentage, fee breakdown, minimum output and deadline. Prefer atomic creation/market initialization/fee registration/first buy; any failed purchase must revert the whole launch. These safeguards are implementation requirements; no numeric first-buy cap or new curve parameters were selected. Existing generic factory/vesting source is not yet updated; do not call it product-complete. Withdraw the previous 500/300/200 proposal and recalculate sales/liquidity allocation before market implementation.
+
+## Launch coordinator source completed - 2026-10-09
+
+Factory now implements creation/fee registration/initialization/optional paid first buy as one transaction. Compile and negative real-state fork checks are separate from a successful market integration gate. Next implement and validate the compatible market against agreed curve parameters; prove initial buy success, exact fees, reserve invariants, zero-buy launches, final-buy graduation and full rollback on buy/settlement failures. No placeholder market or application simulation was introduced.
+
+## Market integration increment - 2026-10-09
+
+Implemented parameterized linear market plus actual-cost first-buy refunds. Real-state fork integration now covers creator-paid initial buy, zero-buy launch, normal buy/sell, transfer to B, new studio credits, immutable creator credits and A claim. Added integer quote comparison, slippage rollback, failed initial-buy launch rollback, inventory cap/refund and donation isolation checks.
+
+Next: approve concrete numerical sale/liquidity/price configuration and fee rounding semantics, add a real v4 migration/settlement adapter with price continuity/LP custody, verify routing/fee capture, then testnet deployment and real UI signing. Request for candles, realtime buys/sells, holders and profiles is retained for after this contract flow, following the user's latest priority.
+
+## V4 migration source increment - 2026-10-09
+
+Implemented atomic curve-to-v4 migration with price-continuity validation, exact currency settlement, permanent position custody, dust reporting and actual LP-fee-only swaps. Verify failed migration leaves the curve redeemable and successful migration closes curve trades.
+
+Next critical gate: build and verify a pool-bound v4 hook with authenticated initialization and funded transaction-time creator/studio/platform fee credits. Test direct/alternative routers, exact input/output, NFT transfer and settlement rollback after graduation. Current hooks=0 adapter does not satisfy this gate; do not deploy it as the complete launchpad. Concrete economics, reviewed custody/dust/LP collection policy, CHOG privilege review and testnet configuration remain pending. Candles/realtime/holders/profile work remains queued after contract flow.
+
+## Hook integration increment - 2026-10-09
+
+Completed real PoolManager callback fee capture for four swap modes and bound-pool initialization authorization. Fork tests cover actual funding, fee-event vs PoolManager quote-delta comparison, NFT transfer, original creator/old claims, independent callback caller and credit rollback with slippage. Hook has no public self-swap/unlock route.
+
+Next: verify quote-specified partial-fill rejection and all intended external router paths more comprehensively; review reentrancy/custody/source privileges, dust/LP fee custody and fixed post-graduation economics; prepare verified testnet assets/configuration and deployment scripts, then UI signing/indexing. No mainnet authorization. Candles/realtime/holders/profile work stays queued after contract flow.

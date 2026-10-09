@@ -1,0 +1,37 @@
+{
+  "testedAt": "2026-10-09T08:27:44.580Z",
+  "mode": "isolated-real-state-fork",
+  "source": {
+    "chainId": 143,
+    "blockNumber": 111848360,
+    "blockHash": "0x304b83139a701cd5ecc606d13cbe45c4492532f3410b9111de435dfca13fe749",
+    "rpcOrigin": "https://rpc.monad.xyz"
+  },
+  "localChainId": 31337,
+  "quote": "0x350035555E10d9AfAF1566AaebfCeD5BA6C27777",
+  "implementation": "0x7f64ccfeb3e3afd7691ea0ef404e947786cefae8",
+  "implementationCodeHash": "0x6dda419a8059dd56106bc3bc80bb22ffbe6e5a6f37bf42bf3a655a843e341c26",
+  "checks": {
+    "exactTransfers": true,
+    "zeroTransferEvent": true,
+    "transferFrom": true,
+    "finiteAllowance": true,
+    "revoke": true,
+    "failedTransferRollback": true,
+    "insufficientBalanceRejected": true,
+    "zeroRecipientRejected": true,
+    "noBalanceChangeAfterOneDayWithoutTransactions": true
+  },
+  "maximumAllowanceAfterSpend": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+  "sourceVerified": false,
+  "administrativeRightsReviewed": false,
+  "settlementApproved": false,
+  "limitations": [
+    "Sampled accounts and fork state only.",
+    "Time-only balance observation does not exclude transaction-triggered rebases or administrator actions.",
+    "No AMM swap or future-state guarantee.",
+    "Holder impersonation and gas funding are local-only; no token storage override."
+  ],
+  "liveWrites": false,
+  "mockContracts": false
+}

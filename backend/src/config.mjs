@@ -19,5 +19,6 @@ export const nftAbi = [
   'function totalSupply() view returns (uint256)', 'function supportsInterface(bytes4) view returns (bool)',
   'function ownerOf(uint256) view returns (address)', 'function tokenURI(uint256) view returns (string)',
   'function balanceOf(address) view returns (uint256)',
+  'function tokensOfOwner(address) view returns (uint256[])',
   'event Transfer(address indexed from,address indexed to,uint256 indexed tokenId)'
 ];
