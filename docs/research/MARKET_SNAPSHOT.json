@@ -1,0 +1,154 @@
+{
+  "provenance": {
+    "chainId": 143,
+    "blockNumber": 111841097,
+    "blockHash": "0xd397a299898afb70b24a39b77b5b07eccfad87914c36d5723e845584395bfc2f",
+    "blockTime": "2026-10-09T07:51:05.000Z",
+    "fetchedAt": "2026-10-09T07:51:09.869Z",
+    "rpcOrigin": "https://rpc.monad.xyz",
+    "finality": "finalized",
+    "source": "Monad JSON-RPC"
+  },
+  "sources": {
+    "v4": "https://developers.uniswap.org/docs/protocols/v4/deployments",
+    "v3": "https://developers.uniswap.org/docs/protocols/v3/deployments/v3-monad-deployments",
+    "quote": "https://www.chog.xyz/"
+  },
+  "quote": {
+    "address": "0x350035555E10d9AfAF1566AaebfCeD5BA6C27777",
+    "codeBytes": 45,
+    "codeHash": "0x391069fc41b89a13233652faba0f0a5066d6825985125f24e2eb66e965eb407a",
+    "name": "Chog",
+    "symbol": "CHOG",
+    "decimals": 18,
+    "totalSupplyRaw": "1000000000000000000000000000",
+    "proxyStandard": "ERC-1167",
+    "implementation": {
+      "address": "0x7f64ccFeb3E3Afd7691ea0ef404E947786cefae8",
+      "codeBytes": 7417,
+      "codeHash": "0x6dda419a8059dd56106bc3bc80bb22ffbe6e5a6f37bf42bf3a655a843e341c26"
+    },
+    "compilerMetadataCID": "QmVZjs5h5rhtLoV82CyLhVbL24jNNs3tbokRkhdpxcqcDU",
+    "ownerProbe": {
+      "status": "unavailable",
+      "value": null,
+      "reason": "Call reverted; method support and permissions are unknown."
+    },
+    "settlementReviewed": false
+  },
+  "collection": {
+    "address": "0xc96d31F8626c6D03Fae5dCD3d61e3FB9F4a73763",
+    "codeBytes": 17264,
+    "codeHash": "0x91aa1fd28371674abeb31670fd694cacaca57ac29cae579452c5150eb5dbab46",
+    "source": "https://monadscan.com/address/0xc96d31F8626c6D03Fae5dCD3d61e3FB9F4a73763#code",
+    "state": {
+      "maxSupply": {
+        "status": "read",
+        "value": "1969"
+      },
+      "reserveMax": {
+        "status": "read",
+        "value": "256"
+      },
+      "revealed": {
+        "status": "read",
+        "value": "true"
+      },
+      "baseURI": {
+        "status": "read",
+        "value": "ipfs://bafybeid4ybujnscdipkno7ps5utqelp5ry5ryreqhay3zhgk3a6x4jruqu/"
+      },
+      "treasury": {
+        "status": "read",
+        "value": "0x84113421A8a564b594ee9Ae78c875310332d7023"
+      },
+      "ADMIN_ROLE": {
+        "status": "read",
+        "value": "0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775"
+      }
+    },
+    "review": "Explorer-published ChogMint source inspected; not independently recompiled or audited."
+  },
+  "deployments": {
+    "poolManager": {
+      "address": "0x188d586Ddcf52439676Ca21A244753fA19F9Ea8e",
+      "codeBytes": 24009,
+      "codeHash": "0xf5d7a45765367807b101f825ec74004078c79bd96c621e481c608ee22f7336d4",
+      "evidence": "Official address table + live bytecode; deployed source equivalence not verified."
+    },
+    "stateView": {
+      "address": "0x77395F3b2E73aE90843717371294fa97cC419D64",
+      "codeBytes": 3531,
+      "codeHash": "0x9f14dd3281369ca12d9a58c95a78f3387437dd24fa958631514361d9a52621ed",
+      "evidence": "Official address table + live bytecode; deployed source equivalence not verified."
+    },
+    "positionManager": {
+      "address": "0x5b7eC4a94fF9beDb700fb82aB09d5846972F4016",
+      "codeBytes": 23877,
+      "codeHash": "0x1a75f5a91d9fa7e4ffefa5211d4dc39c1a7cc520d3be59b631e9b9a6ec49ffc0",
+      "evidence": "Official address table + live bytecode; deployed source equivalence not verified."
+    },
+    "quoter": {
+      "address": "0xa222Dd357A9076d1091Ed6Aa2e16C9742dD26891",
+      "codeBytes": 6118,
+      "codeHash": "0x3666b10d21aee597139d129b378b2cdaeaaaaaffeb142c1f64366a7bd5be8b3b",
+      "evidence": "Official address table + live bytecode; deployed source equivalence not verified."
+    },
+    "v3Factory": {
+      "address": "0x204FAca1764B154221e35c0d20aBb3c525710498",
+      "codeBytes": 24535,
+      "codeHash": "0x343475d01b14fa838452aebbc1b600ef871a46233c97effb3260bb9a2597d519",
+      "evidence": "Official address table + live bytecode; deployed source equivalence not verified."
+    },
+    "wrappedMon": {
+      "address": "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A",
+      "codeBytes": 3249,
+      "codeHash": "0xa32df4f1226f1bb0d6ce9b917752ed687857899a35ebf902c9992edb73b138b6",
+      "evidence": "Official address table + live bytecode; deployed source equivalence not verified."
+    }
+  },
+  "managerOwner": {
+    "status": "read",
+    "value": "0xE783DE89a7F0408687f051e3E6D0BEb62719EbAd"
+  },
+  "protocolFeeController": {
+    "status": "read",
+    "value": "0x0000000000000000000000000000000000000000"
+  },
+  "chogWrappedMonV3Pools": [
+    {
+      "feeTier": 100,
+      "address": null
+    },
+    {
+      "feeTier": 500,
+      "address": null
+    },
+    {
+      "feeTier": 3000,
+      "address": "0xde4c4a5d91ed23964A7b636D2b15Edf51f4A7A6D",
+      "token0": "0x350035555E10d9AfAF1566AaebfCeD5BA6C27777",
+      "token1": "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A",
+      "activeLiquidityRaw": "9444225423173437114"
+    },
+    {
+      "feeTier": 10000,
+      "address": "0x745355F47dB8C57E7911ef3Da2E989b16039D12f",
+      "token0": "0x350035555E10d9AfAF1566AaebfCeD5BA6C27777",
+      "token1": "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A",
+      "activeLiquidityRaw": "0"
+    }
+  ],
+  "foundry": {
+    "configuredAMM": null,
+    "hookDeployed": false,
+    "graduatedPool": null,
+    "feeCaptureProven": false
+  },
+  "blockers": [
+    "CHOG implementation source and transfer behavior are not verified.",
+    "No Foundry hook, market or graduated pool exists.",
+    "Real fork/testnet swaps and ownership-transfer fee tests are outstanding.",
+    "Curve, fees, graduation and LP policy need user-approved decisions."
+  ]
+}

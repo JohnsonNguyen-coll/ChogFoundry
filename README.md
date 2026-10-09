@@ -2,48 +2,80 @@
 
 **Your Chog. Your studio. Your next launch.**
 
-Dapp mục tiêu trên Monad: Chog NFT mang quyền vận hành studio và studio fee tương lai; creator và phí đã ghi có giữ nguyên sau chuyển NFT.
+Real Monad data and NFT-owned studio profiles. No seeded studios, simulated fees or fake RPC fallback. Foundry contracts are not deployed; launch, trade and claims remain unavailable.
 
-Hiện tại là **nền tảng thử nghiệm cục bộ**, chưa phải dapp hoàn chỉnh. Không có public deployment, ví thật hoặc tiền thật.
+## Run
 
-## Chạy
-
-Node.js 22+ và npm. Tại thư mục dự án:
+Node 22.15+ and npm:
 
 ```sh
 npm ci
+npm run dev
+```
+
+Open http://127.0.0.1:5173. The API listens on loopback port 3001. On Windows, stop the dev server before running npm ci again to avoid locking Vite native files.
+
+Copy backend/.env.example to backend/.env if needed. APP_ORIGIN must exactly match the browser origin used for sign-in and profile writes. The default is http://127.0.0.1:5173.
+
+## Workspaces
+
+| Folder | Implementation |
+| --- | --- |
+| contracts/ | Solidity, OpenZeppelin, compiler and excluded historical research |
+| backend/ | Node HTTP API, ethers live RPC reads, signature authentication and SQLite |
+| frontend/ | React/Vite, English interface, NFT lookup and studio profile editor |
+| docs/ | Product, decisions, plan, sources and implementation status |
+
+## Use your studio
+
+1. Connect an EVM wallet on Monad Mainnet.
+2. Enter your Chog Genesis onchain token ID. Display names may use a different number.
+3. Sign in with a wallet message. This does not authorize a transaction.
+4. Verify edit access, then save the studio name, description, HTTPS website and cover image URL.
+
+The backend checks current ownerOf and all Transfer logs since the finalized sign-in anchor before each save. A transfer, including A→B→A, requires a new sign-in. Original profile authors and revision history are preserved. Approved operators and inferred custody beneficiaries do not receive editing privileges.
+
+Sessions last at most five minutes and are held in memory. Restarting the backend signs everyone out. EOA signatures are supported; ERC-1271 contract-wallet signatures are not implemented. Profiles persist in backend/data/foundry.sqlite, which is ignored by Git. Back up this directory before migration. Node's built-in SQLite API is experimental in the current runtime.
+
+Profile writes are authorized against a recorded canonical chain snapshot, not an atomic transaction spanning SQLite and the blockchain. They fail closed on RPC errors, failed log queries, expired sessions, orphaned anchors and excessive scan gaps. A persistent transfer indexer and moderation epochs remain future work.
+
+## API
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | /api/health | Process health; does not claim RPC health |
+| GET | /api/overview | Verified chain, token and collection data |
+| GET | /api/studios | Real profiles saved to this backend |
+| GET | /api/studios/:tokenId | Live NFT identity, stored profile and revision attribution |
+| GET | /api/studios/:tokenId/transfers | Public transfer window, at most 100 blocks |
+| GET | /api/studios/:tokenId/access | Session and fresh ownership/transfer check |
+| GET | /api/wallets/:address | Live MON, $CHOG and NFT balances |
+| GET | /api/session | Current sign-in identity |
+| POST | /api/auth/challenge | Server-issued wallet sign-in message |
+| POST | /api/auth/verify | Verify the exact challenge and set session cookie |
+| POST | /api/auth/logout | Revoke the session |
+| PUT | /api/studios/:tokenId/profile | Owner-checked profile write with expectedRevision |
+
+Onchain responses include source, block number/hash and timestamps. Calls are pinned to one block and checked for canonical hash after the read. No generic RPC relay or server-side arbitrary metadata fetching is exposed.
+
+## Checks
+
+```sh
 npm test
-npm run compile
-npm run demo
+npm run test:live
+npm run build
 ```
 
-PowerShell có execution policy chặn npm.ps1: dùng `npm.cmd` thay `npm`. Lệnh demo tự khởi tạo EVM trong memory và đóng khi xong; không mở RPC server/port, không cần private key hoặc faucet. Account tự sinh chỉ là fixture cục bộ.
+Local tests use real validation and SQLite transactions. Live tests compare independent RPC reads and exercise real wallet signatures, challenge replay rejection, origin restrictions, non-owner denial and logout. They do not move NFTs or spend funds.
 
-## Đã có
+StudioToken, CreatorVesting, StudioTokenFactory and StudioFeeVault compile and remain undeployed/unaudited. The fee vault has isolated real-state fork tests; token/factory/vesting lack comprehensive behavioral suites. Factory market initialization remains incomplete. Curve, graduation, AMM, fees and LP policy remain undecided. No club, agent, treasury buyback or campaign is live.
 
-- Solidity FeeLedgerSpike: owner-only đăng ký metadata launch, immutable recorder nhận mock quote và credit creator/owner lúc phát sinh/treasury; pull claim theo beneficiary.
-- Test EVM cho chuyển NFT A→B, approved operator, creator bất biến, claim sau chuyển/burn, rounding, failure atomicity và custody literal owner.
-- Domain model cho transfer epoch/session/moderator và curve rời rạc với buy/sell, slippage/deadline, reserve và accounting handoff.
-- Demo dòng lệnh A→B/claim; fixture fee split chỉ để kiểm thử, không là mức phí được duyệt.
+Historical product/decision documents retain the earlier Vietnamese record; new implementation documentation and application copy use English.
 
-## Chưa có
+## Market research
 
-Factory launch token thật, vesting, market EVM buy/sell, AMM và thu phí sau graduation, indexer/auth backend, web/club/agent, multisig buyback, randomness/campaign và Monad testnet. RegisterLaunch trong spike chỉ đăng ký metadata. Graduation model không tạo pool/LP. Fee recorder chưa gắn với giao dịch thật.
+Run npm run check:markets for a live, read-only inspection of CHOG implementation, NFT state, candidate Uniswap deployments and actual V3 pools. Findings and unresolved settlement/fee-scope questions are in docs/research/LAUNCH_FEASIBILITY.md. The dated snapshot is evidence only; no AMM is configured for Foundry.
 
-## Cấu trúc
+## Fee vault fork test
 
-```text
-contracts/spikes/    Solidity thử nghiệm, không dùng production
-contracts/test/      NFT/quote fixtures
-packages/domain/    Mô hình kế toán và quyền cục bộ
-scripts/            Compile, EVM fixture, demo
-config/             Local environment và evidence chưa kích hoạt
- tests/             Domain + EVM tests
- docs/              Product, decisions, plan, sources, status
-```
-
-Đọc [đặc tả](docs/PRODUCT.md), [quyết định](docs/DECISIONS.md), [kế hoạch](docs/IMPLEMENTATION_PLAN.md), [nguồn](docs/SOURCES.md), [tiến độ và giới hạn](docs/STATUS.md). Hướng dẫn cộng tác ở AGENTS.md.
-
-## Giới hạn công cụ
-
-Ganache 7.9.2 dùng làm EVM test in-memory; npm audit còn cảnh báo từ cây dependency của công cụ local. Không dùng Ganache làm dịch vụ public/runtime sản phẩm. Cần thay bộ EVM runner hoặc xử lý dependencies trước CI có input không tin cậy/production. Windows Node 22 có thể báo thiếu binary µWS và tự fallback JavaScript; thử nghiệm vẫn chạy. `artifacts/` và `node_modules/` không đưa vào Git. Không có giấy phép open-source được lựa chọn thay người dùng.
+StudioFeeVault source now records funded category credits and preserves claims across NFT transfers. Run npm run test:fork for the isolated real-state Monad fork test. It uses actual CHOG/NFT contracts with local-only writes and test impersonation; it is not a mainnet launch, real wallet signature or AMM integration. See contracts/README.md for Anvil setup and remaining integration boundaries.

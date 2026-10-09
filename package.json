@@ -1,22 +1,29 @@
 {
   "name": "chog-foundry",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Chog Foundry — local technical foundation; no public deployment",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
+  "workspaces": [
+    "contracts",
+    "backend",
+    "frontend"
+  ],
   "scripts": {
-    "test": "node --test tests/*.test.mjs",
-    "test:domain": "node --test tests/domain.test.mjs",
-    "test:contracts": "node --test tests/contracts.test.mjs",
-    "demo": "node scripts/demo.mjs",
-    "compile": "node scripts/compile.mjs"
+    "dev": "node backend/scripts/dev.mjs",
+    "dev:backend": "npm run dev --workspace @chog-foundry/backend",
+    "dev:frontend": "npm run dev --workspace @chog-foundry/frontend",
+    "build": "npm run compile --workspace @chog-foundry/contracts && npm run build --workspace @chog-foundry/frontend",
+    "compile": "npm run compile --workspace @chog-foundry/contracts",
+    "test": "npm run test --workspace @chog-foundry/backend",
+    "test:live": "npm run test:live --workspace @chog-foundry/backend",
+    "check:chain": "npm run check:chain --workspace @chog-foundry/backend",
+    "check:markets": "npm run check:markets --workspace @chog-foundry/backend",
+    "test:fork": "npm run test:fork --workspace @chog-foundry/contracts"
   },
-  "devDependencies": {
-    "ethers": "6.17.0",
-    "ganache": "7.9.2",
-    "solc": "0.8.36"
+  "overrides": {
+    "tmp": "0.2.7"
   }
 }

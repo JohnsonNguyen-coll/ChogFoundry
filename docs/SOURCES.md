@@ -1,25 +1,71 @@
-# Nguồn và xác minh
+# Nguồn và xác minh — 09/10/2026 (Asia/Bangkok)
 
-Kiểm tra ngày **09/10/2026, Asia/Bangkok**. Chỉ lưu điều quan sát được, không suy đoán runtime từ search result.
+Mọi số liệu ứng dụng đọc qua RPC thật. Không cache snapshot bên dưới làm dữ liệu ứng dụng; đây là ghi nhận kiểm chứng theo thời điểm.
 
-| Nguồn | Kết quả | Giới hạn / bước tiếp |
-|---|---|---|
-| https://www.chog.xyz/ | Website công bố $CHOG contract: `0x350035555E10d9AfAF1566AaebfCeD5BA6C27777` | Chưa đọc chainId/code/decimals/proxy/transfer behavior qua RPC; chưa bật config mạng thật |
-| https://build.chog.xyz/ | Đã đọc trang builder sau khi truy cập qua liên kết; có hướng dẫn apply/build/community testing | Không thấy Chogathon, scoring/deadline/video requirements trong trang đọc được; không tái xác minh được thể lệ 2026 |
-| https://portal.chog.xyz/ | Link từ website Chog; nội dung trích xuất chỉ có portal shell | Không đủ xác minh collection |
-| https://linktr.ee/chognft | Có liên kết tới website, builder và Chog Genesis OpenSea | Chỉ là đầu mối discovery, không tự coi là bằng chứng address |
-| https://opensea.io/collection/chog-genesis | Đọc được collection qua link trên | Nội dung trích xuất không cung cấp contract address; chưa xác nhận collection runtime |
-| https://docs.monad.xyz/developer-essentials/network-information | Đã đọc tài liệu network mainnet chính thức | Bảng có nhiều ô không được extractor trả về; không lấy giá trị từ mirror để hardcode |
-| https://docs.monad.xyz/developer-essentials/testnet | Đã đọc trang testnet chính thức; trang ghi testnet reset 16/12/2025 | Address testnet cũ cần kiểm tra lại; không suy từ mainnet/testnet đời trước |
-| https://eips.ethereum.org/EIPS/eip-721 | Chuẩn ownerOf, Transfer, approved operators | Fixture chỉ triển khai phần tối thiểu cho spike; không xác nhận Chog tuân thủ đầy đủ |
-| https://eips.ethereum.org/EIPS/eip-4361 | Đã đọc chuẩn đăng nhập ví làm nguồn cho kế hoạch auth | Chưa triển khai SIWE backend |
+## Network
 
-## Checklist xác minh contract trước khi kết nối tài sản
+- [Monad Network Information](https://docs.monad.xyz/developer-essentials/network-information) và [Current Facts](https://docs.monad.xyz/ai/current-facts) công bố mainnet chain ID **143**, currency **MON**, RPC **https://rpc.monad.xyz**.
+- Đã đọc bản [Markdown chính thức](https://docs.monad.xyz/developer-essentials/network-information.md) để lấy các ô bảng extractor HTML bỏ sót; không dựa trên mirror.
+- RPC eth_chainId trả **143**. Block ví dụ lúc kiểm tra ban đầu: **111692861**, hash `0x44ab5a8953449dec0f614e30ea0f7337e5bd0b5e14ef4282b259c97f04a94137`. Live integration sau đó đọc block **111694480**. Không sử dụng block này làm latest cố định.
 
-1. Liên kết/announcement chính thức chứa address + chain; kiểm tra chéo explorer có source verified.
-2. RPC chainId và eth_getCode; ABI/ERC-165 nếu NFT; ownerOf vài token mẫu và Transfer log.
-3. $CHOG decimals, symbol, totalSupply, allowance/transfer behavior; proxy/implementation/admin và quyền thay đổi.
-4. Ghi block number/hash/thời điểm kiểm tra, URL/source và kết quả vào đây. Nếu nguồn mâu thuẫn, giữ disabled.
-5. Collection testnet và quote testnet có thể không tồn tại. Demo dùng mock phải ghi rõ, không gắn nhãn official Chog.
+## $CHOG
 
-Không có địa chỉ NFT placeholder. `config/environments.mjs` chỉ chứa evidence $CHOG đã công bố, disabled; mọi thử nghiệm hiện dùng asset tạo trong EVM memory.
+- Website chính thức [chog.xyz](https://www.chog.xyz/) công bố address **0x350035555E10d9AfAF1566AaebfCeD5BA6C27777**.
+- Đọc RPC tại block 111692861: name **Chog**, symbol **CHOG**, decimals **18**, totalSupply raw **1000000000000000000000000000** (1 tỷ với 18 decimals).
+- Runtime bytecode dài **45 bytes**, dạng minimal proxy. Đã xác nhận có code và ERC-20 metadata, **chưa** rà soát implementation/admin/transfer restrictions/tax/rebase. Không coi tên/symbol là bằng chứng settlement an toàn.
+- Backend bật đọc metadata/balance, không approve/transfer/trade.
+
+## Chog Genesis NFT
+
+- Đầu mối discovery: [profile chognft](https://linktr.ee/chognft) liên kết [Chog Genesis trên OpenSea](https://opensea.io/collection/chog-genesis). Đây là chuỗi liên kết discovery, không phải thông báo address trực tiếp trên trang chủ Chog.
+- Item từ collection trỏ tới [token 1557 trên Monad](https://opensea.io/item/monad/0xc96d31f8626c6d03fae5dcd3d61e3fb9f4a73763/1557), xác định candidate address **0xc96d31F8626c6D03Fae5dCD3d61e3FB9F4a73763**. Có thể đối chiếu [mint receipt trên explorer](https://monadscan.com/tx/0x730195964d4ec7cfba5b460cad486b5c35356d0edabc3b88506c4547c64bc6d9).
+- RPC tại block 111692861: bytecode **17264 bytes**; name **Chog Genesis**, symbol **CHOG**, totalSupply **1969**, supportsInterface **0x80ac58cd = true**.
+- ownerOf(1557) lúc kiểm tra: **0x50680590D8d078e946C3C7fF1C653F373DDCB329**. Đây là quan sát lịch sử, **không hardcode owner** trong ứng dụng hoặc test assertion.
+- tokenURI(1557): `ipfs://bafybeid4ybujnscdipkno7ps5utqelp5ry5ryreqhay3zhgk3a6x4jruqu/1049.json`. Token ID và số hiển thị trong metadata có thể khác nhau.
+- Đủ bằng chứng cho **read-only lookup**, chưa full contract source/admin/upgrade/custody review. Không suy đoán beneficial owner hay cấp quyền vận hành bằng tên collection.
+
+## Runtime provenance và giới hạn RPC
+
+Mỗi phản hồi API có chainId, blockNumber, blockHash, blockTime, fetchedAt, rpcOrigin/source. Reads ghim block và kiểm tra canonical hash lại; vẫn là latest snapshot, không là finalized auth proof/indexer. RPC custom sai chain bị từ chối. Contract thiếu code/ERC-721 hoặc read thất bại thì không dùng fallback giả.
+
+Thử nghiệm query Transfer **500 block** trên RPC chính thức trả HTTP **413**; **100 block** đọc thành công. API giới hạn ≤100 block và trả range/completeHistory=false. Không gọi cửa sổ này là toàn bộ lịch sử.
+
+## Nguồn kỹ thuật
+
+- [ERC-721](https://eips.ethereum.org/EIPS/eip-721): ownerOf, Transfer và approved operator tách biệt ownership.
+- [SIWE](https://eips.ethereum.org/EIPS/eip-4361): nguồn cho bước auth tiếp theo, chưa triển khai.
+- [OpenZeppelin ERC-20](https://docs.openzeppelin.com/contracts/5.x/erc20): token implementation, SafeERC20/ReentrancyGuard từ package chính thức.
+- [OpenZeppelin Finance](https://docs.openzeppelin.com/contracts/5.x/api/finance): tham khảo vesting; code hiện tại dùng beneficiary/allocation bất biến và không có chuyển quyền sở hữu vesting.
+- [ethers providers](https://docs.ethers.org/v6/api/providers/), [React](https://react.dev/learn), [Vite](https://vite.dev/guide/): nguồn triển khai read-only API và web.
+
+## Chogathon và vấn đề mở
+
+Đã đọc [Build with Chog](https://build.chog.xyz/); không thấy thể lệ/scoring/deadline Chogathon 2026 trong trang đọc được. Requirements vẫn là thông tin người dùng cung cấp, chưa tái xác minh chính thức. Chưa chốt curve, AMM, graduation/LP, fee bps, randomness/budget/providers. Không có deployment Foundry hoặc token launch thật để hiển thị dữ liệu launch/fees/treasury.
+
+## Authentication and persistence sources — 2026-10-09
+
+- EIP-4361: https://eips.ethereum.org/EIPS/eip-4361 — message fields and wallet sign-in semantics. Implementation verifies its exact server-issued message rather than accepting client-supplied domain/nonce fields.
+- EIP-1271: https://eips.ethereum.org/EIPS/eip-1271 — contract signature verification; not implemented in this increment. EOA-only limitation is explicit.
+- Node.js SQLite: https://nodejs.org/docs/latest-v22.x/api/sqlite.html — built-in SQLite API. Local runtime Node 22.15.1 successfully runs DatabaseSync; it emits an experimental warning.
+
+## Market and contract research — 2026-10-09
+
+See research/LAUNCH_FEASIBILITY.md and research/MARKET_SNAPSHOT.json for dated findings and explicit limitations.
+
+- Official Uniswap v4 deployments: https://developers.uniswap.org/docs/protocols/v4/deployments
+- Official Uniswap v3 Monad deployments: https://developers.uniswap.org/docs/protocols/v3/deployments/v3-monad-deployments
+- Versioned upstream V4 PoolManager and Hooks source: https://github.com/Uniswap/v4-core/tree/v4.0.0/src — reviewed protocol mechanisms; not a deployed-source equivalence certificate.
+- V3 pool source: https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Pool.sol — direct swap and LP position accounting.
+- ERC-1167: https://eips.ethereum.org/EIPS/eip-1167 — exact proxy runtime decoding.
+- NFT explorer source: https://monadscan.com/address/0xc96d31F8626c6D03Fae5dCD3d61e3FB9F4a73763#code — retrieved via HTTPS and decoded as data. ChogMint source was available; not independently recompiled.
+- CHOG implementation explorer: https://monadscan.com/address/0x7f64ccFeb3E3Afd7691ea0ef404E947786cefae8#code — verified source was not exposed in the retrieved response. Sourcify returned not verified; onchain metadata IPFS retrieval encountered rate limits/gateway errors/timeouts.
+- Official PancakeSwap Infinity addresses: https://github.com/pancakeswap/pancake-developer/blob/master/docs/pages/contracts/infinity/resources/addresses.mdx — no Monad deployment listed at research time; router availability alone is insufficient proof.
+
+All runtime reads came from Monad RPC, pinned to block 111841097 with canonical hash recheck. Existing CHOG/WMON V3 pool observations do not establish a Foundry TOKEN/CHOG pool or fee integration.
+
+## Fee vault verification tooling — 2026-10-09
+
+- OpenZeppelin SafeERC20: https://docs.openzeppelin.com/contracts/5.x/api/token/erc20 — wrapper used for transfer/transferFrom. Exact balance checks are additionally implemented; SafeERC20 alone does not exclude taxed/rebasing assets.
+- OpenZeppelin ReentrancyGuard: https://docs.openzeppelin.com/contracts/5.x/api/utils — shared guard around all mutating vault operations.
+- Official Anvil: https://www.getfoundry.sh/anvil/index.html and https://github.com/foundry-rs/foundry — isolated local fork testing. Official npm Windows binary @foundry-rs/anvil-win32-amd64 version 1.7.1 was used from an ignored tool directory.
+- Fork source: actual Monad RPC, finalized block recorded by each test. Local chain ID 31337; source chain ID 143. No mainnet state overrides, transactions or signatures.

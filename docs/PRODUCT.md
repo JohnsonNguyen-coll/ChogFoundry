@@ -87,3 +87,7 @@ Phải ghi rõ tài sản test, số mô phỏng và chức năng chưa làm. Th
 ## 13. Quy trình bắt đầu và giới hạn
 
 Kiểm tra folder/hướng dẫn, giữ file hiện hữu, lưu PRODUCT/DECISIONS/IMPLEMENTATION_PLAN và AGENTS. Sau plan bắt đầu cấu trúc/nền tảng. Ưu tiên thử owner, transfer, phí, curve/graduation trước UI sâu. Xác minh contract từ nguồn chính thức, không đoán. **Không deploy mainnet hoặc dùng tiền thật khi chưa được chỉ dẫn.**
+
+## 14. Chỉ dẫn bổ sung — 09/10/2026
+
+Người dùng yêu cầu chia code thành contracts/, backend/, frontend/ và tiếp tục triển khai; mọi dữ liệu ứng dụng phải thật, không mock. Chỉ dẫn này thay thế cách làm demo mô phỏng của giai đoạn trước. Phần chưa có deployment, dữ liệu hoặc quyết định kinh tế phải hiển thị chưa khả dụng, không tự tạo số liệu. Không suy diễn yêu cầu dữ liệu thật thành quyền deploy mainnet hay dùng tiền thật.

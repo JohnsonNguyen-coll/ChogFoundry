@@ -46,3 +46,6 @@ playwright-report/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Local persisted studio profiles
+/backend/data/

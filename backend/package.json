@@ -1,0 +1,17 @@
+{
+  "name": "@chog-foundry/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch src/server.mjs",
+    "start": "node --env-file-if-exists=.env src/server.mjs",
+    "test": "node --test tests/validation.test.mjs tests/profiles.test.mjs",
+    "test:live": "node --env-file-if-exists=.env --test --test-concurrency=1 tests/live.test.mjs tests/auth-live.test.mjs tests/markets-live.test.mjs",
+    "check:chain": "node --env-file-if-exists=.env scripts/check-chain.mjs",
+    "check:markets": "node --env-file-if-exists=.env scripts/check-markets.mjs"
+  },
+  "dependencies": {
+    "ethers": "6.17.0"
+  }
+}

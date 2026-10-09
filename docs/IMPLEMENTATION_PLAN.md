@@ -30,7 +30,7 @@ Onchain bảo vệ launch, cấu hình kinh tế và tài sản; API không đư
 | M7 | Treasury/campaign/raffle | M1/M5; budget/randomness | Earned funds độc lập; mock labels; snapshot trước randomness; verify winner/claim; free entry |
 | M8 | Monad testnet + submission | V01–V09, M3–M7 | Contract/chain verified; integration tests; user journey/video ≤3 phút; repo/test guide/pre-existing work; feedback thật hoặc ghi chưa có |
 
-## Phạm vi bắt đầu ngay
+## Phạm vi giai đoạn đầu — lịch sử, được thay thế bởi chỉ dẫn bên dưới
 
 1. Dựng workspace Node test runner, contracts/spikes, domain, scripts, tests, config.
 2. Viết FeeLedgerSpike và fixture ERC-721/ERC-20, compile + chạy EVM trong memory. Fixture recorder đại diện fee producer; chưa chứng minh fee collection của AMM.
@@ -51,3 +51,32 @@ Onchain bảo vệ launch, cấu hình kinh tế và tài sản; API không đư
 ## Ranh giới thử nghiệm hiện tại
 
 Solidity spike chỉ thử register launch metadata + fee accounting; chưa factory phát hành ERC-20 thật. Mock NFT không là collection Chog; mock quote không là $CHOG. Mô hình curve/graduation không tạo pool hay lock LP. Transfer epoch model giả định event reader tin cậy, chưa là backend authentication. Không public deployment. Mỗi mốc chỉ đánh dấu xong theo bằng chứng trong STATUS.
+
+## Kế hoạch hiện hành sau tái cấu trúc — 09/10/2026
+
+1. **Đã làm:** ba workspace; API live overview/NFT/wallet/Transfer; frontend read-only; nguồn block/hash/time; contract source fixed supply + immutable creator vesting + owner-only factory.
+2. **Đã kiểm tra:** validation/HTTP, live integration đối chiếu độc lập RPC, compile/frontend build, browser desktop/mobile. Không dùng mock.
+3. **Tiếp theo:** xác minh bytecode implementation/proxy/admin của $CHOG và source/custody Chog Genesis; lập bảng ứng viên curve/AMM/fee capture từ source chính thức.
+4. **Tiếp theo:** hoàn thiện market integration/factory initialization, fee vault và graduation sau khi có lựa chọn kinh tế được duyệt. Contract behavioral tests cần fork dữ liệu thật hoặc môi trường chain phù hợp; không tạo mock fixtures. Không deploy mainnet.
+5. **Sau đó:** canonical/reorg-aware indexer, wallet signature auth, transfer epoch và storage, rồi mở quyền studio/club; query latest owner read-only hiện tại không thay auth.
+6. Launch/trade/claim/treasury/campaign chỉ bật khi có deployment và dữ liệu thật tương ứng; không dùng số 0 để thay dữ liệu chưa tồn tại.
+
+Docs giữ lịch sử thử nghiệm phía trên để giải thích tiến độ, không yêu cầu chạy lại mock/demo đã bỏ.
+
+## Completed increment — authenticated offchain profiles
+
+Implemented English UI/API copy, EOA wallet signature login, exact-origin writes, persistent SQLite profiles, revision conflicts and author attribution. Profile saves recheck ownerOf and all NFT transfers since the finalized sign-in anchor. Mainnet remains read-only.
+
+Validated with local parser/storage tests and live RPC/signature tests. Real owner-approved writes and an actual NFT round trip remain outstanding; no blockchain writes were authorized for testing. Next dependencies remain real market/fee integration research and durable ownership indexing.
+
+## Read-only market inspection increment — 2026-10-09
+
+Completed a reproducible inspection of CHOG implementation, NFT state, official Uniswap deployments and actual V3 pool identities at a finalized canonical block. The command is npm run check:markets; independent live integration checks cover its bytecode hashes and pool lookup results.
+
+The proposed next contract proof is a pool-bound V4 hook with funded fee credits, immutable original creator and ownerOf at accrual. It must test direct/alternative routers, self-call exclusions, all supported swap modes, settlement failure and NFT transfer/old-owner claims on real-state fork or appropriate testnet. First resolve quote-token source and explicitly define fee scope, curve/graduation parameters and LP custody. This proposal is not an approved architecture.
+
+## Fee accounting increment — 2026-10-09
+
+Implemented and fork-tested StudioFeeVault with actual CHOG and Chog Genesis code/state. It records funded category credits, preserves creator identity, credits current NFT ownership at accrual and permits old-owner claims after transfer. Tested an actual reverted funding transaction, donation isolation and duplicate registration.
+
+This completes an isolated vault accounting proof, not M1/M3 or the full demo: no actual market/hook swap, graduation, factory-vault initialization, claim UI or real owner signature was exercised. Next integrate the vault atomically with the approved launch coordinator and fee producers; test pool routes and settlement only after quote-source and fee-scope review.
