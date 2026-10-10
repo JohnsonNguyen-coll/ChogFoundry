@@ -163,3 +163,10 @@ Next prerequisites: configure the actual Supabase project and validate migration
 Completed finalized read-only curve quote and account inspection: exact amounts, category fees, actual spend/unused budget, balances/allowances and beneficiary credits. Public wallet inspection grants no authority. Real curve/hooked fork checks and Chromium exercise source getters and reject graduated curve quotes.
 
 Next: finalize reviewed testnet deployment assets/economic configuration and configure Supabase. Implement a genuine v4 quote/preflight path, explicit slippage/deadline, gas/allowance transaction review and wallet signing with chain/account rechecks. Claims must follow recorded beneficiaries. No Mainnet execution is authorized; inspection alone does not enable transaction submission.
+
+
+## V4 quote increment - 2026-10-10
+
+Implemented StudioV4Quoter source, configured readTradeQuote dispatch and graduated quote display. Actual swap/hook effects revert before settlement; response distinguishes protocol fees, LP rate, actual/unused input and maximum approval/funding basis. No reserve-model or state-override quote fallback.
+
+Next: reviewed deployment/assets/economics and Supabase connection, then explicit slippage/deadline, settlement/gas preflight and wallet-reviewed approval/trade/claim signing. The current quote is not a complete transaction simulation. Broader router/security review and partial-fill UI/preflight coverage remain. No Mainnet financial execution is authorized.

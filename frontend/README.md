@@ -17,3 +17,8 @@ Runtime needs Supabase configuration/migration plus an actual verified factory a
 ## Quote and wallet inspection - 2026-10-10
 
 Market details include a read-only curve quote form and public wallet lookup. Amount parsing uses exact uint256 units with 18 decimals. Contract results show actual input/output, unused maximum budget, fee split and block provenance. Wallet reads expose actual holdings, curve allowances and aggregate beneficiary credits, including old-owner credits. Quote/account data is cleared or canceled on relevant snapshot/input changes. No wallet provider is simulated and no financial transaction is submitted. Graduated curve quotes fail explicitly until a real v4 quoting path exists. See docs/TRADE_API.md.
+
+
+## Graduated quote view - 2026-10-10
+
+The same quote form now supports a configured, verified v4 quoter. It shows actual simulated spend/output, unused input, required maximum funding/approval budget and spender. Protocol category fees and the pool LP rate are shown separately; LP fees are embedded in pool deltas and not fabricated as CHOG amounts. Missing quoter remains unavailable. No approval/swap/claim transaction is submitted and no post-graduation rates are product defaults.

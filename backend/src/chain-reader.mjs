@@ -1,7 +1,7 @@
 import { Contract, FetchRequest, JsonRpcProvider, formatUnits, getAddress } from 'ethers';
 import { chain, erc20Abi, nftAbi } from './config.mjs';
 import { AppError } from './validation.mjs';
-import { readTradeState, readCurveQuote } from './trade-data.mjs';
+import { readTradeState, readTradeQuote } from './trade-data.mjs';
 import { readMarketWindow } from './market-data.mjs';
 
 export class ChainReader {
@@ -112,8 +112,8 @@ export class ChainReader {
     const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
     if(!factoryAddress)throw new AppError(503,'FOUNDRY_NOT_CONFIGURED','No verified Foundry deployment is configured. Trade preparation is unavailable.');
     return this.snapshot(block=>{
-      const config={factoryAddress,tokenAddress,collection:chain.collection,quote:chain.quote,toBlock:block};
-      return input?readCurveQuote(this.provider,config,{...input,wallet}):readTradeState(this.provider,config,wallet);
+      const config={factoryAddress,tokenAddress,collection:chain.collection,quote:chain.quote,toBlock:block,v4QuoterAddress:process.env.FOUNDRY_V4_QUOTER_ADDRESS};
+      return input?readTradeQuote(this.provider,config,{...input,wallet}):readTradeState(this.provider,config,wallet);
     },'finalized');
   }
   anchor() { return this.snapshot(async () => ({}), 'finalized'); }

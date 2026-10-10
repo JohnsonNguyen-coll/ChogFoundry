@@ -1,4 +1,4 @@
-import { Contract } from 'ethers';
+import { Contract, ZeroAddress } from 'ethers';
 import { AppError, address } from './validation.mjs';
 import { readMarketWindow } from './market-data.mjs';
 
@@ -35,7 +35,7 @@ export async function readTradeState(provider, config, wallet = null) {
   }
   const canonical=await provider.getBlock(config.toBlock);
   if(canonical?.hash!==marketData.snapshot.blockHash) throw new AppError(503,'CHAIN_REORG','Trade snapshot changed during this read. Refresh before reviewing.');
-  return {token:marketData.token,launch:marketData.launch,snapshot:marketData.snapshot,quoteAsset:config.quote,
+  return {pool:marketData.pool,token:marketData.token,launch:marketData.launch,snapshot:marketData.snapshot,quoteAsset:config.quote,
     curve:{saleSupplyRaw:String(saleSupply),soldRaw:String(state.sold),reserveRaw:String(state.reserve),openingPriceRaw:String(openingPrice),priceIncreaseRaw:String(priceIncrease),targetReserveRaw:String(targetReserve)},
     fees:{creatorBps:Number(creatorBps),studioBps:Number(studioBps),platformBps:Number(platformBps),totalBps:Number(creatorBps+studioBps+platformBps),lpBps:0,scope:'Pre-graduation curve only',rounding:'Total rounded up; creator/studio rounded down; remainder goes to platform.'},
     beneficiaries:{creator:marketData.launch.creator,studioOwnerAtSnapshot:studioOwner,treasury,policy:'Studio fees follow ownerOf at actual accrual; this snapshot does not lock the beneficiary.'},account};
@@ -54,8 +54,43 @@ export async function readCurveQuote(provider, config, input) {
   const inputBalance=input.wallet?BigInt(buy?state.account.quoteBalanceRaw:state.account.tokenBalanceRaw):null;
   const allowance=input.wallet?BigInt(buy?state.account.quoteAllowanceRaw:state.account.tokenAllowanceRaw):null;
   if((await provider.getBlock(config.toBlock))?.hash!==state.snapshot.blockHash) throw new AppError(503,'CHAIN_REORG','Quote block is no longer canonical. Refresh.');
-  return {...state,quote:{side:input.side,requestedInputRaw:input.amountRaw,inputAsset:buy?config.quote:config.tokenAddress,outputAsset:buy?config.tokenAddress:config.quote,
+  return {...state,quote:{stage:'curve',spender:state.launch.market,side:input.side,requiredInputRaw:String(spent),requestedInputRaw:input.amountRaw,inputAsset:buy?config.quote:config.tokenAddress,outputAsset:buy?config.tokenAddress:config.quote,
     actualInputRaw:String(spent),unusedBudgetRaw:String(buy?amount-spent:0n),outputRaw:String(output),baseQuoteRaw:String(result.baseQuote),creatorFeeRaw:String(result.creatorFee),studioFeeRaw:String(result.studioFee),platformFeeRaw:String(result.platformFee),totalFeeRaw:String(fees),
     balanceSufficient:inputBalance===null?null:inputBalance>=spent,allowanceSufficient:allowance===null?null:allowance>=spent,
     executable:false,reason:'Read-only block quote. No slippage/deadline, signing or transaction simulation is performed.'}};
+}
+
+export async function readTradeQuote(provider, config, input) {
+  input=tradeInput(input.side,input.amountRaw,input.wallet);
+  const state=await readTradeState(provider,config,input.wallet);
+  if(!state.launch.graduated)return readCurveQuote(provider,config,input);
+  if(!config.v4QuoterAddress)throw new AppError(503,'V4_QUOTER_NOT_CONFIGURED','A verified Foundry v4 quoter is required for graduated quotes.');
+  const quoterAddress=address(config.v4QuoterAddress),at={blockTag:config.toBlock},pool=state.pool;
+  if(!pool||await provider.getCode(quoterAddress,config.toBlock)==='0x')throw new AppError(503,'V4_QUOTER_MISMATCH','The configured quoter or pool is unavailable.');
+  const quoter=new Contract(quoterAddress,[
+    'function liquidityLock() view returns(address)','function poolManager() view returns(address)','function market() view returns(address)','function factory() view returns(address)','function quoteAsset() view returns(address)',
+    'function quoteExactInput(address,bool,uint256,uint160) returns(tuple(uint256 input,uint256 output,uint256 quoteBase,uint256 creatorFee,uint256 studioFee,uint256 platformFee,uint256 lpFeeUnits))',
+  ],provider);
+  let bindings;
+  try{bindings=await Promise.all([quoter.liquidityLock(at),quoter.poolManager(at),quoter.market(at),quoter.factory(at),quoter.quoteAsset(at)]);}
+  catch(error){if(error.code==='CALL_EXCEPTION'||error.code==='BAD_DATA')throw new AppError(503,'V4_QUOTER_MISMATCH','Configured contract does not expose the expected quoter bindings.');throw error;}
+  const expected=[pool.liquidityLock,pool.manager,state.launch.market,config.factoryAddress,config.quote];
+  if(bindings.some((value,i)=>value.toLowerCase()!==expected[i].toLowerCase()))throw new AppError(503,'V4_QUOTER_MISMATCH','Quoter deployment bindings differ from the token pool.');
+  let creatorBps=0n,studioBps=0n,platformBps=0n;
+  if(pool.hook!==ZeroAddress){
+    const hook=new Contract(pool.hook,['function creatorBps() view returns(uint256)','function studioBps() view returns(uint256)','function platformBps() view returns(uint256)'],provider);
+    [creatorBps,studioBps,platformBps]=await Promise.all([hook.creatorBps(at),hook.studioBps(at),hook.platformBps(at)]);
+    if(creatorBps+studioBps+platformBps>=10000n)throw new AppError(503,'V4_FEE_MISMATCH','Hook rates are invalid.');
+  }
+  if(BigInt(input.amountRaw)>2n**127n-1n)throw new AppError(422,'INVALID_TRADE_AMOUNT','The v4 quote input exceeds the signed delta limit.');
+  let result;
+  try{result=await quoter.quoteExactInput.staticCall(config.tokenAddress,input.side==='buy',input.amountRaw,0,at);}
+  catch(error){if(error.code==='CALL_EXCEPTION')throw new AppError(422,'V4_QUOTE_REJECTED','The actual pool/hook rejected this quote. No fallback price is served.');throw error;}
+  const buy=input.side==='buy',amount=BigInt(input.amountRaw),fee=result.creatorFee+result.studioFee+result.platformFee;
+  if(result.input<=0n||result.input>amount||result.output<=0n||result.lpFeeUnits!==BigInt(pool.lpFeeUnits)||(buy?result.input!==result.quoteBase+fee:result.output!==result.quoteBase-fee))throw new AppError(503,'QUOTE_INCONSISTENT','Simulated pool quote is inconsistent.');
+  let allowance=null;
+  if(input.wallet){const asset=new Contract(buy?config.quote:config.tokenAddress,erc20,provider);allowance=await asset.allowance(input.wallet,pool.liquidityLock,at);}
+  if((await provider.getBlock(config.toBlock))?.hash!==state.snapshot.blockHash)throw new AppError(503,'CHAIN_REORG','Simulated quote snapshot changed.');
+  return {...state,fees:{creatorBps:Number(creatorBps),studioBps:Number(studioBps),platformBps:Number(platformBps),totalBps:Number(creatorBps+studioBps+platformBps),lpFeeUnits:Number(result.lpFeeUnits),lpBps:Number(result.lpFeeUnits)/100,scope:'Bound v4 pool only',rounding:'Hook integer rounding; LP fees are embedded in pool deltas and use the pool input asset.'},quote:{side:input.side,stage:'v4',quoter:quoterAddress,spender:pool.liquidityLock,requestedInputRaw:input.amountRaw,requiredInputRaw:input.amountRaw,inputAsset:buy?config.quote:config.tokenAddress,outputAsset:buy?config.tokenAddress:config.quote,actualInputRaw:String(result.input),unusedBudgetRaw:String(amount-result.input),outputRaw:String(result.output),baseQuoteRaw:String(result.quoteBase),creatorFeeRaw:String(result.creatorFee),studioFeeRaw:String(result.studioFee),platformFeeRaw:String(result.platformFee),totalFeeRaw:String(fee),lpFeeAmountRaw:null,
+    balanceSufficient:input.wallet?BigInt(buy?state.account.quoteBalanceRaw:state.account.tokenBalanceRaw)>=amount:null,allowanceSufficient:allowance===null?null:allowance>=amount,executable:false,reason:'Actual eth_call swap simulation with rollback. Token settlement, slippage/deadline and signing still require a separate preflight.'}};
 }

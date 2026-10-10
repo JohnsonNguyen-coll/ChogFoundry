@@ -1,4 +1,7 @@
-import { readCurveQuote, readTradeState } from '../../backend/src/trade-data.mjs';
+import http from 'node:http';
+import { openMarketStream } from '../../backend/src/market-stream.mjs';
+import { marketBrowser } from './helpers/market-browser.mjs';
+import { readCurveQuote, readTradeState, readTradeQuote } from '../../backend/src/trade-data.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -84,6 +87,33 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
     const receipt=await(await market.connect(buyer).graduate(launch.token)).wait();
     assert.equal((await hook.pools((await lock.positions(launch.token)).poolId)).launchId,launch.launchId);
     assert.equal((await market.curves(launch.token)).graduated,true);
+    const quoter=await deploy('StudioV4Quoter.sol','StudioV4Quoter',[lockAddress]);
+    const quoterAddress=await quoter.getAddress();
+    await assert.rejects(quoter.unlockCallback.staticCall('0x'));
+    const unchanged=async()=>({liability:String(await vault.liability()),credited:String(await vault.totalCredited()),managerQuote:String(await quote.balanceOf(candidates.poolManager)),buyerQuote:String(await quote.balanceOf(buyerAddress)),buyerToken:String(await token.balanceOf(buyerAddress))});
+    const beforeQuote=await unchanged();
+    const firstQuote=await quoter.quoteExactInput.staticCall(launch.token,true,parseEther('0.01'),0);
+    assert.ok(firstQuote.output>0n);assert.equal(firstQuote.input,parseEther('0.01'));assert.equal(firstQuote.lpFeeUnits,3000n);
+    assert.deepEqual(await unchanged(),beforeQuote,'eth_call quote never changes funded fees or balances');
+    const onchainQuoteReceipt=await(await quoter.quoteExactInput(launch.token,true,parseEther('0.01'),0)).wait();
+    assert.equal(onchainQuoteReceipt.logs.length,0);
+    assert.deepEqual(await unchanged(),beforeQuote,'Even an actual quoter transaction rolls back swap and vault changes');
+    await assert.rejects(quoter.quoteExactInput.staticCall(launch.token,true,0,0));
+    await(await quote.connect(buyer).approve(lockAddress,parseEther('0.01'))).wait();
+    const buyBeforeQuote=await quote.balanceOf(buyerAddress),buyBeforeToken=await token.balanceOf(buyerAddress),creditBefore=await vault.totalCredited();
+    const quoteSnapshot=await local.send('evm_snapshot',[]);
+    await(await lock.connect(buyer).swap(launch.token,true,parseEther('0.01'),firstQuote.output,buyerAddress,deadline)).wait();
+    assert.equal(buyBeforeQuote-await quote.balanceOf(buyerAddress),firstQuote.input);
+    assert.equal(await token.balanceOf(buyerAddress)-buyBeforeToken,firstQuote.output);
+    assert.equal(await vault.totalCredited()-creditBefore,firstQuote.creatorFee+firstQuote.studioFee+firstQuote.platformFee);
+    const sellQuote=await quoter.quoteExactInput.staticCall(launch.token,false,firstQuote.output/2n,0);
+    await(await token.connect(buyer).approve(lockAddress,firstQuote.output/2n)).wait();
+    const sellBeforeQuote=await quote.balanceOf(buyerAddress),sellBeforeToken=await token.balanceOf(buyerAddress);
+    await(await lock.connect(buyer).swap(launch.token,false,firstQuote.output/2n,sellQuote.output,buyerAddress,deadline)).wait();
+    assert.equal(await quote.balanceOf(buyerAddress)-sellBeforeQuote,sellQuote.output);
+    assert.equal(sellBeforeToken-await token.balanceOf(buyerAddress),sellQuote.input);
+    assert.equal(await local.send('evm_revert',[quoteSnapshot]),true);
+
     assert.equal(await market.totalReserve(),0n); assert.equal(await quote.balanceOf(expectedMarket),0n);
     assert.equal(await vault.liability(),liability); // No fee debt pays for migration.
     const position=await lock.positions(launch.token);
@@ -210,6 +240,16 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
     const tradeConfig={factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,toBlock:finalBlock.number};
     const accountState=await readTradeState(local,tradeConfig,buyerAddress);
     assert.equal(accountState.launch.graduated,true);
+    await assert.rejects(readTradeQuote(local,tradeConfig,{side:'buy',amountRaw:String(parseEther('0.01'))}),error=>error.code==='V4_QUOTER_NOT_CONFIGURED');
+    const configuredTrade={...tradeConfig,v4QuoterAddress:quoterAddress};
+    const apiBuy=await readTradeQuote(local,configuredTrade,{side:'buy',amountRaw:String(parseEther('0.01')),wallet:buyerAddress});
+    const actualBuy=await quoter.quoteExactInput.staticCall(launch.token,true,parseEther('0.01'),0,{blockTag:finalBlock.number});
+    assert.equal(apiBuy.quote.outputRaw,String(actualBuy.output));assert.equal(apiBuy.quote.stage,'v4');
+    assert.equal(apiBuy.quote.spender,lockAddress);assert.equal(apiBuy.fees.lpFeeUnits,3000);
+    const apiSell=await readTradeQuote(local,configuredTrade,{side:'sell',amountRaw:String(10n**18n),wallet:buyerAddress});
+    assert.ok(BigInt(apiSell.quote.outputRaw)>0n);
+    await assert.rejects(readTradeQuote(local,{...configuredTrade,v4QuoterAddress:lockAddress},{side:'buy',amountRaw:'1'}));
+
     assert.equal(accountState.account.tokenBalanceRaw,String(await token.balanceOf(buyerAddress,{blockTag:finalBlock.number})));
     await assert.rejects(readCurveQuote(local,tradeConfig,{side:'buy',amountRaw:String(parseEther('0.01')),wallet:buyerAddress}),error=>error.code==='POST_GRADUATION_QUOTE_UNAVAILABLE');
     const managerLogs=await local.getLogs({address:candidates.poolManager,topics:[swapEvents.getEvent('Swap').topicHash,position.poolId],fromBlock:receipt.blockNumber,toBlock:finalBlock.number});
@@ -232,6 +272,27 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
       const poolHolder=indexed.holders.top.find(h=>h.role==='pool-manager');
       assert.ok(poolHolder);assert.equal(poolHolder.balanceRaw,String(await token.balanceOf(candidates.poolManager)));
       assert.equal(indexed.provenance.finality,'local-fork-latest','Local fork blocks must never be described as finalized Mainnet');
+      if(process.env.PLAYWRIGHT_RUNTIME){
+        const streams=new Set();let browser;
+        const server=http.createServer(async(req,res)=>{
+          try{
+            const query=new URL(req.url,'http://127.0.0.1'),route=query.pathname;
+            if(route.endsWith('/stream'))return await openMarketStream(req,res,indexer,launch.token,60,streams);
+            let body;
+            if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
+            else if(route===`/api/tokens/${launch.token}/history`)body=await indexer.market(launch.token);
+            else if(route===`/api/tokens/${launch.token}/account`||route===`/api/tokens/${launch.token}/quote`){
+              const wallet=query.searchParams.get('wallet');
+              body=route.endsWith('/quote')?await readTradeQuote(local,configuredTrade,{side:query.searchParams.get('side'),amountRaw:query.searchParams.get('amountRaw'),wallet}):await readTradeState(local,tradeConfig,wallet);
+              body.provenance=indexed.provenance;
+            }else{res.writeHead(404,{'Content-Type':'application/json'});res.end(JSON.stringify({error:{message:'Isolated real-state market API only.'}}));return;}
+            res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(body));
+          }catch(error){if(!res.headersSent)res.writeHead(error.status||500,{'Content-Type':'application/json'});res.end(JSON.stringify({error:{message:error.message}}));}
+        });
+        try{await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));browser=await marketBrowser(`http://127.0.0.1:${server.address().port}`,launch.token,buyerAddress);await browser.check(indexed,'v4');}
+        finally{await browser?.close();for(const stream of streams)stream.end();await new Promise(resolve=>server.close(resolve));}
+      }
+
     } finally {await indexer.close();}
     const report={mode:'isolated-real-state-fork',sourceChainId:143,localChainId:31337,blockNumber:block.number,blockHash:block.hash,poolManager:candidates.poolManager,poolManagerCodeHash:keccak256(code),poolId:position.poolId,actualPoolInitialization:true,actualLiquiditySettlement:true,actualBidirectionalSwaps:true,authenticatedInitialization:true,fourSwapModes:true,independentCallerFeeCapture:true,quoteSpecifiedPartialFillRollback:true,tokenExactOutputPartialFillRollback:true,tokenExactInputPartialFillRefund:true,priceLimitReached:true,actualPoolManagerTradeFeed:true,indexedCurveAndPoolHistory:true,feeOwnershipTransfer:true,withdrawalEntryPoint:false,postGraduationStudioFeeImplemented:true,hook:hookAddress,lpFeeTestUnits:3000,liveWrites:false};
     await writeFile(new URL('../artifacts/v4-hook.json',import.meta.url),JSON.stringify(report,null,2)+'\n');

@@ -152,3 +152,8 @@ Implementation choices within the real-data request: a separate local SQLite mar
 ## D19: Supabase primary database - 2026-10-09
 
 User explicitly chose Supabase as the primary DB. This supersedes the proposed SQLite-primary mirror option. Studio profiles/revisions and durable market indexes/checkpoints/event windows move to backend-only Supabase PostgreSQL. Existing SQLite files are preserved for one-time import/local tests; runtime has no fallback or dual write. Implementation: pg driver, async repositories, PostgreSQL transactions, verified TLS and a private RLS-enabled foundry schema. Hosted project connection remains unconfigured. Authentication sessions remain in RAM; no new financial/economic authority is granted.
+
+
+## Bound-pool v4 quoter implementation - 2026-10-10
+
+Implementation choice: a pool-bound revert-based exact-input quoter observes actual PoolManager deltas and funded vault counters, then rolls back the swap. Backend requires a verified quoter address and validates immutable deployment bindings. No new post-graduation rate, AMM deployment, LP policy, financial execution or Mainnet authorization is approved. LP fee units are observed configuration; measured CHOG protocol fees and LP rate remain separate disclosures.

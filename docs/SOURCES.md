@@ -132,3 +132,11 @@ The frontend reads the existing indexed history/SSE API and current source event
 ## Trade preparation verification - 2026-10-10
 
 Quote/account ABI follows current StudioCurveMarket getBuyQuote/getSellQuote/configuration getters, StudioFeeVault credits/treasury, ERC-20 balance/allowance and Chog ownerOf. Source fork blocks 112079109 and 112079219 verify actual contract outputs, old-beneficiary credits after NFT transfer and graduated quote refusal. Browser checks consume the real test-owned fork reader HTTP API. These are isolated behavior checks, not reviewed deployment economics, signatures or audit claims.
+
+
+## Reverting v4 quote review - 2026-10-10
+
+- https://github.com/Uniswap/v4-periphery/blob/main/src/lens/V4Quoter.sol - reviewed non-view eth_call simulation through unlock and a deliberate quote revert.
+- https://github.com/Uniswap/v4-periphery/blob/main/src/libraries/QuoterRevert.sol - typed quote error discrimination versus unexpected simulation failures.
+
+Foundry does not vendor or claim equivalence to these contracts. Its source observes actual bound-pool deltas and funded vault counters in a fixed-length report. Browser fork source block 112110775 and full-suite hooked source block 112111203 validate execution comparison/rollback against actual official Monad PoolManager. LP test units 3000 and hook 30/30/40 bps are evidence inputs, not approved post-graduation economics.
