@@ -170,3 +170,9 @@ Next: finalize reviewed testnet deployment assets/economic configuration and con
 Implemented StudioV4Quoter source, configured readTradeQuote dispatch and graduated quote display. Actual swap/hook effects revert before settlement; response distinguishes protocol fees, LP rate, actual/unused input and maximum approval/funding basis. No reserve-model or state-override quote fallback.
 
 Next: reviewed deployment/assets/economics and Supabase connection, then explicit slippage/deadline, settlement/gas preflight and wallet-reviewed approval/trade/claim signing. The current quote is not a complete transaction simulation. Broader router/security review and partial-fill UI/preflight coverage remain. No Mainnet financial execution is authorized.
+
+## Settlement preparation increment - 2026-10-10
+
+Added read-only actual-wallet preflight for curve and bound v4 exact-input trades, explicit minimum output/deadline, same-block gas estimation and unsigned calldata review. Frontend protections have no preset economic values and stale results are discarded.
+
+Next: configure actual Supabase and review/select testnet assets/deployment economics; add reviewed approval/trade/claim signing only against that verified deployment with immediate account/chain/state rechecks and receipt handling. ERC-1271 and broader router/security review remain outstanding. No Mainnet financial execution is authorized.

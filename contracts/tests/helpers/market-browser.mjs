@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Optional browser verification against a live test-owned indexer and actual fork events.
 // No route interception, fabricated responses, wallet provider or runtime fallback.
-export async function marketBrowser(apiBase, token, wallet) {
+export async function marketBrowser(apiBase, token, wallet, { preflight = false } = {}) {
   if (!process.env.PLAYWRIGHT_RUNTIME) return null;
   const require = createRequire(import.meta.url);
   const { chromium } = require(process.env.PLAYWRIGHT_RUNTIME);
@@ -32,6 +32,18 @@ export async function marketBrowser(apiBase, token, wallet) {
     await page.getByRole('button',{name:'Preview quote'}).click();
     await page.getByText('Unused maximum budget',{exact:true}).waitFor();
     assert.equal(await page.locator('.quote-review').count(),1);
+    if(preflight){
+      await page.getByRole('textbox',{name:'Slippage tolerance'}).fill('1');
+      await page.getByRole('textbox',{name:'Deadline minutes'}).fill('10');
+      await page.getByRole('button',{name:'Inspect settlement',exact:true}).click();
+      await page.getByText('Settlement status',{exact:true}).waitFor();
+      assert.equal(await page.locator('.quote-review').count(),2);
+      assert.ok(await page.getByText('Unsigned inspection only.',{exact:false}).isVisible());
+      await page.getByRole('textbox',{name:'Slippage tolerance'}).fill('0.5');
+      assert.equal(await page.getByText('Settlement status',{exact:true}).count(),0,'Changed protection discards stale simulation');
+      await page.getByRole('button',{name:'Inspect settlement',exact:true}).click();
+      await page.getByText('Settlement status',{exact:true}).waitFor();
+    }
     return {
       async check(snapshot, label) {
         await page.waitForFunction(hash => document.querySelector('.market-card')?.dataset.blockHash === hash, snapshot.snapshot.blockHash);

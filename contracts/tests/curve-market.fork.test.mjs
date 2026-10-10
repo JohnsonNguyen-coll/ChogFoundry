@@ -1,3 +1,4 @@
+import { readTradePreflight } from '../../backend/src/trade-preflight.mjs';
 import { readTradeState, readCurveQuote } from '../../backend/src/trade-data.mjs';
 import { marketBrowser } from './helpers/market-browser.mjs';
 import { formatUnits } from 'ethers';
@@ -93,6 +94,11 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     const curveBefore = await market.curves(launch.token);
     assert.equal(preview.baseQuote, potential(curveBefore.sold + preview.tokenOut) - potential(curveBefore.sold));
     assert.deepEqual([preview.creatorFee,preview.studioFee,preview.platformFee],fees(preview.baseQuote));
+    const inspectConfig={chainId:31337,factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,toBlock:(await local.getBlock('latest')).number};
+    const settlementBefore={reserve:await market.totalReserve(),liability:await vault.liability(),balance:await quote.balanceOf(buyerAddress)};
+    const settlement=await readTradePreflight(local,inspectConfig,{side:'buy',amountRaw:String(parseEther('0.3')),wallet:buyerAddress,minOutputRaw:String(preview.tokenOut),deadline:String(Math.max(Math.floor(Date.now()/1000),(await local.getBlock('latest')).timestamp)+1800)});
+    assert.equal(settlement.preflight.status,'simulated');assert.equal(settlement.preflight.outputRaw,String(preview.tokenOut));assert.ok(BigInt(settlement.preflight.gasEstimateRaw)>0n);
+    assert.deepEqual({reserve:await market.totalReserve(),liability:await vault.liability(),balance:await quote.balanceOf(buyerAddress)},settlementBefore);
     const reserveBeforeSlippage = await market.totalReserve();
     await assert.rejects(async () => { await (await market.connect(buyer).buy(launch.token, parseEther('0.3'), preview.tokenOut + 1n, buyerAddress, deadline, { gasLimit: 3000000 })).wait(); });
     assert.equal(await market.totalReserve(), reserveBeforeSlippage);
@@ -104,6 +110,8 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     const sellAmount = preview.tokenOut / 2n;
     const sellQuote = await market.getSellQuote(launch.token, sellAmount);
     await (await token.connect(buyer).approve(marketAddress, sellAmount)).wait();
+    const sellSettlement=await readTradePreflight(local,{...inspectConfig,toBlock:(await local.getBlock('latest')).number},{side:'sell',amountRaw:String(sellAmount),wallet:buyerAddress,minOutputRaw:String(sellQuote.quoteOut),deadline:settlement.preflight.deadline});
+    assert.equal(sellSettlement.preflight.status,'simulated');assert.equal(sellSettlement.preflight.outputRaw,String(sellQuote.quoteOut));
     await (await market.connect(buyer).sell(launch.token, sellAmount, sellQuote.quoteOut, buyerAddress, deadline)).wait();
     const nowOld = await vault.credits(owner), nowNew = await vault.credits(buyerAddress);
     assert.equal(nowOld.studio, oldCredit.studio);

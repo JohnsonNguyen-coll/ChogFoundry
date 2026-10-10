@@ -1,3 +1,4 @@
+import { preflightInput } from './trade-preflight.mjs';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -98,10 +99,14 @@ export function createApi({ databasePath, marketDatabasePath, origin } = {}) {
         if(indexedRoute[2]==='history') return send(200,await indexer.market(token,interval));
         return await openMarketStream(req,res,indexer,token,interval,streams);
       }
-      const tradeRoute=route.match(/^\/api\/tokens\/([^/]+)\/(quote|account)$/);
+      const tradeRoute=route.match(/^\/api\/tokens\/([^/]+)\/(quote|account|preflight)$/);
       if(tradeRoute){
         const token=address(tradeRoute[1]);
         const wallet=url.searchParams.has('wallet')?address(url.searchParams.get('wallet')):null;
+        if(tradeRoute[2]==='preflight'){
+          const input=preflightInput({side:url.searchParams.get('side'),amountRaw:url.searchParams.get('amountRaw'),wallet,minOutputRaw:url.searchParams.get('minOutputRaw'),deadline:url.searchParams.get('deadline')});
+          return send(200,await reader.tradeState(token,wallet,input,true));
+        }
         if(tradeRoute[2]==='quote'){
           const input=tradeInput(url.searchParams.get('side'),url.searchParams.get('amountRaw'),wallet);
           return send(200,await reader.tradeState(token,wallet,input));

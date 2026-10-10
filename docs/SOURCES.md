@@ -140,3 +140,10 @@ Quote/account ABI follows current StudioCurveMarket getBuyQuote/getSellQuote/con
 - https://github.com/Uniswap/v4-periphery/blob/main/src/libraries/QuoterRevert.sol - typed quote error discrimination versus unexpected simulation failures.
 
 Foundry does not vendor or claim equivalence to these contracts. Its source observes actual bound-pool deltas and funded vault counters in a fixed-length report. Browser fork source block 112110775 and full-suite hooked source block 112111203 validate execution comparison/rollback against actual official Monad PoolManager. LP test units 3000 and hook 30/30/40 bps are evidence inputs, not approved post-graduation economics.
+
+## Settlement JSON-RPC semantics - 2026-10-10
+
+- https://ethereum.org/developers/docs/apis/json-rpc/#eth_call - read-only call sender/calldata and explicit block selection.
+- https://ethereum.github.io/execution-apis/api/methods/eth_estimateGas - estimation request includes block number/tag.
+
+Implementation runs current Foundry source methods; actual same-block estimation support is verified separately on isolated Anvil, not inferred for every Monad RPC provider. Runtime rejects unsupported estimation rather than silently using latest state.

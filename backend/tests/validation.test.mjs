@@ -1,3 +1,4 @@
+import { preflightInput } from '../src/trade-preflight.mjs';
 import { tradeInput } from '../src/trade-data.mjs';
 import { parseAmount } from '../../frontend/src/market-format.mjs';
 import test from 'node:test';
@@ -31,7 +32,7 @@ test('HTTP validates requests and rejects writes before touching RPC; no stubs',
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    for (const [route, method, status] of [['/api/studios/-1', 'GET', 400], ['/api/wallets/invalid', 'GET', 400], ['/api/studios/1/transfers?fromBlock=-1', 'GET', 400], ['/api/overview', 'POST', 405], ['/api/tokens/invalid/quote?side=buy&amountRaw=1','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/quote?side=buy&amountRaw=0','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/account','GET',400], ['/api/unknown', 'GET', 404], ['/api/tokens/invalid/market', 'GET', 400], ['/api/tokens/invalid/history', 'GET', 400], ['/api/tokens/invalid/stream', 'GET', 400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/market?interval=7', 'GET', 400]]) {
+    for (const [route, method, status] of [['/api/studios/-1', 'GET', 400], ['/api/wallets/invalid', 'GET', 400], ['/api/studios/1/transfers?fromBlock=-1', 'GET', 400], ['/api/overview', 'POST', 405], ['/api/tokens/invalid/quote?side=buy&amountRaw=1','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/quote?side=buy&amountRaw=0','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/account','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/preflight?side=buy&amountRaw=1','GET',400], ['/api/unknown', 'GET', 404], ['/api/tokens/invalid/market', 'GET', 400], ['/api/tokens/invalid/history', 'GET', 400], ['/api/tokens/invalid/stream', 'GET', 400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/market?interval=7', 'GET', 400]]) {
       const response = await fetch(base + route, { method });
       assert.equal(response.status, status); assert.ok((await response.json()).error.code);
     }
@@ -51,7 +52,7 @@ test('market endpoint reports unavailable without a configured deployment; no RP
     assert.equal(response.status,503);
     assert.equal((await response.json()).error.code,'FOUNDRY_NOT_CONFIGURED');
     const base=`http://127.0.0.1:${server.address().port}`;
-    for(const suffix of ['quote?side=buy&amountRaw=1','account?wallet=0x350035555E10d9AfAF1566AaebfCeD5BA6C27777']){
+    for(const suffix of ['preflight?side=buy&amountRaw=1&minOutputRaw=1&deadline=1790000000&wallet=0x350035555E10d9AfAF1566AaebfCeD5BA6C27777','quote?side=buy&amountRaw=1','account?wallet=0x350035555E10d9AfAF1566AaebfCeD5BA6C27777']){
       const response=await fetch(base+'/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/'+suffix);
       assert.equal(response.status,503);assert.equal((await response.json()).error.code,'FOUNDRY_NOT_CONFIGURED');
     }
@@ -66,4 +67,10 @@ test('market endpoint reports unavailable without a configured deployment; no RP
     if(previous===undefined) delete process.env.FOUNDRY_FACTORY_ADDRESS;
     else process.env.FOUNDRY_FACTORY_ADDRESS=previous;
   }
+});
+
+test('preflight requires explicit nonzero wallet, minimum output and bounded timestamp syntax',()=>{
+  const input={side:'buy',amountRaw:'1',wallet:'0x350035555E10d9AfAF1566AaebfCeD5BA6C27777',minOutputRaw:'1',deadline:'1790000000'};
+  assert.equal(preflightInput(input).minOutputRaw,'1');
+  for(const patch of [{wallet:null},{wallet:'0x0000000000000000000000000000000000000000'},{minOutputRaw:'0'},{deadline:'1e9'},{deadline:'1790000000.1'}])assert.throws(()=>preflightInput({...input,...patch}));
 });

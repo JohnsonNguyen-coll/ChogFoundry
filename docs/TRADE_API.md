@@ -14,8 +14,20 @@ Graduated tokens use readTradeQuote with an explicitly configured FOUNDRY_V4_QUO
 
 Curve LP fee is zero. V4 responses separately disclose actual protocol category bps and LP fee units (parts per million). LP fees are embedded in pool input/deltas and are not falsely reported as a measured CHOG fee amount; lpFeeAmountRaw is null. Token-exact-input partial fills report actual spend and unused input. The lock pulls the maximum budget first, so balance/allowance sufficiency uses requiredInputRaw, not only eventual spend. This simulation does not test settlement transfer/approval, min output, deadline or gas. Numerical post-graduation economics remain unapproved.
 
-The frontend cancels pending reads and discards quotes when token, wallet, side, amount or indexed cursor changes. Public wallet inspection needs no wallet provider. There is no approval, trade or claim submission. Slippage/minimum output, deadline, gas estimate, fresh transaction simulation and reviewed wallet signing still need implementation against a verified deployment.
+The frontend cancels pending reads and discards quotes when token, wallet, side, amount or indexed cursor changes. Public wallet inspection needs no wallet provider. There is no approval, trade or claim submission. The settlement inspection below adds minimum output, deadline and actual-wallet simulation; reviewed wallet signing remains unimplemented.
 
 Missing deployment: 503 FOUNDRY_NOT_CONFIGURED. Invalid input: 400. Contract-rejected quantity/simulation: 422. Missing v4 quoter: 503 V4_QUOTER_NOT_CONFIGURED. Wrong deployment bindings: 503 V4_QUOTER_MISMATCH. Changed canonical block: 503 CHAIN_REORG. No raw provider secrets/errors are exposed.
 
 Verification uses real Monad-fork contract reads, executed transactions and vault credits. Optional Chromium checks use a test-owned live indexer API; no route interception, wallet mock or seeded production data. Test state never enters the running application.
+
+## Settlement preflight - 2026-10-10
+
+GET /api/tokens/:address/preflight?side=buy|sell&amountRaw=<positive uint256>&wallet=<nonzero address>&minOutputRaw=<positive uint256>&deadline=<Unix seconds>
+
+Uses the same verified deployment and finalized canonical quote block. Recipient is always the inspected wallet. Deadline is explicit, future relative to both block time and server time, and within one hour (an implementation request limit, not token economics). A blocked result reports actual insufficient balance/approval and a minimum above the fresh quote. It does not fake an approval or report gas for an unexecuted settlement.
+
+When prerequisites pass, eth_call runs the actual curve buy/sell or bound lock swap calldata with the wallet as sender. This includes token pulls, swap, funded hook/vault credits, output transfers and refund checks. Output must match the quote and satisfy minimum output. eth_estimateGas uses the same block, followed by a canonical hash recheck. Unsupported historical estimation returns GAS_ESTIMATE_UNAVAILABLE; no latest-state or numerical fallback is served. All RPC errors are sanitized. No state override, transaction broadcast, signer or approval mutation is used.
+
+Response preflight contains status, blockers, minOutputRaw, deadline, recipient, outputRaw, gasEstimateRaw and unsigned transaction (chainId/from/to/value/data). executionEnabled stays false even after successful simulation. Gas estimate is not a fee quote, gas limit or assurance of inclusion; future signing requires a fresh chain/account/state/deadline check. Public wallet inspection is not authorization to sign as that wallet. Mainnet financial execution remains disabled.
+
+The frontend asks the user to enter slippage and deadline duration without preset values. It computes minimum output with exact integer rounding down and rejects zero minimum. Input/snapshot changes abort and discard stale preflights. The minimum is retained from the reviewed quote while the server checks a fresh quote; changed prices can block the inspection rather than silently weakening protection.

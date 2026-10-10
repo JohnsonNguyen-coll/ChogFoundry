@@ -157,3 +157,7 @@ User explicitly chose Supabase as the primary DB. This supersedes the proposed S
 ## Bound-pool v4 quoter implementation - 2026-10-10
 
 Implementation choice: a pool-bound revert-based exact-input quoter observes actual PoolManager deltas and funded vault counters, then rolls back the swap. Backend requires a verified quoter address and validates immutable deployment bindings. No new post-graduation rate, AMM deployment, LP policy, financial execution or Mainnet authorization is approved. LP fee units are observed configuration; measured CHOG protocol fees and LP rate remain separate disclosures.
+
+## Read-only settlement inspection - 2026-10-10
+
+Implementation choice: exact-input curve/v4 unsigned calldata inspection with user-specified minimum output and future deadline, actual-wallet eth_call and same-block gas estimation. A one-hour maximum deadline is an API bound, not approved token economics. Missing funding/allowance blocks settlement without overrides. No approval/trade signing, public deployment or Mainnet execution is enabled.

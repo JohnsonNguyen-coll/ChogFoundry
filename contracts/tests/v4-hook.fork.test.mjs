@@ -1,3 +1,4 @@
+import { readTradePreflight } from '../../backend/src/trade-preflight.mjs';
 import http from 'node:http';
 import { openMarketStream } from '../../backend/src/market-stream.mjs';
 import { marketBrowser } from './helpers/market-browser.mjs';
@@ -99,7 +100,16 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
     assert.equal(onchainQuoteReceipt.logs.length,0);
     assert.deepEqual(await unchanged(),beforeQuote,'Even an actual quoter transaction rolls back swap and vault changes');
     await assert.rejects(quoter.quoteExactInput.staticCall(launch.token,true,0,0));
+    const preflightConfig=async()=>({chainId:31337,factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,toBlock:(await local.getBlock('latest')).number,v4QuoterAddress:quoterAddress});
+    const inspectInput={side:'buy',amountRaw:String(parseEther('0.01')),wallet:buyerAddress,minOutputRaw:String(firstQuote.output),deadline:String(Math.max(Math.floor(Date.now()/1000),(await local.getBlock('latest')).timestamp)+1800)};
+    const blocked=await readTradePreflight(local,await preflightConfig(),inspectInput);
+    assert.equal(blocked.preflight.status,'blocked');assert.ok(blocked.preflight.blockers.includes('APPROVAL_REQUIRED'));assert.equal(blocked.preflight.gasEstimateRaw,null);
     await(await quote.connect(buyer).approve(lockAddress,parseEther('0.01'))).wait();
+    const settlement=await readTradePreflight(local,await preflightConfig(),inspectInput);
+    assert.equal(settlement.preflight.status,'simulated');assert.equal(settlement.preflight.outputRaw,String(firstQuote.output));assert.ok(BigInt(settlement.preflight.gasEstimateRaw)>0n);assert.equal(settlement.preflight.executionEnabled,false);
+    assert.deepEqual(await unchanged(),beforeQuote,'Settlement preflight does not change real fork state');
+    const tooHigh=await readTradePreflight(local,await preflightConfig(),{...inspectInput,minOutputRaw:String(firstQuote.output+1n)});assert.ok(tooHigh.preflight.blockers.includes('MINIMUM_OUTPUT_EXCEEDS_QUOTE'));
+    await assert.rejects(readTradePreflight(local,await preflightConfig(),{...inspectInput,deadline:'1'}),e=>e.code==='INVALID_DEADLINE');
     const buyBeforeQuote=await quote.balanceOf(buyerAddress),buyBeforeToken=await token.balanceOf(buyerAddress),creditBefore=await vault.totalCredited();
     const quoteSnapshot=await local.send('evm_snapshot',[]);
     await(await lock.connect(buyer).swap(launch.token,true,parseEther('0.01'),firstQuote.output,buyerAddress,deadline)).wait();
@@ -108,6 +118,8 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
     assert.equal(await vault.totalCredited()-creditBefore,firstQuote.creatorFee+firstQuote.studioFee+firstQuote.platformFee);
     const sellQuote=await quoter.quoteExactInput.staticCall(launch.token,false,firstQuote.output/2n,0);
     await(await token.connect(buyer).approve(lockAddress,firstQuote.output/2n)).wait();
+    const sellSettlement=await readTradePreflight(local,await preflightConfig(),{...inspectInput,side:'sell',amountRaw:String(firstQuote.output/2n),minOutputRaw:String(sellQuote.output)});
+    assert.equal(sellSettlement.preflight.outputRaw,String(sellQuote.output));assert.equal(sellSettlement.preflight.status,'simulated');
     const sellBeforeQuote=await quote.balanceOf(buyerAddress),sellBeforeToken=await token.balanceOf(buyerAddress);
     await(await lock.connect(buyer).swap(launch.token,false,firstQuote.output/2n,sellQuote.output,buyerAddress,deadline)).wait();
     assert.equal(await quote.balanceOf(buyerAddress)-sellBeforeQuote,sellQuote.output);
@@ -281,6 +293,9 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
             let body;
             if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
             else if(route===`/api/tokens/${launch.token}/history`)body=await indexer.market(launch.token);
+            else if(route===`/api/tokens/${launch.token}/preflight`){
+              body=await readTradePreflight(local,{...configuredTrade,chainId:31337},{side:query.searchParams.get('side'),amountRaw:query.searchParams.get('amountRaw'),wallet:query.searchParams.get('wallet'),minOutputRaw:query.searchParams.get('minOutputRaw'),deadline:query.searchParams.get('deadline')});body.provenance=indexed.provenance;
+            }
             else if(route===`/api/tokens/${launch.token}/account`||route===`/api/tokens/${launch.token}/quote`){
               const wallet=query.searchParams.get('wallet');
               body=route.endsWith('/quote')?await readTradeQuote(local,configuredTrade,{side:query.searchParams.get('side'),amountRaw:query.searchParams.get('amountRaw'),wallet}):await readTradeState(local,tradeConfig,wallet);
@@ -289,7 +304,7 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
             res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(body));
           }catch(error){if(!res.headersSent)res.writeHead(error.status||500,{'Content-Type':'application/json'});res.end(JSON.stringify({error:{message:error.message}}));}
         });
-        try{await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));browser=await marketBrowser(`http://127.0.0.1:${server.address().port}`,launch.token,buyerAddress);await browser.check(indexed,'v4');}
+        try{await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));browser=await marketBrowser(`http://127.0.0.1:${server.address().port}`,launch.token,buyerAddress,{preflight:true});await browser.check(indexed,'v4');}
         finally{await browser?.close();for(const stream of streams)stream.end();await new Promise(resolve=>server.close(resolve));}
       }
 
