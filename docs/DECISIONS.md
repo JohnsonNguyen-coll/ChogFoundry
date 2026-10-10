@@ -137,3 +137,18 @@ Added optional immutable v4 migration adapter and direct permanently held full-r
 ## Hook fee implementation - 2026-10-09
 
 Implemented pool-bound post-graduation fee capture with immutable configurable category bps, exact-input/output quote delta handling, funded vault credits and authenticated official initialization. Actual fork verification confirms NFT-owner-at-accrual and historical claims. Numerical post-graduation fee rates/LP-inclusive total are still not approved; fork constructor 30/30/40 bps and LP fee 3000 are evidence inputs only. No external-pool fee guarantee or Universal Router integration is claimed. Quote-specified partial fills reject atomically; LP fees remain in locked position.
+
+
+## Price bounds and market data implementation - 2026-10-09
+
+Implementation choices: optional Q96 swap price limits with atomic underfill/fee safeguards; bounded finalized market data from verified factory bindings; OHLC based on CHOG execution notional; conditional mint-to-snapshot holder replay; no synthetic empty candles. These do not approve deployment economics, LP fees, public deployment, an indexer provider or a realtime transport. Protocol contracts are included/labeled in holder counts; callback routers are not inferred trader identities.
+
+
+## Durable market index and SSE - 2026-10-09
+
+Implementation choices within the real-data request: a separate local SQLite market database, canonical finalized chunk checkpoints, factory-event launch discovery, transfer-log holder replay and SSE authoritative replacement snapshots. Three-second polling, 100-block RPC batches and explicit local capacity budgets are operational settings, not approved token economics or service-provider decisions. Deployment address and exact first-code block remain empty until an actual deployment is reviewed. No financial authorization changed. This index grants no studio/moderator privileges.
+
+
+## D19: Supabase primary database - 2026-10-09
+
+User explicitly chose Supabase as the primary DB. This supersedes the proposed SQLite-primary mirror option. Studio profiles/revisions and durable market indexes/checkpoints/event windows move to backend-only Supabase PostgreSQL. Existing SQLite files are preserved for one-time import/local tests; runtime has no fallback or dual write. Implementation: pg driver, async repositories, PostgreSQL transactions, verified TLS and a private RLS-enabled foundry schema. Hosted project connection remains unconfigured. Authentication sessions remain in RAM; no new financial/economic authority is granted.

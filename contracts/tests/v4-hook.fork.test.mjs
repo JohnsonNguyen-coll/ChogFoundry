@@ -1,9 +1,12 @@
+import { readCurveQuote, readTradeState } from '../../backend/src/trade-data.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { Contract, ContractFactory, Interface, getCreateAddress, getCreate2Address, keccak256, zeroPadValue, parseEther, toBeHex, ZeroAddress } from 'ethers';
 import { chain, nftAbi } from '../../backend/src/config.mjs';
 import { candidates } from '../../backend/scripts/market-inspection.mjs';
+import { MarketIndexer } from '../../backend/src/market-indexer.mjs';
+import { readMarketWindow } from '../../backend/src/market-data.mjs';
 import { withMonadFork } from './helpers/monad-fork.mjs';
 
 test('real Monad hooked v4: four swap modes, funded fee transfer ownership and historical claims', { timeout: 180000 }, async () => {
@@ -128,6 +131,64 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
     const alternateBefore=await vault.credits(buyerAddress);
     await checkHook(await(await alternate.connect(buyer).swap(launch.token,true,parseEther('0.001'),1n,buyerAddress,deadline)).wait());
     assert.ok((await vault.credits(buyerAddress)).studio>alternateBefore.studio);
+    // Tight real pool price limits cause partial execution, not fabricated quote data.
+    const key = await lock.poolKey(launch.token);
+    async function nearLimit(quoteIn) {
+      const sqrt = (await stateView.getSlot0(position.poolId)).sqrtPriceX96;
+      const input = quoteIn ? chain.quote : launch.token;
+      const zeroForOne = key.currency0.toLowerCase() === input.toLowerCase();
+      return zeroForOne ? sqrt - sqrt / 1000000000n : sqrt + sqrt / 1000000000n;
+    }
+    async function settlementState() {
+      return {
+        sqrt: (await stateView.getSlot0(position.poolId)).sqrtPriceX96,
+        liquidity: await stateView.getLiquidity(position.poolId),
+        buyerQuote: await quote.balanceOf(buyerAddress), buyerToken: await token.balanceOf(buyerAddress),
+        lockQuote: await quote.balanceOf(lockAddress), lockToken: await token.balanceOf(lockAddress),
+        managerQuote: await quote.balanceOf(candidates.poolManager), managerToken: await token.balanceOf(candidates.poolManager),
+        hookQuote: await quote.balanceOf(hookAddress), vaultQuote: await quote.balanceOf(awaitVaultAddress),
+        liability: await vault.liability(), creatorCredits: Array.from(await vault.credits(owner)),
+        buyerCredits: Array.from(await vault.credits(buyerAddress)), treasuryCredits: Array.from(await vault.credits(await treasury.getAddress())),
+        quoteAllowance: await quote.allowance(buyerAddress,lockAddress),
+        tokenAllowance: await token.allowance(buyerAddress,lockAddress)
+      };
+    }
+    async function rejectsAtomically(call, expectedSelector) {
+      const before = await settlementState();
+      await assert.rejects(call.staticCall(), error => {
+        const data = error.data || error.info?.error?.data;
+        assert.ok(typeof data === 'string' && data.toLowerCase().includes(expectedSelector.slice(2).toLowerCase()), 'Expected contract rejection, not transport or allowance failure');
+        return true;
+      });
+      await assert.rejects(async()=>{await(await call.send({gasLimit:3000000})).wait();});
+      assert.deepEqual(await settlementState(),before,'Reverted price-limited swap must restore settlement, credits and allowances');
+    }
+    const tokenBudget = parseEther('1000');
+    assert.ok(await token.balanceOf(buyerAddress)>tokenBudget);
+    await(await token.connect(buyer).approve(lockAddress,tokenBudget)).wait();
+    const hookAmountError=hook.interface.getError('InvalidAmount').selector;
+    let limit=await nearLimit(true);
+    const partialBuy=[launch.token,true,parseEther('0.001'),1n,buyerAddress,deadline,limit];
+    await rejectsAtomically({staticCall:()=>lock.connect(buyer).swapWithPriceLimit.staticCall(...partialBuy),send:overrides=>lock.connect(buyer).swapWithPriceLimit(...partialBuy,overrides)},hookAmountError);
+    limit=await nearLimit(false);
+    const partialQuoteOutput=[launch.token,false,1000000000000n,tokenBudget,buyerAddress,deadline,limit];
+    await rejectsAtomically({staticCall:()=>lock.connect(buyer).swapExactOutputWithPriceLimit.staticCall(...partialQuoteOutput),send:overrides=>lock.connect(buyer).swapExactOutputWithPriceLimit(...partialQuoteOutput,overrides)},hookAmountError);
+    // Token-specified exact-output cannot silently deliver less than requested.
+    limit=await nearLimit(true);
+    const partialTokenOutput=[launch.token,true,parseEther('1000'),parseEther('0.001'),buyerAddress,deadline,limit];
+    await rejectsAtomically({staticCall:()=>lock.connect(buyer).swapExactOutputWithPriceLimit.staticCall(...partialTokenOutput),send:overrides=>lock.connect(buyer).swapExactOutputWithPriceLimit(...partialTokenOutput,overrides)},lock.interface.getError('Slippage').selector);
+    // Token-specified exact-input may partially fill: fee uses actual quote and remainder refunds.
+    const tokensBeforePartial=await token.balanceOf(buyerAddress), quoteBeforePartial=await quote.balanceOf(buyerAddress);
+    limit=await nearLimit(false);
+    const partialReceipt=await(await lock.connect(buyer).swapWithPriceLimit(launch.token,false,tokenBudget,1n,buyerAddress,deadline,limit)).wait();
+    await checkHook(partialReceipt);
+    const partialEvent=partialReceipt.logs.filter(l=>l.address.toLowerCase()===lockAddress.toLowerCase()).map(l=>{try{return lock.interface.parseLog(l)}catch{return null}}).find(l=>l?.name==='PoolTrade');
+    assert.ok(partialEvent.args.amountIn>0n && partialEvent.args.amountIn<tokenBudget);
+    assert.equal(tokensBeforePartial-await token.balanceOf(buyerAddress),partialEvent.args.amountIn);
+    assert.equal(await quote.balanceOf(buyerAddress)-quoteBeforePartial,partialEvent.args.amountOut);
+    assert.equal((await stateView.getSlot0(position.poolId)).sqrtPriceX96,limit);
+    await assert.rejects(lock.connect(buyer).swapWithPriceLimit.staticCall(launch.token,true,1n,1n,buyerAddress,deadline,1n));
+    await assert.rejects(lock.connect(buyer).swapWithPriceLimit.staticCall(launch.token,true,1n,1n,buyerAddress,0n,0n));
     // Slippage reverts PoolManager state and settlement, not just the frontend quote.
     const debtBeforeBad=await vault.liability();
     const beforeBad=await stateView.getSlot0(position.poolId), balanceBeforeBad=await quote.balanceOf(buyerAddress);
@@ -144,7 +205,35 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
     assert.equal(await stateView.getLiquidity(position.poolId),position.liquidity);
     await assert.rejects(hook.connect(buyer).beforeInitialize.staticCall(lockAddress,Array.from(await lock.poolKey(launch.token)),position.sqrtPriceX96));
     assert.ok(!hook.interface.fragments.some(f=>f.type==='function'&&/swapExact|unlock|execute|rescue/i.test(f.name)), 'Hook exposes no self-swap route to v4 self-call exemption');
-    const report={mode:'isolated-real-state-fork',sourceChainId:143,localChainId:31337,blockNumber:block.number,blockHash:block.hash,poolManager:candidates.poolManager,poolManagerCodeHash:keccak256(code),poolId:position.poolId,actualPoolInitialization:true,actualLiquiditySettlement:true,actualBidirectionalSwaps:true,authenticatedInitialization:true,fourSwapModes:true,independentCallerFeeCapture:true,feeOwnershipTransfer:true,withdrawalEntryPoint:false,postGraduationStudioFeeImplemented:true,hook:hookAddress,lpFeeTestUnits:3000,liveWrites:false};
+    const finalBlock=await local.getBlock('latest');
+    const data=await readMarketWindow(local,{factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,fromBlock:receipt.blockNumber,toBlock:finalBlock.number,intervalSeconds:60});
+    const tradeConfig={factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,toBlock:finalBlock.number};
+    const accountState=await readTradeState(local,tradeConfig,buyerAddress);
+    assert.equal(accountState.launch.graduated,true);
+    assert.equal(accountState.account.tokenBalanceRaw,String(await token.balanceOf(buyerAddress,{blockTag:finalBlock.number})));
+    await assert.rejects(readCurveQuote(local,tradeConfig,{side:'buy',amountRaw:String(parseEther('0.01')),wallet:buyerAddress}),error=>error.code==='POST_GRADUATION_QUOTE_UNAVAILABLE');
+    const managerLogs=await local.getLogs({address:candidates.poolManager,topics:[swapEvents.getEvent('Swap').topicHash,position.poolId],fromBlock:receipt.blockNumber,toBlock:finalBlock.number});
+    assert.equal(data.trades.length,managerLogs.length);
+    assert.equal(data.trades.length,6);
+    assert.ok(data.trades.every(t=>t.stage==='v4'&&t.payer===null&&t.recipient===null));
+    assert.ok(data.trades.some(t=>t.router===alternateAddress),'Independent routes must appear once in the PoolManager feed');
+    assert.ok(data.trades.some(t=>t.side==='sell'));
+    assert.ok(data.trades.some(t=>t.side==='buy'));
+    assert.equal(new Set(data.trades.map(t=>t.id)).size,data.trades.length);
+    assert.equal(data.candles.reduce((sum,c)=>sum+c.tradeCount,0),managerLogs.length);
+    assert.equal(data.holders,null,'A post-graduation window cannot claim a complete holder census');
+    const factoryDeployment=await factory.deploymentTransaction().wait();
+    const indexer=new MarketIndexer(local,{chainId:31337,factoryAddress:expectedFactory,deploymentBlock:factoryDeployment.blockNumber,collection:chain.collection,quote:chain.quote},{databasePath:':memory:',localFork:true});
+    try {
+      await indexer.sync(10);
+      const indexed=await indexer.market(launch.token);
+      assert.equal(indexed.tradeCount,data.trades.length+1,'Full history includes the creator initial curve purchase and all six actual pool swaps');
+      assert.equal(indexed.trades.filter(t=>t.stage==='v4').length,managerLogs.length);
+      const poolHolder=indexed.holders.top.find(h=>h.role==='pool-manager');
+      assert.ok(poolHolder);assert.equal(poolHolder.balanceRaw,String(await token.balanceOf(candidates.poolManager)));
+      assert.equal(indexed.provenance.finality,'local-fork-latest','Local fork blocks must never be described as finalized Mainnet');
+    } finally {await indexer.close();}
+    const report={mode:'isolated-real-state-fork',sourceChainId:143,localChainId:31337,blockNumber:block.number,blockHash:block.hash,poolManager:candidates.poolManager,poolManagerCodeHash:keccak256(code),poolId:position.poolId,actualPoolInitialization:true,actualLiquiditySettlement:true,actualBidirectionalSwaps:true,authenticatedInitialization:true,fourSwapModes:true,independentCallerFeeCapture:true,quoteSpecifiedPartialFillRollback:true,tokenExactOutputPartialFillRollback:true,tokenExactInputPartialFillRefund:true,priceLimitReached:true,actualPoolManagerTradeFeed:true,indexedCurveAndPoolHistory:true,feeOwnershipTransfer:true,withdrawalEntryPoint:false,postGraduationStudioFeeImplemented:true,hook:hookAddress,lpFeeTestUnits:3000,liveWrites:false};
     await writeFile(new URL('../artifacts/v4-hook.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
     console.log(JSON.stringify(report));
   });

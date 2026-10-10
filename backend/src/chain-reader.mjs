@@ -1,6 +1,8 @@
 import { Contract, FetchRequest, JsonRpcProvider, formatUnits, getAddress } from 'ethers';
 import { chain, erc20Abi, nftAbi } from './config.mjs';
 import { AppError } from './validation.mjs';
+import { readTradeState, readCurveQuote } from './trade-data.mjs';
+import { readMarketWindow } from './market-data.mjs';
 
 export class ChainReader {
   constructor() {
@@ -51,7 +53,7 @@ export class ChainReader {
         quote: { address: chain.quote, name, symbol, decimals: Number(decimals), totalSupplyRaw: String(supply), totalSupply: formatUnits(supply, decimals), source: chain.quoteSource },
         collection: { address: chain.collection, name: nftName, symbol: nftSymbol, totalSupply: String(nftSupply), erc721: true, source: chain.collectionSource },
         bytecode,
-        foundry: { deployed: false, launchAvailable: false, tradeAvailable: false, claimAvailable: false, reason: 'Chog Foundry contracts are not deployed. Curve, fees and AMM are undecided.' }
+        foundry: { deployed: false, launchAvailable: false, tradeAvailable: false, claimAvailable: false, reason: 'Chog Foundry transaction flows are not publicly deployed. Final curve and graduation configuration remain pending.' }
       };
     });
   }
@@ -96,6 +98,23 @@ export class ChainReader {
         blockHash: log.blockHash, transactionHash: log.transactionHash, transactionIndex: log.transactionIndex, logIndex: log.index
       })) };
     });
+  }
+  market(tokenAddress, fromBlock, toBlock, intervalSeconds) {
+    const factoryAddress = process.env.FOUNDRY_FACTORY_ADDRESS;
+    if (!factoryAddress) throw new AppError(503, 'FOUNDRY_NOT_CONFIGURED', 'No verified Chog Foundry factory is configured. Market data is unavailable.');
+    return this.snapshot(async finalized => {
+      const end = toBlock ?? finalized;
+      if (end > finalized) throw new AppError(400, 'INVALID_BLOCK_RANGE', 'Market data cannot exceed the finalized block.');
+      return readMarketWindow(this.provider, { factoryAddress, tokenAddress, collection: chain.collection, quote: chain.quote, fromBlock: fromBlock ?? Math.max(0, end - 99), toBlock: end, intervalSeconds });
+    }, 'finalized');
+  }
+  tradeState(tokenAddress, wallet, input = null) {
+    const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
+    if(!factoryAddress)throw new AppError(503,'FOUNDRY_NOT_CONFIGURED','No verified Foundry deployment is configured. Trade preparation is unavailable.');
+    return this.snapshot(block=>{
+      const config={factoryAddress,tokenAddress,collection:chain.collection,quote:chain.quote,toBlock:block};
+      return input?readCurveQuote(this.provider,config,{...input,wallet}):readTradeState(this.provider,config,wallet);
+    },'finalized');
   }
   anchor() { return this.snapshot(async () => ({}), 'finalized'); }
   ownerProof(id, session) {

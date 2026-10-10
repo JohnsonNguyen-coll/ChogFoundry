@@ -1,13 +1,25 @@
+import { readTradeState, readCurveQuote } from '../../backend/src/trade-data.mjs';
+import { marketBrowser } from './helpers/market-browser.mjs';
+import { formatUnits } from 'ethers';
+import { candleGeometry, fixedPrice, units as displayUnits } from '../../frontend/src/market-format.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Contract, ContractFactory, getCreateAddress, parseEther, toBeHex, ZeroAddress } from 'ethers';
 import { chain, nftAbi } from '../../backend/src/config.mjs';
 import { candidates } from '../../backend/scripts/market-inspection.mjs';
+import http from 'node:http';
+import { fileURLToPath } from 'node:url';
+import { mkdir, mkdtemp } from 'node:fs/promises';
+import { PGlite } from '@electric-sql/pglite';
+import { PostgresMarketStore } from '../../backend/src/postgres-market-store.mjs';
+import { MarketIndexer } from '../../backend/src/market-indexer.mjs';
+import { openMarketStream } from '../../backend/src/market-stream.mjs';
+import { readMarketWindow } from '../../backend/src/market-data.mjs';
 import { withMonadFork } from './helpers/monad-fork.mjs';
 
 test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and old claims', { timeout: 180000 }, async () => {
-  await withMonadFork(async ({ local, block }) => {
+  await withMonadFork(async ({ local, upstream, block }) => {
     const accounts = await local.send('eth_accounts', []);
     const [deployer, buyer, treasury] = await Promise.all(accounts.slice(0, 3).map(a => local.getSigner(a)));
     const nft = new Contract(chain.collection, [...nftAbi, 'function transferFrom(address,address,uint256)'], local);
@@ -98,6 +110,11 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     assert.equal(nowOld.creator, oldCredit.creator + sellQuote.creatorFee);
     assert.equal(nowNew.studio, sellQuote.studioFee);
     await conserved();
+    const creditBlock=await local.getBlock('latest');
+    const historicalAccount=await readTradeState(local,{factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,toBlock:creditBlock.number},owner);
+    assert.equal(historicalAccount.account.feeCredits.studioRaw,String(oldCredit.studio));
+    assert.ok(BigInt(historicalAccount.account.feeCredits.studioRaw)>0n);
+    assert.equal(historicalAccount.beneficiaries.studioOwnerAtSnapshot,buyerAddress);
     const beforeClaim = await quote.balanceOf(owner);
     await (await vault.connect(creator).claim()).wait();
     assert.equal(await quote.balanceOf(owner), beforeClaim + nowOld.creator + nowOld.studio);
@@ -131,6 +148,181 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     assert.equal(await market.totalReserve(), reserveBeforeDonation);
     assert.equal(await vault.totalCredited(), creditedBeforeDonation);
     assert.equal(await quote.balanceOf(marketAddress), reserveBeforeDonation + 7n);
-    console.log(JSON.stringify({ forkBlock:block.number, actualInitialBuy:true, actualCurveBuySell:true, transferFeeOwnership:true, oldCreatorClaim:true, zeroAllocation:true, graduation:false, liveWrites:false }));
+    // The backend consumes the actual executed logs and constructor mint, without seeded data.
+    const end=await local.getBlock('latest');
+    const data=await readMarketWindow(local,{factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,fromBlock:receipt.blockNumber,toBlock:end.number,intervalSeconds:60});
+    const actualTrades=await market.queryFilter(market.filters.Traded(launch.token),receipt.blockNumber,end.number);
+    assert.equal(data.trades.length,actualTrades.length);
+    assert.equal(data.trades.length,5);
+    assert.equal(data.trades[0].payer,expectedFactory);
+    assert.equal(data.trades[0].recipient,owner);
+    assert.equal(data.trades.at(-1).side,'sell');
+    assert.equal(data.snapshot.blockHash,end.hash);
+    assert.equal(data.holders.count,3);
+    assert.ok(data.holders.top.some(h=>h.role==='curve'),'Inventory is a protocol holding, not a user wallet');
+    assert.equal(data.holders.top.find(h=>h.wallet===owner).balanceRaw,String(await token.balanceOf(owner)));
+    const volume=actualTrades.reduce((sum,l)=>sum+l.args.baseQuote,0n);
+    assert.equal(data.candles.reduce((sum,c)=>sum+BigInt(c.quoteVolumeRaw),0n),volume);
+    for(const candle of data.candles) {
+      const events=data.trades.filter(t=>Math.floor(t.timestamp/60)*60===candle.time);
+      assert.equal(candle.tradeCount,events.length);
+      // Independent exact integer price from actual RPC events, not Number approximations.
+      const prices=events.map(t=>BigInt(t.quoteBaseRaw)*10n**36n/BigInt(t.tokenAmountRaw));
+      const units=value=>{const [a,b='']=value.split('.');return BigInt(a)*10n**36n+BigInt(b.padEnd(36,'0'));};
+      assert.equal(units(candle.open),prices[0]); assert.equal(units(candle.close),prices.at(-1));
+      assert.equal(units(candle.high),prices.reduce((a,b)=>a>b?a:b)); assert.equal(units(candle.low),prices.reduce((a,b)=>a<b?a:b));
+    }
+    // Frontend chart geometry and exact display values use actual executed trade data.
+    const geometry=candleGeometry(data.candles);
+    assert.ok(geometry);
+    for(const candle of geometry.values) {
+      assert.equal(candle.o,fixedPrice(candle.open));
+      for(const value of [candle.o,candle.h,candle.l,candle.c]) {
+        assert.ok(Number.isFinite(geometry.y(value)));
+        assert.ok(geometry.y(value)>=35&&geometry.y(value)<=245);
+      }
+      assert.ok(Number.isFinite(geometry.x(candle.time)));
+    }
+    assert.equal(candleGeometry([]),null);
+    assert.equal(displayUnits(data.trades[0].tokenAmountRaw).replaceAll(',',''),
+      formatUnits(BigInt(data.trades[0].tokenAmountRaw),18).replace(/\.0$/, ''));
+    const tradeConfig={factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,toBlock:end.number};
+    const buyPreview=await readCurveQuote(local,tradeConfig,{side:'buy',amountRaw:String(parseEther('0.01')),wallet:buyerAddress});
+    const directBuy=await market.getBuyQuote(launch.token,parseEther('0.01'),{blockTag:end.number});
+    assert.equal(buyPreview.quote.actualInputRaw,String(directBuy.quoteSpent));
+    assert.equal(buyPreview.quote.outputRaw,String(directBuy.tokenOut));
+    assert.equal(buyPreview.quote.unusedBudgetRaw,String(parseEther('0.01')-directBuy.quoteSpent));
+    assert.equal(buyPreview.beneficiaries.studioOwnerAtSnapshot,await nft.ownerOf(1557n,{blockTag:end.number}));
+    assert.equal(buyPreview.beneficiaries.creator,owner);
+    assert.equal(buyPreview.account.tokenBalanceRaw,String(await token.balanceOf(buyerAddress,{blockTag:end.number})));
+    assert.equal(buyPreview.account.quoteAllowanceRaw,String(await quote.allowance(buyerAddress,marketAddress,{blockTag:end.number})));
+    const sellPreview=await readCurveQuote(local,tradeConfig,{side:'sell',amountRaw:String(10n**18n),wallet:buyerAddress});
+    const directSell=await market.getSellQuote(launch.token,10n**18n,{blockTag:end.number});
+    assert.equal(sellPreview.quote.outputRaw,String(directSell.quoteOut));
+    assert.equal(sellPreview.quote.totalFeeRaw,String(directSell.creatorFee+directSell.studioFee+directSell.platformFee));
+    const oldAccount=await readTradeState(local,tradeConfig,owner),oldCredits=await vault.credits(owner,{blockTag:end.number});
+    assert.equal(oldAccount.account.feeCredits.creatorRaw,String(oldCredits.creator));
+    assert.equal(oldAccount.account.feeCredits.studioRaw,String(oldCredits.studio));
+    assert.equal(oldAccount.account.feeCredits.totalRaw,String(oldCredits.creator+oldCredits.studio+oldCredits.platform));
+    assert.equal((await readCurveQuote(local,tradeConfig,{side:'buy',amountRaw:String(parseEther('0.01'))})).quote.balanceSufficient,null);
+    await assert.rejects(readCurveQuote(local,tradeConfig,{side:'sell',amountRaw:String(10n**30n)}),e=>e.code==='INVALID_TRADE_AMOUNT');
+    const recent=await readMarketWindow(local,{factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,fromBlock:end.number,toBlock:end.number,intervalSeconds:60});
+    assert.equal(recent.holders,null); assert.deepEqual(recent.candles,[]);
+    // Another real ERC-20 is not a registered Foundry launch.
+    await assert.rejects(readMarketWindow(local,{factoryAddress:expectedFactory,tokenAddress:chain.quote,collection:chain.collection,quote:chain.quote,fromBlock:receipt.blockNumber,toBlock:end.number}),e=>e.code==='MARKET_BINDING_MISMATCH');
+    // Actual fork events executed through the PostgreSQL repository on a real WASM engine.
+    const sqlEngine=new PGlite();let pgIndexer;
+    try {
+      await sqlEngine.exec(await readFile(new URL('../../backend/supabase/migrations/001_foundry.sql',import.meta.url),'utf8'));
+      const deployment=await factory.deploymentTransaction().wait();
+      pgIndexer=new MarketIndexer(local,{chainId:31337,factoryAddress:expectedFactory,deploymentBlock:deployment.blockNumber,collection:chain.collection,quote:chain.quote},{localFork:true,storeFactory:config=>new PostgresMarketStore(config,sqlEngine)});
+      await pgIndexer.sync(10);
+      const stored=await pgIndexer.market(launch.token);
+      assert.equal(stored.tradeCount,data.trades.length);assert.deepEqual(stored.candles,data.candles);
+      assert.equal(stored.holders.count,data.holders.count);
+      const head=await pgIndexer.store.head();
+      await assert.rejects(pgIndexer.store.commit(head.end_block,head.end_block,await local.getBlock(head.end_block),[]),e=>e.code==='INDEX_GAP');
+      assert.equal((await pgIndexer.market(launch.token)).tradeCount,data.trades.length);
+      await pgIndexer.store.rollback(deployment.blockNumber-1);
+      assert.equal(await pgIndexer.store.head(),null);assert.deepEqual(await pgIndexer.store.tokens(),[]);
+      await pgIndexer.sync(10);assert.equal((await pgIndexer.market(launch.token)).tradeCount,data.trades.length);
+    } finally {await pgIndexer?.close();await sqlEngine.close();}
+    // Persistent backfill and a genuine local fork branch change, not mocked logs.
+    await mkdir(new URL('../artifacts/',import.meta.url),{recursive:true});
+    const folder=await mkdtemp(fileURLToPath(new URL('../artifacts/market-index-',import.meta.url)));
+    const db=folder+'/markets.sqlite';
+    const deploymentReceipt=await factory.deploymentTransaction().wait();
+    const indexConfig={chainId:31337,factoryAddress:expectedFactory,deploymentBlock:deploymentReceipt.blockNumber,collection:chain.collection,quote:chain.quote};
+    let indexer=new MarketIndexer(local,indexConfig,{databasePath:db,localFork:true});
+    let streamServer,controller,browser;const streams=new Set();
+    try {
+      assert.equal((await indexer.sync(10)).caughtUp,true);
+      const indexed=await indexer.market(launch.token);
+      assert.equal(indexed.tradeCount,data.trades.length);
+      assert.deepEqual(indexed.candles,data.candles);
+      assert.equal(indexed.holders.count,data.holders.count);
+      const stableCursor=indexed.cursor;
+      await indexer.sync(10);
+      assert.equal((await indexer.market(launch.token)).cursor,stableCursor,'Repeated sync does not duplicate events or revise an unchanged checkpoint');
+      await indexer.close();indexer=new MarketIndexer(local,indexConfig,{databasePath:db,localFork:true});
+      assert.equal(indexer.store.market(launch.token).tradeCount,data.trades.length,'Actual SQLite persists across restart');
+      assert.throws(()=>new MarketIndexer(local,{...indexConfig,collection:chain.quote},{databasePath:db,localFork:true}),e=>e.code==='INDEX_CONFIG_CHANGED');
+      const wrongNetwork=new MarketIndexer(upstream,indexConfig,{databasePath:':memory:'});
+      try {await assert.rejects(wrongNetwork.sync(),e=>e.code==='CHAIN_MISMATCH');} finally {await wrongNetwork.close();}
+      const branch=await local.send('evm_snapshot',[]);
+      await(await token.connect(buyer).approve(marketAddress,10n**18n)).wait();
+      const branchQuote=await market.getSellQuote(launch.token,10n**18n);
+      const branchReceipt=await(await market.connect(buyer).sell(launch.token,10n**18n,branchQuote.quoteOut,buyerAddress,deadline)).wait();
+      await local.send('anvil_mine',['0x78']);
+      await indexer.sync(10);
+      const changed=await indexer.market(launch.token);
+      assert.equal(changed.tradeCount,data.trades.length+1);
+      assert.ok(changed.range.toBlock-changed.range.fromBlock>100,'Persisted history spans multiple RPC windows');
+      assert.equal(changed.holders.top.find(h=>h.wallet===buyerAddress.toLowerCase()).balanceRaw,String(await token.balanceOf(buyerAddress)));
+      // Exercise the actual HTTP SSE implementation and replay an orphaned cursor.
+      streamServer=http.createServer(async (req,res)=>{
+        try {
+          const route=new URL(req.url,'http://127.0.0.1').pathname;
+          if(route==='/'||route.endsWith('/stream'))return await openMarketStream(req,res,indexer,launch.token,60,streams);
+          let body;
+          if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
+          else if(route===`/api/tokens/${launch.token}/history`)body=await indexer.market(launch.token,60);
+          else if(route===`/api/tokens/${launch.token}/quote`){
+            const query=new URL(req.url,'http://127.0.0.1').searchParams,head=await indexer.store.head();
+            const config={...indexConfig,tokenAddress:launch.token,toBlock:head.end_block};
+            body=await readCurveQuote(local,config,{side:query.get('side'),amountRaw:query.get('amountRaw'),wallet:query.get('wallet')});
+            body.provenance={chainId:31337,blockNumber:head.end_block,blockHash:head.end_hash,blockTime:head.block_time,finality:'local-fork-latest',rpcOrigin:new URL(local._getConnection().url).origin,fetchedAt:new Date().toISOString()};
+          }
+
+          else if(route===`/api/tokens/${launch.token}/account`){
+            const query=new URL(req.url,'http://127.0.0.1').searchParams,head=await indexer.store.head();
+            body=await readTradeState(local,{...indexConfig,tokenAddress:launch.token,toBlock:head.end_block},query.get('wallet'));
+            body.provenance={chainId:31337,blockNumber:head.end_block,blockHash:head.end_hash,blockTime:head.block_time,finality:'local-fork-latest',rpcOrigin:new URL(local._getConnection().url).origin,fetchedAt:new Date().toISOString()};
+          }
+          else {res.writeHead(404,{'Content-Type':'application/json'});res.end(JSON.stringify({error:{message:'This isolated test API only serves actual indexed markets.'}}));return;}
+          res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(body));
+        }catch(error){if(!res.headersSent)res.writeHead(error.status||500);res.end();}
+      });
+      await new Promise(resolve=>streamServer.listen(0,'127.0.0.1',resolve));
+      const url=`http://127.0.0.1:${streamServer.address().port}`;
+      browser=await marketBrowser(url,launch.token,buyerAddress);
+      if(browser)await browser.check(changed,'populated');
+      controller=new AbortController();
+      const response=await fetch(url,{signal:controller.signal});
+      assert.equal(response.headers.get('content-type'),'text/event-stream; charset=utf-8');
+      const streamReader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
+      async function event() {
+        for(;;) {
+          const boundary=buffer.indexOf('\n\n');
+          if(boundary>=0){const frame=buffer.slice(0,boundary);buffer=buffer.slice(boundary+2);if(frame.startsWith(':'))continue;return {type:frame.match(/event: (.+)/)[1],data:JSON.parse(frame.match(/data: (.+)/)[1])};}
+          const result=await streamReader.read();assert.equal(result.done,false);buffer+=decoder.decode(result.value,{stream:true});
+        }
+      }
+      assert.equal((await event()).data.tradeCount,changed.tradeCount);
+      assert.equal(await local.send('evm_revert',[branch]),true);
+      await indexer.sync(10);
+      const reset=await event();assert.equal(reset.type,'reset');
+      assert.equal(reset.data.tradeCount,data.trades.length);
+      assert.ok(!reset.data.trades.some(t=>t.transactionHash===branchReceipt.hash),'Orphaned trades disappear from authoritative stream snapshot');
+      assert.equal(reset.data.holders.top.find(h=>h.wallet===buyerAddress.toLowerCase()).balanceRaw,String(await token.balanceOf(buyerAddress)));
+      assert.notEqual(reset.data.cursor,changed.cursor);
+      if(browser)await browser.reset(reset.data,branchReceipt.hash);
+      controller.abort();
+      const replayController=new AbortController();
+      try {
+        const replay=await fetch(url,{headers:{'Last-Event-ID':changed.cursor},signal:replayController.signal});
+        const r=replay.body.getReader();let text='';while(!text.includes('\n\n')){const chunk=await r.read();text+=decoder.decode(chunk.value);}
+        const snapshot=JSON.parse(text.match(/data: (.+)/)[1]);
+        assert.equal(snapshot.tradeCount,data.trades.length);assert.notEqual(snapshot.cursor,changed.cursor);
+      } finally {replayController.abort();}
+      await indexer.close();indexer=new MarketIndexer(local,indexConfig,{databasePath:db,localFork:true});
+      assert.equal((await indexer.market(launch.token)).tradeCount,data.trades.length,'Rollback persists across restart');
+    } finally {
+      await browser?.close();
+      controller?.abort();for(const stream of streams) stream.end();
+      if(streamServer) await new Promise(resolve=>streamServer.close(resolve));
+      await indexer.close();
+    }
+    console.log(JSON.stringify({ forkBlock:block.number, actualInitialBuy:true, actualCurveBuySell:true, transferFeeOwnership:true, oldCreatorClaim:true, zeroAllocation:true, actualMarketData:true, actualCandles:true, actualHolderReplay:true, postgresRepository:true, persistentIndex:true, realBranchRollback:true, actualSSE:true, graduation:false, liveWrites:false }));
   });
 });

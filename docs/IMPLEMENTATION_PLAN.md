@@ -128,3 +128,38 @@ Next critical gate: build and verify a pool-bound v4 hook with authenticated ini
 Completed real PoolManager callback fee capture for four swap modes and bound-pool initialization authorization. Fork tests cover actual funding, fee-event vs PoolManager quote-delta comparison, NFT transfer, original creator/old claims, independent callback caller and credit rollback with slippage. Hook has no public self-swap/unlock route.
 
 Next: verify quote-specified partial-fill rejection and all intended external router paths more comprehensively; review reentrancy/custody/source privileges, dust/LP fee custody and fixed post-graduation economics; prepare verified testnet assets/configuration and deployment scripts, then UI signing/indexing. No mainnet authorization. Candles/realtime/holders/profile work stays queued after contract flow.
+
+
+## Market data foundation and price-limit verification - 2026-10-09
+
+Implemented tight-limit partial-fill and settlement rollback verification using the actual hooked pool. Added read-only curve/PoolManager event normalization, exact integer OHLC/volumes, canonical block validation and conditional complete holder replay. Fork suites validate the reader on actual executed trades. API fails explicitly until an actual verified factory is configured.
+
+Next data layer: durable deployment-to-head backfill/checkpoints, canonical rollback/catch-up, holder ledger, SSE/WS resume/deduplication, trader attribution from supported router events, and actual chart/trade/profile UI. Current 100-block windows are a bounded foundation, not a production indexer or realtime feed. Preserve the pending contract source/router/security review and concrete testnet asset/economic configuration gates.
+
+
+## Persistent market history and realtime API - 2026-10-09
+
+Implemented contiguous launch-to-head backfill, transactional SQLite event/checkpoint persistence, restart resume, deployment identity/anchor validation, canonical rollback and recomputed candles/holder balances. Added indexed token discovery, history, status and SSE endpoints. Reconnect receives a fresh authoritative snapshot; reorg emits reset; RPC failures close streams with unavailable. Fork tests exercise actual branch replacement, multi-window history, SQLite reopen and real HTTP SSE. Authentication transfer invalidation remains independent.
+
+Next: connect a real-data frontend chart/trade/holder view, add supported-router trader attribution and indexed pagination/aggregates, then load-test the local capacity boundaries. Public financial flow still requires reviewed economics/assets/deployment configuration and outstanding contract review. No runtime factory is configured, no fork data is application fallback and no mainnet deployment is authorized.
+
+
+## Supabase primary repositories - 2026-10-09
+
+Implemented D19 PostgreSQL schema/repositories and async API/indexer/SSE calls. Prepared idempotent schema migration, safe connection check and one-time SQLite import with consistent backups/empty-target guard/atomic writes. Existing local files are preserved. SQL is tested with a real PostgreSQL WASM engine and actual fork events; production Supabase TLS/network/pooler validation is not complete without the actual connection string.
+
+Next prerequisite: configure backend/.env SUPABASE_DATABASE_URL from the intended Supabase project's Connect panel, run db:migrate and db:check, then optionally import existing SQLite data with all writers stopped. Do not log or request credentials in chat. Continue pending frontend chart/trade/holder work; Supabase selection does not authorize public blockchain deployment or real funds. Sessions and single active index-worker limitations remain.
+
+
+## Market frontend implementation - 2026-10-10
+
+Completed read-only indexed market discovery, exact-price candles, realtime replacement snapshots/reorg reset, buy/sell history, holder roles and canonical provenance. Actual-fork browser verification covers populated data and branch replacement on desktop/mobile; runtime missing-configuration behavior stays explicit.
+
+Next prerequisites: configure the actual Supabase project and validate migration/connectivity; review/select testnet assets and numerical deployment economics before any public contract deployment. Then implement user-reviewed wallet transaction preparation/signing, quotes/approval/deadlines/slippage, positions and fee claims against the verified deployment. Preserve read-only Mainnet policy. Extend supported-router trader attribution, paginated history and operational capacity validation independently. No decisions on economics or public deployment are implied by the UI implementation.
+
+
+## Trade preparation increment - 2026-10-10
+
+Completed finalized read-only curve quote and account inspection: exact amounts, category fees, actual spend/unused budget, balances/allowances and beneficiary credits. Public wallet inspection grants no authority. Real curve/hooked fork checks and Chromium exercise source getters and reject graduated curve quotes.
+
+Next: finalize reviewed testnet deployment assets/economic configuration and configure Supabase. Implement a genuine v4 quote/preflight path, explicit slippage/deadline, gas/allowance transaction review and wallet signing with chain/account rechecks. Claims must follow recorded beneficiaries. No Mainnet execution is authorized; inspection alone does not enable transaction submission.

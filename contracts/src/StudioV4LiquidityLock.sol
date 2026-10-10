@@ -71,7 +71,7 @@ contract StudioV4LiquidityLock is ReentrancyGuard {
         if (liquidity <= 1 || liquidity > uint256(uint128(type(int128).max))) revert InvalidAmount();
         liquidity -= 1;
         poolManager.initialize(key, sqrtPrice);
-        bytes memory data = abi.encode(uint8(0), key, int256(liquidity), amount0, amount1, address(this));
+        bytes memory data = abi.encode(uint8(0), key, int256(liquidity), amount0, amount1, address(this), uint160(0));
         pending = keccak256(data);
         bytes memory result = poolManager.unlock(data); pending = bytes32(0);
         (uint256 used0, uint256 used1) = abi.decode(result, (uint256, uint256));
@@ -84,21 +84,34 @@ contract StudioV4LiquidityLock is ReentrancyGuard {
     }
     /// @notice Swaps through the configured pool, including hook deltas when a hook is configured.
     function swap(address token, bool quoteIn, uint256 maxInput, uint256 minOutput, address recipient, uint256 deadline) external nonReentrant returns (uint256 amountOut) {
-        return _swap(token, quoteIn, maxInput, minOutput, recipient, deadline, -int256(maxInput));
+        return _swap(token, quoteIn, maxInput, minOutput, recipient, deadline, -int256(maxInput), 0);
     }
     function swapExactOutput(address token, bool quoteIn, uint256 output, uint256 maxInput, address recipient, uint256 deadline) external nonReentrant returns (uint256) {
         if (output == 0 || output > uint256(type(int256).max)) revert InvalidAmount();
-        return _swap(token, quoteIn, maxInput, output, recipient, deadline, int256(output));
+        return _swap(token, quoteIn, maxInput, output, recipient, deadline, int256(output), 0);
     }
-    function _swap(address token, bool quoteIn, uint256 maxInput, uint256 minOutput, address recipient, uint256 deadline, int256 specified) private returns (uint256) {
+    /// @notice Price limit is currency1/currency0 sqrt price in Q96, as in PoolManager.
+    /// Zero uses the protocol bounds. Partial exact-input fills refund unspent input;
+    /// the hook rejects quote-specified partial fills to preserve fee accounting.
+    function swapWithPriceLimit(address token, bool quoteIn, uint256 maxInput, uint256 minOutput, address recipient, uint256 deadline, uint160 sqrtPriceLimitX96) external nonReentrant returns (uint256) {
+        return _swap(token, quoteIn, maxInput, minOutput, recipient, deadline, -int256(maxInput), sqrtPriceLimitX96);
+    }
+    function swapExactOutputWithPriceLimit(address token, bool quoteIn, uint256 output, uint256 maxInput, address recipient, uint256 deadline, uint160 sqrtPriceLimitX96) external nonReentrant returns (uint256) {
+        if (output == 0 || output > uint256(type(int256).max)) revert InvalidAmount();
+        return _swap(token, quoteIn, maxInput, output, recipient, deadline, int256(output), sqrtPriceLimitX96);
+    }
+    function _swap(address token, bool quoteIn, uint256 maxInput, uint256 minOutput, address recipient, uint256 deadline, int256 specified, uint160 priceLimit) private returns (uint256) {
         if (block.timestamp > deadline) revert Expired();
         if (maxInput == 0 || maxInput > uint256(type(int256).max)
             || minOutput == 0 || recipient == address(0) || recipient == address(this)) revert InvalidAmount();
         IV4PoolManager.PoolKey memory key = poolKey(token);
         address input = quoteIn ? address(quote) : token;
         bool zeroForOne = key.currency0 == input;
+        if (priceLimit == 0) priceLimit = zeroForOne ? MIN_SQRT + 1 : MAX_SQRT - 1;
+        if (priceLimit <= MIN_SQRT || priceLimit >= MAX_SQRT) revert InvalidAmount();
+        // PoolManager validates the limit against the current price and swap direction.
         _pull(IERC20(input), msg.sender, maxInput);
-        bytes memory data = abi.encode(uint8(zeroForOne ? 1 : 2), key, specified, zeroForOne ? maxInput : 0, zeroForOne ? 0 : maxInput, recipient);
+        bytes memory data = abi.encode(uint8(zeroForOne ? 1 : 2), key, specified, zeroForOne ? maxInput : 0, zeroForOne ? 0 : maxInput, recipient, priceLimit);
         pending = keccak256(data);
         bytes memory result = poolManager.unlock(data); pending = bytes32(0);
         (uint256 spent, uint256 output) = abi.decode(result, (uint256, uint256));
@@ -109,13 +122,13 @@ contract StudioV4LiquidityLock is ReentrancyGuard {
     }
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
         if (msg.sender != address(poolManager) || pending == bytes32(0) || pending != keccak256(data)) revert Unauthorized();
-        (uint8 operation, IV4PoolManager.PoolKey memory key, int256 amount, uint256 max0, uint256 max1, address recipient) = abi.decode(data, (uint8, IV4PoolManager.PoolKey, int256, uint256, uint256, address));
+        (uint8 operation, IV4PoolManager.PoolKey memory key, int256 amount, uint256 max0, uint256 max1, address recipient, uint160 priceLimit) = abi.decode(data, (uint8, IV4PoolManager.PoolKey, int256, uint256, uint256, address, uint160));
         int256 packed;
         if (operation == 0) {
             if (amount <= 0) revert InvalidAmount();
             (packed,) = poolManager.modifyLiquidity(key, IV4PoolManager.ModifyLiquidityParams(-887272, 887272, amount, bytes32(0)), '');
         } else {
-            packed = poolManager.swap(key, IV4PoolManager.SwapParams(operation == 1, amount, operation == 1 ? MIN_SQRT + 1 : MAX_SQRT - 1), '');
+            packed = poolManager.swap(key, IV4PoolManager.SwapParams(operation == 1, amount, priceLimit), '');
         }
         int128 delta0 = int128(packed >> 128); int128 delta1 = int128(packed);
         if (operation == 0) {

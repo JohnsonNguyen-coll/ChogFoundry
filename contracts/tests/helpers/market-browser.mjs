@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+// Optional browser verification against a live test-owned indexer and actual fork events.
+// No route interception, fabricated responses, wallet provider or runtime fallback.
+export async function marketBrowser(apiBase, token, wallet) {
+  if (!process.env.PLAYWRIGHT_RUNTIME) return null;
+  const require = createRequire(import.meta.url);
+  const { chromium } = require(process.env.PLAYWRIGHT_RUNTIME);
+  const frontendRequire = createRequire(new URL('../../../frontend/package.json', import.meta.url));
+  const { createServer } = await import(pathToFileURL(frontendRequire.resolve('vite')).href);
+  const vite = await createServer({
+    root: fileURLToPath(new URL('../../../frontend', import.meta.url)),
+    configFile: fileURLToPath(new URL('../../../frontend/vite.config.mjs', import.meta.url)),
+    server: { host: '127.0.0.1', port: 0, strictPort: false, proxy: { '/api': { target: apiBase } } },
+  });
+  let browser;
+  try {
+    await vite.listen();
+    browser = await chromium.launch({ channel: 'chrome', headless: true });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const errors = []; page.on('pageerror', e => errors.push(e.message));
+    await page.goto(`http://127.0.0.1:${vite.httpServer.address().port}`, { waitUntil: 'networkidle' });
+    await page.locator('#market-token').fill(token);
+    await page.getByRole('button', { name: 'Open market' }).click();
+    await page.getByText('stream connected', { exact: false }).waitFor();
+    await page.getByRole('textbox',{name:'Wallet address to inspect'}).fill(wallet);
+    await page.getByRole('button',{name:'Inspect wallet'}).click();
+    await page.getByText('Creator fee credits',{exact:true}).waitFor();
+    await page.getByRole('textbox',{name:'Trade amount'}).fill('0.01');
+    await page.getByRole('button',{name:'Preview quote'}).click();
+    await page.getByText('Unused maximum budget',{exact:true}).waitFor();
+    assert.equal(await page.locator('.quote-review').count(),1);
+    return {
+      async check(snapshot, label) {
+        await page.waitForFunction(hash => document.querySelector('.market-card')?.dataset.blockHash === hash, snapshot.snapshot.blockHash);
+        assert.equal(await page.locator('.market-tables').first().locator('tbody').first().locator('tr').count(), snapshot.trades.length);
+        assert.equal(await page.locator('.market-tables').first().locator('tbody').nth(1).locator('tr').count(), snapshot.holders.top.length);
+        assert.equal(await page.locator('.candle-chart g').count(), Math.min(120, snapshot.candles.length));
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+        await page.locator('#markets').screenshot({ path: fileURLToPath(new URL(`../../artifacts/market-ui-${label}-desktop.png`, import.meta.url)) });
+        await page.setViewportSize({ width: 390, height: 844 });
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+        await page.locator('#markets').screenshot({ path: fileURLToPath(new URL(`../../artifacts/market-ui-${label}-mobile.png`, import.meta.url)) });
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        assert.deepEqual(errors, []);
+      },
+      async reset(snapshot, orphanHash) {
+        await this.check(snapshot, 'reorg');
+        assert.equal(await page.locator(`tr[data-transaction="${orphanHash}"]`).count(), 0);
+        await page.getByText('Chain reorganization:', { exact: false }).waitFor();
+      },
+      async close() { await browser.close(); await vite.close(); },
+    };
+  } catch (error) { await browser?.close(); await vite.close(); throw error; }
+}

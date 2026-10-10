@@ -98,3 +98,50 @@ No public deployment. Current pool has hooks=0 and LP fees only; post-graduation
 StudioV4FeeHook and optional immutable lock hook are implemented. Six real-state fork suites passed; strengthened hook tests passed independently at block 111862120. Four swap modes funded creator/studio/platform credits from actual PoolManager quote settlement, including an independent callback caller. PoolManager event comparisons, NFT transfer ownership, original creator continuity, old claim, unauthorized initialization and slippage rollback passed. Evidence: research/V4_HOOK.md/json.
 
 No mainnet/public deployment or mock AMM. Final post-graduation rates/LP-inclusive fees remain open deployment decisions; external routing matrix, partial fills, custody/source/security review and testnet assets/configuration remain gates. LP fees are separate from hook credits and stay in the locked position.
+
+
+## Price-limited settlement and actual market data - 2026-10-09
+
+Added optional Q96 swap bounds to the v4 lock. Actual partial-fill fork transactions verify prepaid quote-fee rollback, exact-token-output underfill rollback, and partial token-input refund/actual fee credit. Full settlement state/allowances/credits are compared after actual reverts. Latest hooked report: source block 111866161, recorded in research/V4_HOOK.json.
+
+Added GET /api/tokens/:address/market and the onchain market reader. It validates factory/vault/curve/token bindings, reads at most 100 finalized blocks, verifies canonical event hashes, and derives CHOG execution OHLC/volumes without empty-period fabrication. Official PoolManager swaps include independent routes; router identity is not a trader wallet. Holder census exists only with complete constructor-mint-to-snapshot replay; otherwise null. Protocol-held inventory is labeled. Curve and hooked fork suites validate these outputs against actual executed logs/current balances.
+
+Verification: npm test 8/8; npm run test:live 3/3; npm run test:fork 6/6; npm run build and git diff --check passed. No default factory address, public deployment, mainnet writes, fake RPC, seed data or live-fund use. Realtime/SSE/WS, durable indexing/backfill and trading/chart UI remain next work. Current API has explicit FOUNDRY_NOT_CONFIGURED until an actual reviewed deployment is configured.
+
+
+## Persistent market history and finalized SSE - 2026-10-09
+
+MarketIndexer/MarketStore now discover actual factory launches, backfill contiguous 100-block-bounded windows and commit token trades/transfers with canonical checkpoints in a separate SQLite database. Deployment chain/assets/first-code block/anchor are verified; changed configuration is rejected. Restart resumes from persistent history. Reorg rollback discards later windows and reconstructs candles/holder balances. Catch-up and response truncation are explicit; no market index grants studio permissions.
+
+Added GET /api/market-index, /api/tokens, /api/tokens/:address/history and /stream. SSE sends authoritative replacement snapshots, reorg resets and reconnect snapshots for orphaned cursors. Errors close streams; client count/buffering, listeners, heartbeats and shutdown are bounded. Runtime is finalized Mainnet read-only; a separately guarded test-only loopback fork mode is explicitly labeled local-fork-latest.
+
+Fork source block 111871137 passed actual SQLite reopen, multi-window backfill beyond 100 blocks, real branch replacement with evm_revert, rollback of trade/holder state, HTTP SSE reset and orphaned-cursor reconnect. Hooked source block 111871268 passed indexed initial curve buy plus all six official pool swaps and actual PoolManager holder balance. All six fork suites, eight backend tests, three live tests and contracts/frontend build passed. No mock events, public deployment, application seeds, real funds or default factory configuration. Frontend chart/trade/holder integration remains next work; public-scale pagination/aggregates/load testing are not complete.
+
+
+## Supabase primary database — 2026-10-09
+
+User decision D19 makes Supabase PostgreSQL authoritative for studio profiles/revisions and canonical market indexes/chunks/windows. Backend uses asynchronous PostgreSQL repositories and one shared TLS-verifying connection pool. Profile edits serialize with optimistic revision checks; chunk commits and reorg rollback are transactional. SSE awaits consistent market snapshots. Missing configuration returns an explicit unavailable error, never SQLite fallback. Existing SQLite files are preserved for a separate, empty-target-only atomic import with consistent backups; no cloud data is overwritten and fork history is rejected.
+
+A private foundry schema migration enables RLS and denies browser roles. Migration/check/import scripts and SUPABASE_SETUP.md are available. Sessions remain in RAM; multi-instance session storage is not implemented. No actual Supabase URL is configured, no hosted migration has run, and health configuration is not a connectivity check.
+
+Verification: 11 backend tests passed, including real PostgreSQL WASM migration/repository execution and browser-role denial. All six real-state fork suites passed; curve source block 111874654 exercised PostgreSQL market persistence, gap rollback and canonical rebuild against actual executed events. Hook source block 111874813 verified actual curve/pool history. Three live RPC tests and contracts/frontend build passed. PGlite is test-only and does not verify hosted Supabase TLS/pooler connectivity. No production seed data, database credentials, mainnet deployment or real-fund transactions.
+
+
+## Real-data market frontend - 2026-10-10
+
+Implemented the Markets section with indexed token discovery/address lookup, 1m/5m/15m/1h CHOG execution candles, actual buy/sell rows, top holders, original creator/studio links and source/block/hash/time. No fabricated empty candles, USD conversion or inferred traders from callback routers. BigInt preserves raw amounts and 36-decimal prices before normalized SVG pixel conversion. API truncation, chart display limits, protocol holdings and catch-up status are explicit.
+
+History loads before a replace-only SSE stream. Token/interval changes cancel requests and close old streams. Disconnects clear displayed market data; reconnect waits for an authoritative snapshot. Reorg replaces candles/trades/holders and identifies the reset. Local-fork observations are labeled and do not link local transactions to the Mainnet explorer. This is market viewing, not transaction submission.
+
+Verification: npm test 11/11, test:live 3/3, full contracts/frontend build and final frontend build passed. Actual curve fork at source block 112077318 passed frontend exact-price geometry plus optional Chromium verification through a real test-owned indexer API: actual trade/candle/holder counts, branch rollback and orphan-row removal, 1440px/390px layout without overflow or page errors. Screenshots under ignored contracts/artifacts/market-ui-*.png were inspected. No browser request interception, wallet simulation or seeded application data. Other five fork suites were not rerun for this frontend-only change.
+
+Runtime still lacks Supabase configuration and a verified public factory/deployment block. It reports unavailable; test fork data is never a runtime fallback. Buy/sell signing, account positions, fee claims, supported-router trader attribution, indexed pagination and public-scale load testing remain pending.
+
+
+## Contract quote and wallet fee inspection - 2026-10-10
+
+Implemented read-only /quote and /account endpoints and the market detail forms. Real contract getters expose exact buy/sell amounts, actual CHOG spend/unused maximum budget, fee split, balances, curve allowances and aggregate beneficiary credits. Factory/token/curve/vault/asset bindings and approved fee/decimal getters are checked at one finalized canonical snapshot. Graduated tokens keep wallet inspection but reject curve quotes explicitly. Invalid amounts are rejected before RPC; there is no synthetic quote, signing or Mainnet write.
+
+Verification: 12 backend tests, 3 live tests, full build and final frontend build passed. Curve source block 112079109 passed real buy/sell getter comparison, allowance/balance comparison, old-owner outstanding studio credit after transfer and no-wallet/null behavior. Chromium exercised actual quote/public-wallet lookup on desktop/mobile without a simulated wallet. Hooked source block 112079219 passed real graduated account reads and rejection of the curve quote path. Existing SSE/reorg browser assertions passed with the new panel. No page errors/overflow; ignored market-ui screenshots were reviewed. Only the two affected fork suites were rerun.
+
+Runtime endpoints honestly return FOUNDRY_NOT_CONFIGURED until an actual reviewed deployment is configured. Supabase project connection also remains absent. Transaction signing, slippage/deadline/preflight, v4 quoting, claim submission and economic/testnet asset decisions remain next work.

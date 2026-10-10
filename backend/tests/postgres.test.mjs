@@ -1,0 +1,51 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { PGlite } from '@electric-sql/pglite';
+import { PostgresStudioStore } from '../src/postgres-studio-store.mjs';
+import { PostgresDatabase,postgresOptions } from '../src/postgres.mjs';
+import { createApi } from '../src/server.mjs';
+
+test('PostgreSQL engine executes migration and preserves revision atomicity; not a Supabase connection',async()=>{
+  const engine=new PGlite();
+  try {
+    await engine.exec('CREATE ROLE anon; CREATE ROLE authenticated;');
+    const sql=await readFile(new URL('../supabase/migrations/001_foundry.sql',import.meta.url),'utf8');
+    await engine.exec(sql);await engine.exec(sql);
+    const store=new PostgresStudioStore(engine);
+    // Storage-only input: no wallet/NFT authority or production profile is fabricated.
+    const input={name:'Storage validation',description:'',website:'',coverUrl:'',expectedRevision:0};
+    await store.save('storage-only','115792089237316195423570985008687907853269984665640564039457584007913129639935',input,'original author',null);
+    const results=await Promise.allSettled([store.save('storage-only','0',{...input,expectedRevision:1,name:'Revision A'},'author A',null),store.save('storage-only','0',{...input,expectedRevision:1,name:'Revision B'},'author B',null)]);
+    assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+    assert.equal(results.filter(r=>r.status==='rejected')[0].reason.code,'REVISION_CONFLICT');
+    assert.equal((await store.get('storage-only')).createdBy,'original author');
+    assert.equal((await store.get('storage-only')).revision,2);
+    assert.equal((await store.history('storage-only')).length,2);
+    assert.equal((await store.list()).length,1);
+    await engine.exec('SET ROLE anon');
+    try{await assert.rejects(engine.query('SELECT * FROM foundry.studio_profiles'));}finally{await engine.exec('RESET ROLE');}
+    await engine.exec('SET ROLE authenticated');
+    try{await assert.rejects(engine.query('SELECT * FROM foundry.market_indexes'));}finally{await engine.exec('RESET ROLE');}
+  }finally{await engine.close();}
+});
+
+test('PostgreSQL configuration enforces TLS verification and hides connection errors',async()=>{
+  assert.equal(postgresOptions(''),null);
+  assert.throws(()=>postgresOptions('invalid'),e=>e.code==='INVALID_DATABASE_CONFIG');
+  const parsed=postgresOptions('postgresql://configuration:validation@db.example.com/postgres?sslmode=disable');
+  assert.equal(parsed.ssl.rejectUnauthorized,true);
+  assert.equal(new URL(parsed.connectionString).searchParams.has('sslmode'),false);
+  const db=new PostgresDatabase({url:''});
+  try{await assert.rejects(db.query('SELECT 1'),e=>e.code==='SUPABASE_NOT_CONFIGURED');}finally{await db.close();}
+});
+
+test('default API uses Supabase primary and never falls back to local profiles',async()=>{
+  const previous=process.env.SUPABASE_DATABASE_URL;delete process.env.SUPABASE_DATABASE_URL;
+  const {server}=createApi();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try {
+    const base=`http://127.0.0.1:${server.address().port}`;
+    const health=await(await fetch(base+'/api/health')).json();assert.deepEqual(health.storage,{provider:'supabase-postgres',configured:false});
+    const response=await fetch(base+'/api/studios');assert.equal(response.status,503);assert.equal((await response.json()).error.code,'SUPABASE_NOT_CONFIGURED');
+  }finally{await new Promise(resolve=>server.close(resolve));if(previous===undefined)delete process.env.SUPABASE_DATABASE_URL;else process.env.SUPABASE_DATABASE_URL=previous;}
+});

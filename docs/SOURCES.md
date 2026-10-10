@@ -101,3 +101,34 @@ StudioV4LiquidityLock declares an ABI-compatible subset without vendoring upstre
 - https://raw.githubusercontent.com/Uniswap/v4-core/v4.0.0/src/PoolManager.sol - hook delta accounting and actual take/settlement.
 
 Real fork reports record actual official Monad PoolManager code hash, CREATE2 hook address, key and block. Source review plus behavior is not an audit or certificate that every routing path is supported.
+
+
+## Actual market event data - 2026-10-09
+
+Event schemas are read from current StudioCurveMarket/StudioToken/StudioV4LiquidityLock source and the previously reviewed official v4 PoolManager Swap ABI. The backend consumes actual RPC logs from bound protocol addresses; it does not read research snapshots. Fork source block 111866063 validated curve trade prices/volumes and holder balances; hooked source block 111866161 validated official PoolManager feed and price-limited settlement. These local fork writes are not public deployments or wallet authorization. Post-graduation constructor fee inputs remain evidence scales only.
+
+
+## Persistent market index verification - 2026-10-09
+
+Uses current factory TokenLaunched, ERC-20 Transfer, curve Traded and officially reviewed v4 Swap schemas; actual RPC data only. Real-state fork suites at source blocks 111871137 and 111871268 verify SQLite persistence, canonical branch rollback, multi-window history, actual HTTP SSE and curve-to-pool indexed history. Fork mode reads local latest blocks because Anvil's finalized tag remains at the original source anchor; responses explicitly label local-fork-latest. Runtime uses Monad finalized reads and has no fork address/data fallback. Source/admin/security review remains independent of event-index behavior.
+
+
+## Supabase primary storage references - 2026-10-09
+
+- https://supabase.com/docs/guides/database/connecting-to-postgres - project-supplied direct/session pooler connections; actual host/password must come from the intended project's Connect panel.
+- https://node-postgres.com/features/transactions - one checked-out client per transaction, rollback and release.
+- https://node-postgres.com/features/ssl - explicit TLS options and connection-string SSL-option interactions.
+- https://supabase.com/docs/guides/getting-started/api-keys - API keys differ from PostgreSQL connection credentials; secrets never belong in browser configuration.
+- https://pglite.dev/docs/ - real PostgreSQL WASM engine used only for migration/repository validation, not production storage or proof of a hosted Supabase connection.
+
+Local SQL validation and actual Monad fork event persistence are implementation evidence. No hosted Supabase connection/migration is claimed without real configuration and a successful db:check.
+
+
+## Frontend market verification - 2026-10-10
+
+The frontend reads the existing indexed history/SSE API and current source event normalization; no third-party price feed or fork report is used as application data. Source block 112077318 anchors isolated real-state fork writes. Browser verification reads an actual test-owned MarketIndexer HTTP API without request interception and observes real branch rollback. Images under ignored contracts/artifacts are test evidence only; no Mainnet deployment or owner-wallet signature is claimed.
+
+
+## Trade preparation verification - 2026-10-10
+
+Quote/account ABI follows current StudioCurveMarket getBuyQuote/getSellQuote/configuration getters, StudioFeeVault credits/treasury, ERC-20 balance/allowance and Chog ownerOf. Source fork blocks 112079109 and 112079219 verify actual contract outputs, old-beneficiary credits after NFT transfer and graduated quote refusal. Browser checks consume the real test-owned fork reader HTTP API. These are isolated behavior checks, not reviewed deployment economics, signatures or audit claims.

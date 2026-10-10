@@ -40,6 +40,17 @@ test('studio profiles survive closing and reopening a real SQLite file', async (
     store.close(); store = new StudioStore(filename);
     assert.equal(store.get('storage-only').name, 'Persistent revision');
     assert.equal(store.history('storage-only')[0].author, 'storage author');
+    // Verify the legacy importer can back up a read-only source, including committed WAL data.
+    const { DatabaseSync } = await import('node:sqlite');
+    const readonly = new DatabaseSync(filename, { readOnly: true });
+    const backupPath = join(folder, 'backup.sqlite');
+    try { readonly.prepare('VACUUM INTO ?').run(backupPath); } finally { readonly.close(); }
+    const backup = new DatabaseSync(backupPath, { readOnly: true });
+    try {
+      assert.equal(backup.prepare('SELECT created_by FROM studio_profiles').get().created_by, 'storage author');
+      assert.equal(backup.prepare('SELECT COUNT(*) AS n FROM studio_revisions').get().n, 1);
+    } finally { backup.close(); }
+
   } finally {
     store?.close();
     for (const entry of readdirSync(folder)) unlinkSync(join(folder, entry));

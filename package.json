@@ -21,7 +21,10 @@
     "test:live": "npm run test:live --workspace @chog-foundry/backend",
     "check:chain": "npm run check:chain --workspace @chog-foundry/backend",
     "check:markets": "npm run check:markets --workspace @chog-foundry/backend",
-    "test:fork": "npm run test:fork --workspace @chog-foundry/contracts"
+    "test:fork": "npm run test:fork --workspace @chog-foundry/contracts",
+    "db:migrate": "npm run db:migrate --workspace @chog-foundry/backend",
+    "db:check": "npm run db:check --workspace @chog-foundry/backend",
+    "db:import-sqlite": "node --env-file-if-exists=backend/.env backend/scripts/import-sqlite.mjs"
   },
   "overrides": {
     "tmp": "0.2.7"
