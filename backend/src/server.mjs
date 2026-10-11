@@ -1,3 +1,4 @@
+import { actionWallet } from './fee-actions.mjs';
 import { preflightInput } from './trade-preflight.mjs';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -99,10 +100,16 @@ export function createApi({ databasePath, marketDatabasePath, origin } = {}) {
         if(indexedRoute[2]==='history') return send(200,await indexer.market(token,interval));
         return await openMarketStream(req,res,indexer,token,interval,streams);
       }
-      const tradeRoute=route.match(/^\/api\/tokens\/([^/]+)\/(quote|account|preflight)$/);
+      const tradeRoute=route.match(/^\/api\/tokens\/([^/]+)\/(quote|account|preflight|approval|claim-preflight)$/);
       if(tradeRoute){
         const token=address(tradeRoute[1]);
         const wallet=url.searchParams.has('wallet')?address(url.searchParams.get('wallet')):null;
+        if(['approval','claim-preflight'].includes(tradeRoute[2])){
+          actionWallet(wallet);
+          const kind=tradeRoute[2]==='approval'?'approval':'claim';
+          const input=kind==='approval'?tradeInput(url.searchParams.get('side'),url.searchParams.get('amountRaw'),wallet):null;
+          return send(200,await reader.feeAction(token,wallet,kind,input));
+        }
         if(tradeRoute[2]==='preflight'){
           const input=preflightInput({side:url.searchParams.get('side'),amountRaw:url.searchParams.get('amountRaw'),wallet,minOutputRaw:url.searchParams.get('minOutputRaw'),deadline:url.searchParams.get('deadline')});
           return send(200,await reader.tradeState(token,wallet,input,true));

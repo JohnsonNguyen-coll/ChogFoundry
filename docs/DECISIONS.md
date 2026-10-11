@@ -161,3 +161,7 @@ Implementation choice: a pool-bound revert-based exact-input quoter observes act
 ## Read-only settlement inspection - 2026-10-10
 
 Implementation choice: exact-input curve/v4 unsigned calldata inspection with user-specified minimum output and future deadline, actual-wallet eth_call and same-block gas estimation. A one-hour maximum deadline is an API bound, not approved token economics. Missing funding/allowance blocks settlement without overrides. No approval/trade signing, public deployment or Mainnet execution is enabled.
+
+## Approval and claim inspection - 2026-10-11
+
+Implementation choice: exact allowance plans with explicit reset/confirmed-refresh sequencing, plus claim simulation for the recorded beneficiary without current NFT ownership checks. Existing sufficient allowance is preserved; later approval steps are not simulated against assumed state. Claims remain vault-wide aggregate credits, not per-token earnings. No economic or financial execution approval changed.

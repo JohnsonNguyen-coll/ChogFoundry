@@ -1,3 +1,4 @@
+import { readApprovalPlan, readClaimPreflight } from './fee-actions.mjs';
 import { Contract, FetchRequest, JsonRpcProvider, formatUnits, getAddress } from 'ethers';
 import { chain, erc20Abi, nftAbi } from './config.mjs';
 import { AppError } from './validation.mjs';
@@ -116,6 +117,14 @@ export class ChainReader {
       const config={chainId:chain.id,factoryAddress,tokenAddress,collection:chain.collection,quote:chain.quote,toBlock:block,v4QuoterAddress:process.env.FOUNDRY_V4_QUOTER_ADDRESS};
       if(preflight)return readTradePreflight(this.provider,config,{...input,wallet});
       return input?readTradeQuote(this.provider,config,{...input,wallet}):readTradeState(this.provider,config,wallet);
+    },'finalized');
+  }
+  feeAction(tokenAddress,wallet,kind,input=null){
+    const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
+    if(!factoryAddress)throw new AppError(503,'FOUNDRY_NOT_CONFIGURED','No verified Foundry deployment is configured. Fee actions are unavailable.');
+    return this.snapshot(block=>{
+      const config={chainId:chain.id,factoryAddress,tokenAddress,collection:chain.collection,quote:chain.quote,toBlock:block,v4QuoterAddress:process.env.FOUNDRY_V4_QUOTER_ADDRESS};
+      return kind==='claim'?readClaimPreflight(this.provider,config,wallet):readApprovalPlan(this.provider,config,{...input,wallet});
     },'finalized');
   }
   anchor() { return this.snapshot(async () => ({}), 'finalized'); }

@@ -31,3 +31,15 @@ When prerequisites pass, eth_call runs the actual curve buy/sell or bound lock s
 Response preflight contains status, blockers, minOutputRaw, deadline, recipient, outputRaw, gasEstimateRaw and unsigned transaction (chainId/from/to/value/data). executionEnabled stays false even after successful simulation. Gas estimate is not a fee quote, gas limit or assurance of inclusion; future signing requires a fresh chain/account/state/deadline check. Public wallet inspection is not authorization to sign as that wallet. Mainnet financial execution remains disabled.
 
 The frontend asks the user to enter slippage and deadline duration without preset values. It computes minimum output with exact integer rounding down and rejects zero minimum. Input/snapshot changes abort and discard stale preflights. The minimum is retained from the reviewed quote while the server checks a fresh quote; changed prices can block the inspection rather than silently weakening protection.
+
+## Approval plan and recorded fee claim - 2026-10-11
+
+GET /api/tokens/:address/approval?side=buy|sell&amountRaw=<positive uint256>&wallet=<nonzero address>
+
+Reuses the verified curve/v4 quote and actual input-asset allowance for its bound spender. Plans approve the exact required funding amount, never an unlimited allowance. If allowance is already sufficient, steps is empty. A nonzero insufficient allowance produces reset-to-zero followed by exact approval; only the first step is actually simulated/estimated. The second is marked requires-confirmed-reset with null gas and must be regenerated after a confirmed reset. No approval state is overridden or assumed. ERC-20 false returns reject; empty success responses are supported. Approval success is not a trade settlement proof.
+
+GET /api/tokens/:address/claim-preflight?wallet=<nonzero beneficiary address>
+
+Validates factory/token/vault/asset bindings independently of current ownerOf. Reads actual category credits, liability and funding at the canonical snapshot. claim() calldata uses the beneficiary as sender and pays that same recorded wallet. Claims aggregate all launches in the vault. No current NFT ownership, profile session or market index grants claim entitlement; there is no redirect-recipient parameter. Zero credits return nothing-to-claim and null gas. Nonzero credits run actual claim settlement and same-block gas estimation without persisting changes.
+
+Both return unsigned transactions, canonical source/provenance and executionEnabled=false. RPC failures are sanitized; unsupported historical gas estimation is explicit. Inspection is not signing permission. The frontend cancels pending action reads and clears results on relevant token/wallet/cursor/quote inputs. No approval/claim/trade broadcast is implemented in runtime.

@@ -147,3 +147,10 @@ Foundry does not vendor or claim equivalence to these contracts. Its source obse
 - https://ethereum.github.io/execution-apis/api/methods/eth_estimateGas - estimation request includes block number/tag.
 
 Implementation runs current Foundry source methods; actual same-block estimation support is verified separately on isolated Anvil, not inferred for every Monad RPC provider. Runtime rejects unsupported estimation rather than silently using latest state.
+
+## Approval/claim semantics - 2026-10-11
+
+- https://eips.ethereum.org/EIPS/eip-20#approve - reviewed allowance replacement, false-return handling and UI reset-to-zero guidance.
+- Current contracts/src/StudioFeeVault.sol - claim/claimFor pay recorded credits, clear the entire beneficiary credit and verify exact outgoing balance deltas without consulting ownerOf.
+
+Prepared calls use existing verified deployment/quote binding checks and canonical JSON-RPC simulation. Local fork impersonation is not an owner-wallet signature; claim preparation source review does not establish a public deployment or audit.

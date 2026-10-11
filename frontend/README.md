@@ -26,3 +26,7 @@ The same quote form now supports a configured, verified v4 quoter. It shows actu
 ## Settlement inspection - 2026-10-10
 
 After a quote and public wallet lookup, users enter their own slippage percentage and deadline duration. The read-only preflight displays actual settlement status/blockers, minimum output, deadline, gas estimate and unsigned calldata/source. Changes in wallet/token/side/amount/protections/cursor clear stale results. No approval or signing is requested; successful inspection still has execution disabled.
+
+## Approval and fee claim review - 2026-10-11
+
+Quote details provide an exact allowance plan for the actual curve/lock spender. A nonzero insufficient allowance shows a reset first; later approval gas is unavailable until that reset is confirmed and the plan refreshed. The wallet section provides claim inspection for its actual recorded credits, including former studio-owner credits. Both show unsigned calldata/source and remain read-only, with abort/discard behavior on input and snapshot changes.

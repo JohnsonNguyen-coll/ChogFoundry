@@ -43,6 +43,11 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false 
       assert.equal(await page.getByText('Settlement status',{exact:true}).count(),0,'Changed protection discards stale simulation');
       await page.getByRole('button',{name:'Inspect settlement',exact:true}).click();
       await page.getByText('Settlement status',{exact:true}).waitFor();
+      await page.getByRole('button',{name:'Inspect approval plan',exact:true}).click();
+      await page.getByText('Approval status',{exact:true}).waitFor();
+      await page.getByRole('button',{name:'Inspect fee claim',exact:true}).click();
+      await page.getByText('Claim status',{exact:true}).waitFor();
+      assert.equal(await page.getByText(wallet,{exact:true}).count()>0,true);
     }
     return {
       async check(snapshot, label) {

@@ -176,3 +176,9 @@ Next: reviewed deployment/assets/economics and Supabase connection, then explici
 Added read-only actual-wallet preflight for curve and bound v4 exact-input trades, explicit minimum output/deadline, same-block gas estimation and unsigned calldata review. Frontend protections have no preset economic values and stale results are discarded.
 
 Next: configure actual Supabase and review/select testnet assets/deployment economics; add reviewed approval/trade/claim signing only against that verified deployment with immediate account/chain/state rechecks and receipt handling. ERC-1271 and broader router/security review remain outstanding. No Mainnet financial execution is authorized.
+
+## Fee action preparation increment - 2026-10-11
+
+Completed unsigned exact approval/reset plans and recorded-beneficiary claim inspection with actual contract calls and same-block gas estimation. Claims have no ownerOf dependency and cannot redirect assets. Frontend displays steps, credits, gas and canonical transaction source. Tests execute prepared calldata only in isolated child-owned real-state forks.
+
+Next prerequisites for public signing remain actual verified testnet deployment/assets/economic parameters and Supabase configuration. Future signing must refresh after each approval receipt, recheck chain/account/spender/state and preserve recorded claim beneficiaries. Broader security review and router support remain outstanding. Mainnet/runtime broadcasts remain disabled.

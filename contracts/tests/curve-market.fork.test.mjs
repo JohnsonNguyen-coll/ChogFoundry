@@ -1,3 +1,4 @@
+import { readClaimPreflight } from '../../backend/src/fee-actions.mjs';
 import { readTradePreflight } from '../../backend/src/trade-preflight.mjs';
 import { readTradeState, readCurveQuote } from '../../backend/src/trade-data.mjs';
 import { marketBrowser } from './helpers/market-browser.mjs';
@@ -123,8 +124,14 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     assert.equal(historicalAccount.account.feeCredits.studioRaw,String(oldCredit.studio));
     assert.ok(BigInt(historicalAccount.account.feeCredits.studioRaw)>0n);
     assert.equal(historicalAccount.beneficiaries.studioOwnerAtSnapshot,buyerAddress);
+    const claimConfig={...inspectConfig,toBlock:(await local.getBlock('latest')).number};
+    const claimBefore={credits:Array.from(await vault.credits(owner)),liability:await vault.liability(),balance:await quote.balanceOf(owner)};
+    const oldClaim=await readClaimPreflight(local,claimConfig,owner);
+    assert.equal(oldClaim.claim.status,'simulated');assert.equal(oldClaim.claim.beneficiary,owner);assert.equal(oldClaim.claim.credits.totalRaw,String(nowOld.creator+nowOld.studio));assert.ok(BigInt(oldClaim.claim.gasEstimateRaw)>0n);
+    assert.deepEqual({credits:Array.from(await vault.credits(owner)),liability:await vault.liability(),balance:await quote.balanceOf(owner)},claimBefore);
+    const noClaim=await readClaimPreflight(local,claimConfig,await deployer.getAddress());assert.equal(noClaim.claim.status,'nothing-to-claim');assert.equal(noClaim.claim.gasEstimateRaw,null);
     const beforeClaim = await quote.balanceOf(owner);
-    await (await vault.connect(creator).claim()).wait();
+    await (await creator.sendTransaction(oldClaim.claim.transaction)).wait();
     assert.equal(await quote.balanceOf(owner), beforeClaim + nowOld.creator + nowOld.studio);
     await conserved();
     // Fill actual sale inventory; readiness is not an AMM migration. Redemption stays available.

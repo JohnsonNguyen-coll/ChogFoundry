@@ -1,3 +1,4 @@
+import { readApprovalPlan, readClaimPreflight } from '../../backend/src/fee-actions.mjs';
 import { readTradePreflight } from '../../backend/src/trade-preflight.mjs';
 import http from 'node:http';
 import { openMarketStream } from '../../backend/src/market-stream.mjs';
@@ -102,9 +103,19 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
     await assert.rejects(quoter.quoteExactInput.staticCall(launch.token,true,0,0));
     const preflightConfig=async()=>({chainId:31337,factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,toBlock:(await local.getBlock('latest')).number,v4QuoterAddress:quoterAddress});
     const inspectInput={side:'buy',amountRaw:String(parseEther('0.01')),wallet:buyerAddress,minOutputRaw:String(firstQuote.output),deadline:String(Math.max(Math.floor(Date.now()/1000),(await local.getBlock('latest')).timestamp)+1800)};
+    const initialApproval=await readApprovalPlan(local,await preflightConfig(),inspectInput);
+    assert.equal(initialApproval.approval.steps.length,1);assert.equal(initialApproval.approval.steps[0].kind,'approve-exact');assert.equal(initialApproval.approval.steps[0].amountRaw,inspectInput.amountRaw);assert.equal(initialApproval.approval.spender,lockAddress);assert.ok(BigInt(initialApproval.approval.steps[0].gasEstimateRaw)>0n);assert.equal(await quote.allowance(buyerAddress,lockAddress),0n);
     const blocked=await readTradePreflight(local,await preflightConfig(),inspectInput);
     assert.equal(blocked.preflight.status,'blocked');assert.ok(blocked.preflight.blockers.includes('APPROVAL_REQUIRED'));assert.equal(blocked.preflight.gasEstimateRaw,null);
-    await(await quote.connect(buyer).approve(lockAddress,parseEther('0.01'))).wait();
+    await(await buyer.sendTransaction(initialApproval.approval.steps[0].transaction)).wait();
+    const resetApproval=await readApprovalPlan(local,await preflightConfig(),{...inspectInput,amountRaw:String(parseEther('0.02'))});
+    assert.equal(resetApproval.approval.steps.length,2);assert.equal(resetApproval.approval.steps[0].kind,'reset');assert.equal(resetApproval.approval.steps[1].status,'requires-confirmed-reset');assert.equal(resetApproval.approval.steps[1].gasEstimateRaw,null);assert.equal(await quote.allowance(buyerAddress,lockAddress),parseEther('0.01'));
+    const approvalBranch=await local.send('evm_snapshot',[]);
+    await(await buyer.sendTransaction(resetApproval.approval.steps[0].transaction)).wait();assert.equal(await quote.allowance(buyerAddress,lockAddress),0n);
+    const refreshedApproval=await readApprovalPlan(local,await preflightConfig(),{...inspectInput,amountRaw:String(parseEther('0.02'))});assert.equal(refreshedApproval.approval.steps.length,1);assert.equal(refreshedApproval.approval.steps[0].status,'simulated');
+    await(await buyer.sendTransaction(refreshedApproval.approval.steps[0].transaction)).wait();assert.equal(await quote.allowance(buyerAddress,lockAddress),parseEther('0.02'));
+    assert.equal(await local.send('evm_revert',[approvalBranch]),true);
+    const sufficientApproval=await readApprovalPlan(local,await preflightConfig(),inspectInput);assert.equal(sufficientApproval.approval.steps.length,0);
     const settlement=await readTradePreflight(local,await preflightConfig(),inspectInput);
     assert.equal(settlement.preflight.status,'simulated');assert.equal(settlement.preflight.outputRaw,String(firstQuote.output));assert.ok(BigInt(settlement.preflight.gasEstimateRaw)>0n);assert.equal(settlement.preflight.executionEnabled,false);
     assert.deepEqual(await unchanged(),beforeQuote,'Settlement preflight does not change real fork state');
@@ -242,7 +253,9 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
     assert.ok(!lock.interface.fragments.some(f=>f.type==='function'&&/remove|withdraw|upgrade|rescue/i.test(f.name)));
     // NFT transfer cannot change position custody or erase old fee credits.
     const old=await vault.credits(owner), oldBalance=await quote.balanceOf(owner);
-    await(await vault.connect(creator).claim()).wait();
+    const ownerCreditsBeforeClaim=await vault.credits(owner),liabilityBeforeClaim=await vault.liability();
+    const oldClaim=await readClaimPreflight(local,await preflightConfig(),owner);assert.equal(oldClaim.claim.status,'simulated');assert.equal(oldClaim.claim.credits.totalRaw,String(ownerCreditsBeforeClaim.creator+ownerCreditsBeforeClaim.studio+ownerCreditsBeforeClaim.platform));assert.equal(await vault.liability(),liabilityBeforeClaim);assert.deepEqual(Array.from(await vault.credits(owner)),Array.from(ownerCreditsBeforeClaim));
+    await(await creator.sendTransaction(oldClaim.claim.transaction)).wait();
     assert.equal(await quote.balanceOf(owner),oldBalance+old.creator+old.studio);
     assert.equal(await stateView.getLiquidity(position.poolId),position.liquidity);
     await assert.rejects(hook.connect(buyer).beforeInitialize.staticCall(lockAddress,Array.from(await lock.poolKey(launch.token)),position.sqrtPriceX96));
@@ -293,6 +306,12 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
             let body;
             if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
             else if(route===`/api/tokens/${launch.token}/history`)body=await indexer.market(launch.token);
+            else if(route===`/api/tokens/${launch.token}/approval`){
+              body=await readApprovalPlan(local,{...configuredTrade,chainId:31337},{side:query.searchParams.get('side'),amountRaw:query.searchParams.get('amountRaw'),wallet:query.searchParams.get('wallet')});body.provenance=indexed.provenance;
+            }
+            else if(route===`/api/tokens/${launch.token}/claim-preflight`){
+              body=await readClaimPreflight(local,{...configuredTrade,chainId:31337},query.searchParams.get('wallet'));body.provenance=indexed.provenance;
+            }
             else if(route===`/api/tokens/${launch.token}/preflight`){
               body=await readTradePreflight(local,{...configuredTrade,chainId:31337},{side:query.searchParams.get('side'),amountRaw:query.searchParams.get('amountRaw'),wallet:query.searchParams.get('wallet'),minOutputRaw:query.searchParams.get('minOutputRaw'),deadline:query.searchParams.get('deadline')});body.provenance=indexed.provenance;
             }
