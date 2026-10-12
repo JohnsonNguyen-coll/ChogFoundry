@@ -154,3 +154,9 @@ Implementation runs current Foundry source methods; actual same-block estimation
 - Current contracts/src/StudioFeeVault.sol - claim/claimFor pay recorded credits, clear the entire beneficiary credit and verify exact outgoing balance deltas without consulting ownerOf.
 
 Prepared calls use existing verified deployment/quote binding checks and canonical JSON-RPC simulation. Local fork impersonation is not an owner-wallet signature; claim preparation source review does not establish a public deployment or audit.
+
+## Foundry settlement event attribution - 2026-10-12
+
+Source: current contracts/src/StudioV4LiquidityLock.sol PoolTrade emission after successful settlement/refund, and the previously reviewed official PoolManager Swap ABI. Runtime reads actual logs from the factory-bound lock and pool; it never consumes this report as data. Literal payer/recipient are event identities, not wallet ownership or beneficial-owner claims.
+
+Hooked fork source block 112803694 verifies actual receipt evidence, independent-route refusal and PostgreSQL canonical rollback. No external-router decoder, public deployment or audit is claimed.

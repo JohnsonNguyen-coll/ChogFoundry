@@ -165,3 +165,7 @@ Implementation choice: exact-input curve/v4 unsigned calldata inspection with us
 ## Approval and claim inspection - 2026-10-11
 
 Implementation choice: exact allowance plans with explicit reset/confirmed-refresh sequencing, plus claim simulation for the recorded beneficiary without current NFT ownership checks. Existing sufficient allowance is preserved; later approval steps are not simulated against assumed state. Claims remain vault-wide aggregate credits, not per-token earnings. No economic or financial execution approval changed.
+
+## Event-based trade identities - 2026-10-12
+
+Implementation choice: use bound lock settlement events to identify literal payer/recipient for uniquely matched official v4 trades. Unknown external/ambiguous routes stay null; no beneficial-owner or transaction-sender inference. Identity evidence persists in existing PostgreSQL JSON event windows and follows canonical rollback. No economics, signing, deployment or authority decision changed.

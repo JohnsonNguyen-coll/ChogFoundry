@@ -1,3 +1,5 @@
+import { PGlite } from '@electric-sql/pglite';
+import { PostgresMarketStore } from '../../backend/src/postgres-market-store.mjs';
 import { readApprovalPlan, readClaimPreflight } from '../../backend/src/fee-actions.mjs';
 import { readTradePreflight } from '../../backend/src/trade-preflight.mjs';
 import http from 'node:http';
@@ -280,7 +282,18 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
     const managerLogs=await local.getLogs({address:candidates.poolManager,topics:[swapEvents.getEvent('Swap').topicHash,position.poolId],fromBlock:receipt.blockNumber,toBlock:finalBlock.number});
     assert.equal(data.trades.length,managerLogs.length);
     assert.equal(data.trades.length,6);
-    assert.ok(data.trades.every(t=>t.stage==='v4'&&t.payer===null&&t.recipient===null));
+    const officialTrades=data.trades.filter(t=>t.router.toLowerCase()===lockAddress.toLowerCase());
+    assert.equal(officialTrades.length,5);
+    assert.ok(officialTrades.every(t=>t.stage==='v4'&&t.payer===buyerAddress&&t.recipient===buyerAddress&&t.attribution.method==='foundry-lock-pool-trade'));
+    for(const trade of officialTrades){
+      const tx=await local.getTransactionReceipt(trade.transactionHash);
+      const evidence=tx.logs.find(l=>l.index===trade.attribution.evidence.logIndex);
+      assert.equal(evidence.address.toLowerCase(),lockAddress.toLowerCase());
+      const actual=lock.interface.parseLog(evidence).args;
+      assert.equal(trade.executedInputRaw,String(actual.amountIn));assert.equal(trade.executedOutputRaw,String(actual.amountOut));
+    }
+    const unresolved=data.trades.filter(t=>t.router===alternateAddress);assert.equal(unresolved.length,1);assert.equal(unresolved[0].payer,null);assert.equal(unresolved[0].recipient,null);assert.equal(unresolved[0].attribution.reason,'unsupported-router');
+
     assert.ok(data.trades.some(t=>t.router===alternateAddress),'Independent routes must appear once in the PoolManager feed');
     assert.ok(data.trades.some(t=>t.side==='sell'));
     assert.ok(data.trades.some(t=>t.side==='buy'));
@@ -288,12 +301,16 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
     assert.equal(data.candles.reduce((sum,c)=>sum+c.tradeCount,0),managerLogs.length);
     assert.equal(data.holders,null,'A post-graduation window cannot claim a complete holder census');
     const factoryDeployment=await factory.deploymentTransaction().wait();
-    const indexer=new MarketIndexer(local,{chainId:31337,factoryAddress:expectedFactory,deploymentBlock:factoryDeployment.blockNumber,collection:chain.collection,quote:chain.quote},{databasePath:':memory:',localFork:true});
+    const marketDb=new PGlite();await marketDb.exec(await readFile(new URL('../../backend/supabase/migrations/001_foundry.sql',import.meta.url),'utf8'));
+    const indexer=new MarketIndexer(local,{chainId:31337,factoryAddress:expectedFactory,deploymentBlock:factoryDeployment.blockNumber,collection:chain.collection,quote:chain.quote},{storeFactory:config=>new PostgresMarketStore(config,marketDb),localFork:true});
     try {
       await indexer.sync(10);
       const indexed=await indexer.market(launch.token);
       assert.equal(indexed.tradeCount,data.trades.length+1,'Full history includes the creator initial curve purchase and all six actual pool swaps');
       assert.equal(indexed.trades.filter(t=>t.stage==='v4').length,managerLogs.length);
+      assert.equal(indexed.trades.filter(t=>t.attribution?.method==='foundry-lock-pool-trade').length,5);
+      assert.equal(indexed.trades.find(t=>t.router===alternateAddress).payer,null);
+      assert.equal(indexed.attributionSummary.officialV4Matched,5);assert.equal(indexed.attributionSummary.unresolvedV4,1);assert.equal(indexed.attributionSummary.legacyV4Rows,0);
       const poolHolder=indexed.holders.top.find(h=>h.role==='pool-manager');
       assert.ok(poolHolder);assert.equal(poolHolder.balanceRaw,String(await token.balanceOf(candidates.poolManager)));
       assert.equal(indexed.provenance.finality,'local-fork-latest','Local fork blocks must never be described as finalized Mainnet');
@@ -327,7 +344,22 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
         finally{await browser?.close();for(const stream of streams)stream.end();await new Promise(resolve=>server.close(resolve));}
       }
 
-    } finally {await indexer.close();}
+      // Actual payer and recipient differ; canonical rollback must remove that attribution.
+      const identityBranch=await local.send('evm_snapshot',[]);
+      const recipient=await treasury.getAddress(),recipientBefore=await token.balanceOf(recipient);
+      await(await quote.connect(buyer).approve(lockAddress,parseEther('0.001'))).wait();
+      const identityReceipt=await(await lock.connect(buyer).swap(launch.token,true,parseEther('0.001'),1n,recipient,deadline)).wait();
+      const attributedBranch=await indexer.market(launch.token);
+      const identityTrade=attributedBranch.trades.find(t=>t.transactionHash===identityReceipt.hash);
+      assert.equal(identityTrade.payer,buyerAddress);assert.equal(identityTrade.recipient,recipient);
+      assert.equal(identityTrade.executedOutputRaw,String(await token.balanceOf(recipient)-recipientBefore));
+      assert.equal(attributedBranch.attributionSummary.officialV4Matched,6);
+      assert.equal(await local.send('evm_revert',[identityBranch]),true);await local.send('evm_mine',[]);
+      const restored=await indexer.market(launch.token);
+      assert.equal(restored.trades.some(t=>t.transactionHash===identityReceipt.hash),false);
+      assert.equal(restored.attributionSummary.officialV4Matched,5);assert.equal(restored.attributionSummary.unresolvedV4,1);
+      assert.equal(restored.tradeCount,indexed.tradeCount);
+    } finally {await indexer.close();await marketDb.close();}
     const report={mode:'isolated-real-state-fork',sourceChainId:143,localChainId:31337,blockNumber:block.number,blockHash:block.hash,poolManager:candidates.poolManager,poolManagerCodeHash:keccak256(code),poolId:position.poolId,actualPoolInitialization:true,actualLiquiditySettlement:true,actualBidirectionalSwaps:true,authenticatedInitialization:true,fourSwapModes:true,independentCallerFeeCapture:true,quoteSpecifiedPartialFillRollback:true,tokenExactOutputPartialFillRollback:true,tokenExactInputPartialFillRefund:true,priceLimitReached:true,actualPoolManagerTradeFeed:true,indexedCurveAndPoolHistory:true,feeOwnershipTransfer:true,withdrawalEntryPoint:false,postGraduationStudioFeeImplemented:true,hook:hookAddress,lpFeeTestUnits:3000,liveWrites:false};
     await writeFile(new URL('../artifacts/v4-hook.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
     console.log(JSON.stringify(report));

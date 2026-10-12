@@ -30,3 +30,7 @@ After a quote and public wallet lookup, users enter their own slippage percentag
 ## Approval and fee claim review - 2026-10-11
 
 Quote details provide an exact allowance plan for the actual curve/lock spender. A nonzero insufficient allowance shows a reset first; later approval gas is unavailable until that reset is confirmed and the plan refreshed. The wallet section provides claim inspection for its actual recorded credits, including former studio-owner credits. Both show unsigned calldata/source and remain read-only, with abort/discard behavior on input and snapshot changes.
+
+## Event-recorded payer and recipient - 2026-10-12
+
+Recent trades now show recipient separately from payer/callback router. Curve identities retain their market events; v4 payer/recipient require a unique official lock settlement matched to the bound pool swap. Evidence log index is visible. Unsupported routes remain labeled payer unknown. Indexed summary reports matched/unresolved trades and older rows requiring reviewed rescan; no transaction-sender or custody inference is used.

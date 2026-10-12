@@ -182,3 +182,9 @@ Next: configure actual Supabase and review/select testnet assets/deployment econ
 Completed unsigned exact approval/reset plans and recorded-beneficiary claim inspection with actual contract calls and same-block gas estimation. Claims have no ownerOf dependency and cannot redirect assets. Frontend displays steps, credits, gas and canonical transaction source. Tests execute prepared calldata only in isolated child-owned real-state forks.
 
 Next prerequisites for public signing remain actual verified testnet deployment/assets/economic parameters and Supabase configuration. Future signing must refresh after each approval receipt, recheck chain/account/spender/state and preserve recorded claim beneficiaries. Broader security review and router support remain outstanding. Mainnet/runtime broadcasts remain disabled.
+
+## Official trade identity increment - 2026-10-12
+
+Completed canonical official-lock settlement correlation, persisted event evidence/actual settlement amounts, explicit unresolved/legacy counts and frontend payer/recipient display. Verified real routed trades, distinct recipients and PostgreSQL reorg rollback; existing curve identities and candle notional remain intact.
+
+Next: reviewed Supabase/deployment configuration for an actual testnet demo and wallet signing; external/multi-hop/batch router attribution and user portfolio/position summaries still require explicit evidence and completeness limits. No Mainnet financial execution or inferred wallet identity is enabled. Previously indexed windows are preserved and require a separately reviewed rescan for enrichment.

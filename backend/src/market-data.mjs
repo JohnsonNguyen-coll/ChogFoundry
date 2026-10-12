@@ -46,27 +46,49 @@ export async function readMarketWindow(provider,{factoryAddress,tokenAddress,col
   if (!same(launch.token,tokenAddress)||!same(launch.curveRecorder,marketAddress)) fail();
   const [curveLogs,transfers]=await Promise.all([market.queryFilter(market.filters.Traded(tokenAddress),fromBlock,toBlock),token.queryFilter(token.filters.Transfer(),fromBlock,toBlock)]);
   const trades=curveLogs.map(l=>({stage:'curve',side:l.args.buySide?'buy':'sell',payer:l.args.payer,recipient:l.args.recipient,router:null,tokenAmountRaw:String(l.args.tokenAmount),quoteBaseRaw:String(l.args.baseQuote),protocolFeeRaw:String(l.args.totalFee),lpFeeUnits:null,blockNumber:l.blockNumber,blockHash:l.blockHash,transactionHash:l.transactionHash,transactionIndex:l.transactionIndex,logIndex:l.index}));
-  let pool=null;
+  let pool=null,settlementLogs=[];
   if (curve.graduated) {
     if (same(adapter,ZeroAddress)) fail();
-    const lock=new Contract(adapter,['function poolKey(address) view returns(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks))','function poolManager() view returns(address)','function positions(address) view returns(bytes32 poolId,uint160 sqrtPriceX96,uint128 liquidity,uint256 tokenSeeded,uint256 quoteSeeded,uint256 tokenDust,uint256 quoteDust)'],provider);
-    const [key,manager,position]=await Promise.all([lock.poolKey(tokenAddress,at),lock.poolManager(at),lock.positions(tokenAddress,at)]);
+    const lock=new Contract(adapter,['function market() view returns(address)','function quote() view returns(address)','event PoolTrade(address indexed token,address indexed payer,address indexed recipient,bool quoteIn,uint256 amountIn,uint256 amountOut)','function poolKey(address) view returns(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks))','function poolManager() view returns(address)','function positions(address) view returns(bytes32 poolId,uint160 sqrtPriceX96,uint128 liquidity,uint256 tokenSeeded,uint256 quoteSeeded,uint256 tokenDust,uint256 quoteDust)'],provider);
+    const [key,manager,position,lockMarket,lockQuote]=await Promise.all([lock.poolKey(tokenAddress,at),lock.poolManager(at),lock.positions(tokenAddress,at),lock.market(at),lock.quote(at)]);
+    if(!same(lockMarket,marketAddress)||!same(lockQuote,quote))fail();
     const poolId=keccak256(AbiCoder.defaultAbiCoder().encode(['tuple(address,address,uint24,int24,address)'],[Array.from(key)]));
     if (position.poolId!==poolId||!(same(key.currency0,quote)||same(key.currency1,quote))) fail();
     if (!same(key.hooks,ZeroAddress)&&!same(key.hooks,launch.graduatedRecorder)) fail();
     pool={id:poolId,manager,hook:key.hooks,liquidityLock:adapter,lpFeeUnits:Number(key.fee)};
-    const logs=await provider.getLogs({address:manager,topics:[swapInterface.getEvent('Swap').topicHash,poolId],fromBlock,toBlock});
+    const [logs,lockLogs]=await Promise.all([provider.getLogs({address:manager,topics:[swapInterface.getEvent('Swap').topicHash,poolId],fromBlock,toBlock}),lock.queryFilter(lock.filters.PoolTrade(tokenAddress),fromBlock,toBlock)]);
+    settlementLogs=lockLogs;
     const quoteIs0=same(key.currency0,quote);
     for (const l of logs) {
       const a=swapInterface.parseLog(l).args, q=quoteIs0?a.amount0:a.amount1, t=quoteIs0?a.amount1:a.amount0;
       if (q===0n||t===0n) continue;
       if ((q<0n)===(t<0n)) fail();
       // PoolManager identifies its callback caller, not necessarily the trader wallet.
-      trades.push({stage:'v4',side:q<0n?'buy':'sell',payer:null,recipient:null,router:a.sender,tokenAmountRaw:String(absolute(t)),quoteBaseRaw:String(absolute(q)),protocolFeeRaw:null,lpFeeUnits:Number(a.fee),blockNumber:l.blockNumber,blockHash:l.blockHash,transactionHash:l.transactionHash,transactionIndex:l.transactionIndex,logIndex:l.index});
+      trades.push({stage:'v4',side:q<0n?'buy':'sell',payer:null,recipient:null,router:a.sender,tokenAmountRaw:String(absolute(t)),quoteBaseRaw:String(absolute(q)),protocolFeeRaw:null,attribution:{method:null,status:'unknown',reason:same(a.sender,adapter)?'missing-or-ambiguous-settlement':'unsupported-router'},executedInputRaw:null,executedOutputRaw:null,lpFeeUnits:Number(a.fee),blockNumber:l.blockNumber,blockHash:l.blockHash,transactionHash:l.transactionHash,transactionIndex:l.transactionIndex,logIndex:l.index});
+    }
+    // A router callback address is not a wallet. Only correlate a single bound-pool
+    // swap with a single official lock settlement in the same canonical transaction.
+    // Multiple swaps/events are deliberately left unknown rather than paired by guess.
+    const poolTrades=trades.filter(t=>t.stage==='v4');
+    const groups=new Map(),settlementsByTransaction=new Map();
+    for(const log of lockLogs){const key=log.transactionHash.toLowerCase();if(!settlementsByTransaction.has(key))settlementsByTransaction.set(key,[]);settlementsByTransaction.get(key).push(log);}
+    for(const trade of poolTrades){const key=trade.transactionHash.toLowerCase();if(!groups.has(key))groups.set(key,[]);groups.get(key).push(trade);}
+    for(const group of groups.values()){
+      if(group.length!==1)continue;
+      const trade=group[0];if(!same(trade.router,adapter))continue;
+      const candidates=settlementsByTransaction.get(trade.transactionHash.toLowerCase())||[];
+      if(candidates.length!==1)continue;
+      const event=candidates[0],a=event.args;
+      const quoteIn=trade.side==='buy',tokenAmount=quoteIn?a.amountOut:a.amountIn;
+      if(event.blockHash!==trade.blockHash||event.blockNumber!==trade.blockNumber||event.index<=trade.logIndex||a.quoteIn!==quoteIn||tokenAmount!==BigInt(trade.tokenAmountRaw)||a.amountIn<=0n||a.amountOut<=0n||same(a.payer,ZeroAddress)||same(a.recipient,ZeroAddress))continue;
+      // Preserve pool notional/candle basis; report gross/net settlement separately.
+      trade.payer=a.payer;trade.recipient=a.recipient;
+      trade.executedInputRaw=String(a.amountIn);trade.executedOutputRaw=String(a.amountOut);
+      trade.attribution={method:'foundry-lock-pool-trade',status:'matched',reason:null,evidence:{address:adapter,blockNumber:event.blockNumber,blockHash:event.blockHash,transactionHash:event.transactionHash,logIndex:event.index}};
     }
   }
   // Check every event against the canonical block, including empty transfer-only blocks.
-  const allLogs=[...trades,...transfers.map(l=>({blockNumber:l.blockNumber,blockHash:l.blockHash}))];
+  const allLogs=[...trades,...settlementLogs.map(l=>({blockNumber:l.blockNumber,blockHash:l.blockHash})),...transfers.map(l=>({blockNumber:l.blockNumber,blockHash:l.blockHash}))];
   const blocks=new Map();
   const numbers=[...new Set(allLogs.map(l=>l.blockNumber))];
   for(let i=0;i<numbers.length;i+=8) {

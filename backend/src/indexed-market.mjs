@@ -18,9 +18,12 @@ export function buildIndexedMarket(windows,head,revision,intervalSeconds) {
     const entries=[...balances].filter(([,b])=>b>0n).sort((a,b)=>a[1]===b[1]?a[0].localeCompare(b[0]):a[1]>b[1]?-1:1);
     const role=wallet=>wallet===latest.launch.market.toLowerCase()?'curve':wallet===latest.pool?.liquidityLock.toLowerCase()?'liquidity-lock':wallet===latest.pool?.manager.toLowerCase()?'pool-manager':wallet===latest.launch.factory.toLowerCase()?'factory':'unclassified';
     const candles=buildCandles(trades,intervalSeconds);
+    const v4=trades.filter(t=>t.stage==='v4');
+    const matched=v4.filter(t=>t.attribution?.method==='foundry-lock-pool-trade').length;
+    const attributionSummary={scope:'Entire indexed history',officialV4Matched:matched,unresolvedV4:v4.length-matched,legacyV4Rows:v4.filter(t=>!t.attribution).length,policy:'Payer and recipient are event-recorded addresses, not beneficial owners or people. Unsupported or ambiguous routes remain unknown.'};
     const {transfers:ignored,...meta}=latest;
     return {...meta,range:{fromBlock:windows[0].range.fromBlock,toBlock:head.end_block,completeHistory:true},intervalSeconds,
-      trades:trades.slice(-500),tradeCount:trades.length,tradesTruncated:trades.length>500,candles:candles.slice(-500),candleCount:candles.length,candlesTruncated:candles.length>500,
+      attributionSummary,trades:trades.slice(-500),tradeCount:trades.length,tradesTruncated:trades.length>500,candles:candles.slice(-500),candleCount:candles.length,candlesTruncated:candles.length>500,
       holders:{count:entries.length,includesProtocolContracts:true,top:entries.slice(0,50).map(([wallet,balance])=>({wallet,balanceRaw:String(balance),shareBps:String(balance*10000n/supply),role:role(wallet)}))},
       holderStatus:'complete canonical mint-to-checkpoint replay; balances derived from transfer logs',cursor:`${revision}:${head.end_hash}`};
 }
