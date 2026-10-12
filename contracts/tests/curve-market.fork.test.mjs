@@ -235,6 +235,15 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
       const stored=await pgIndexer.market(launch.token);
       assert.equal(stored.tradeCount,data.trades.length);assert.deepEqual(stored.candles,data.candles);
       assert.equal(stored.holders.count,data.holders.count);
+      const portfolio=await pgIndexer.portfolio(buyerAddress);
+      assert.equal(portfolio.indexedTokenCount,3);assert.equal(portfolio.holdingTokenCount,2);assert.equal(portfolio.positions.length,2);
+      assert.equal(portfolio.pnlRaw,null);assert.equal(portfolio.costBasisRaw,null);
+      for(const position of portfolio.positions){
+        const asset=new Contract(position.token.address,token.interface,local);
+        assert.equal(position.activity.balanceRaw,String(await asset.balanceOf(buyerAddress,{blockTag:portfolio.snapshot.blockNumber})));
+        assert.equal(position.range.toBlock,portfolio.snapshot.blockNumber);
+      }
+
       const head=await pgIndexer.store.head();
       await assert.rejects(pgIndexer.store.commit(head.end_block,head.end_block,await local.getBlock(head.end_block),[]),e=>e.code==='INDEX_GAP');
       assert.equal((await pgIndexer.market(launch.token)).tradeCount,data.trades.length);
@@ -281,7 +290,8 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
           const route=new URL(req.url,'http://127.0.0.1').pathname;
           if(route==='/'||route.endsWith('/stream'))return await openMarketStream(req,res,indexer,launch.token,60,streams);
           let body;
-          if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
+          if(route.startsWith('/api/wallets/')&&route.endsWith('/portfolio'))body=await indexer.portfolio(route.split('/')[3]);
+          else if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
           else if(route===`/api/tokens/${launch.token}/history`)body=await indexer.market(launch.token,60);
           else if(route===`/api/tokens/${launch.token}/wallet-history`)body=await indexer.walletHistory(launch.token,new URL(req.url,'http://127.0.0.1').searchParams.get('wallet'));
           else if(route===`/api/tokens/${launch.token}/quote`){
@@ -323,6 +333,7 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
       assert.ok(!reset.data.trades.some(t=>t.transactionHash===branchReceipt.hash),'Orphaned trades disappear from authoritative stream snapshot');
       assert.equal(reset.data.holders.top.find(h=>h.wallet===buyerAddress.toLowerCase()).balanceRaw,String(await token.balanceOf(buyerAddress)));
       assert.notEqual(reset.data.cursor,changed.cursor);
+      const portfolioReset=await indexer.portfolio(buyerAddress);assert.equal(portfolioReset.positions.find(p=>p.token.address===launch.token).activity.balanceRaw,String(await token.balanceOf(buyerAddress)));assert.equal(portfolioReset.snapshot.blockHash,reset.data.snapshot.blockHash);
       const walletReset=await indexer.walletHistory(launch.token,buyerAddress);assert.equal(walletReset.walletActivity.trades.some(t=>t.transactionHash===branchReceipt.hash),false);assert.equal(walletReset.walletActivity.balanceRaw,String(await token.balanceOf(buyerAddress)));
       if(browser)await browser.reset(reset.data,branchReceipt.hash);
       controller.abort();

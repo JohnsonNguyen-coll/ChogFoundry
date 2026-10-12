@@ -194,3 +194,9 @@ Next: reviewed Supabase/deployment configuration for an actual testnet demo and 
 Added token-specific wallet-history API and UI using complete indexed replay, independent of the top-holder/recent-trade displays. Includes explicit role/history/truncation/catch-up/provenance limits, and stale-request cancellation. PostgreSQL remains primary; no schema/data migrations or runtime fork fallback.
 
 Next: configure actual Supabase and reviewed testnet deployment before signing; broader multi-token portfolio, paginated history, external-router attribution and defensible cost basis remain outstanding. PnL stays unavailable and indexed public wallet data never grants studio permissions.
+
+## Factory portfolio increment - 2026-10-13
+
+Implemented factory-wide wallet portfolio API/dashboard with one canonical PostgreSQL snapshot, per-token holdings/activity, historical zero positions, unresolved-route/catch-up/capacity indicators and links into market detail. Existing index data is read without schema migrations or backfill.
+
+Next prerequisites for public financial flow remain actual Supabase connectivity and reviewed testnet assets/deployment economics, then user-reviewed signing/receipts. Portfolio pagination and scale validation, external-router attribution and defensible cost basis remain outstanding. No Mainnet execution or beneficial-owner inference is enabled.

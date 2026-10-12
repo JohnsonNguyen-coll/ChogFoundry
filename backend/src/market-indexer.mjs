@@ -88,6 +88,12 @@ export class MarketIndexer extends EventEmitter {
     const {token:asset,launch,snapshot,range,walletActivity,index,provenance,cursor}=data;
     return {token:asset,launch,snapshot,range,walletActivity,index,provenance,cursor};
   }
+  async portfolio(wallet){
+    await this.sync();
+    const data=await this.store.portfolio(getAddress(wallet));
+    if((await this.provider.getBlock(data.snapshot.blockNumber))?.hash!==data.snapshot.blockHash)throw new AppError(503,'CHAIN_REORG','Portfolio checkpoint is no longer canonical.');
+    return this.decorate(data);
+  }
   decorate(data) {
     const status={...this.status(),indexedThrough:data.snapshot.blockNumber,indexedHash:data.snapshot.blockHash,revision:Number(data.cursor.split(':')[0]),caughtUp:!this.lastError&&data.snapshot.blockNumber===this.target?.number};
     return {...data,index:status,provenance:{chainId:this.config.chainId,blockNumber:data.snapshot.blockNumber,blockHash:data.snapshot.blockHash,blockTime:data.snapshot.blockTime,fetchedAt:new Date().toISOString(),rpcOrigin:this.rpcOrigin,source:this.store.source||'Canonical RPC event index in local SQLite',finality:this.config.finality}};

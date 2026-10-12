@@ -1,3 +1,4 @@
+import { buildWalletPortfolio } from './wallet-portfolio.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -51,5 +52,9 @@ export class MarketStore {
     return buildIndexedMarket(rows.map(r=>JSON.parse(r.data_json)),this.head(),this.revision(),intervalSeconds,wallet);
   }
 
+  portfolio(wallet){
+    const rows=this.db.prepare('SELECT data_json FROM market_windows ORDER BY token,end_block LIMIT 5001').all();
+    return buildWalletPortfolio(rows.map(r=>JSON.parse(r.data_json)),this.head(),this.revision(),wallet);
+  }
   close(){this.db.close();}
 }

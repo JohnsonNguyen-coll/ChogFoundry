@@ -33,7 +33,7 @@ test('HTTP validates requests and rejects writes before touching RPC; no stubs',
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    for (const [route, method, status] of [['/api/studios/-1', 'GET', 400], ['/api/wallets/invalid', 'GET', 400], ['/api/studios/1/transfers?fromBlock=-1', 'GET', 400], ['/api/overview', 'POST', 405], ['/api/tokens/invalid/quote?side=buy&amountRaw=1','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/quote?side=buy&amountRaw=0','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/account','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/preflight?side=buy&amountRaw=1','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/claim-preflight','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/approval','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/wallet-history','GET',400], ['/api/unknown', 'GET', 404], ['/api/tokens/invalid/market', 'GET', 400], ['/api/tokens/invalid/history', 'GET', 400], ['/api/tokens/invalid/stream', 'GET', 400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/market?interval=7', 'GET', 400]]) {
+    for (const [route, method, status] of [['/api/studios/-1', 'GET', 400], ['/api/wallets/invalid', 'GET', 400], ['/api/studios/1/transfers?fromBlock=-1', 'GET', 400], ['/api/overview', 'POST', 405], ['/api/tokens/invalid/quote?side=buy&amountRaw=1','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/quote?side=buy&amountRaw=0','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/account','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/preflight?side=buy&amountRaw=1','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/claim-preflight','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/approval','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/wallet-history','GET',400], ['/api/wallets/invalid/portfolio','GET',400], ['/api/wallets/0x0000000000000000000000000000000000000000/portfolio','GET',400], ['/api/unknown', 'GET', 404], ['/api/tokens/invalid/market', 'GET', 400], ['/api/tokens/invalid/history', 'GET', 400], ['/api/tokens/invalid/stream', 'GET', 400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/market?interval=7', 'GET', 400]]) {
       const response = await fetch(base + route, { method });
       assert.equal(response.status, status); assert.ok((await response.json()).error.code);
     }
@@ -58,6 +58,7 @@ test('market endpoint reports unavailable without a configured deployment; no RP
       assert.equal(response.status,503);assert.equal((await response.json()).error.code,'FOUNDRY_NOT_CONFIGURED');
     }
 
+    const portfolio=await fetch(base+'/api/wallets/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/portfolio');assert.equal(portfolio.status,503);assert.equal((await portfolio.json()).error.code,'FOUNDRY_INDEX_NOT_CONFIGURED');
     assert.equal((await(await fetch(base+'/api/market-index')).json()).configured,false);
     for(const suffix of ['history','stream','wallet-history?wallet=0x350035555E10d9AfAF1566AaebfCeD5BA6C27777']) {
       const result=await fetch(base+'/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/'+suffix);

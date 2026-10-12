@@ -38,3 +38,7 @@ Recent trades now show recipient separately from payer/callback router. Curve id
 ## Wallet token activity - 2026-10-13
 
 Public/connected wallet inspection also reads /wallet-history for the selected token. Indexed holdings and token flows use full mint-to-checkpoint replay; related trade roles distinguish payer and recipient. Expandable lists show the last 100 matching trades/transfers with limits and catch-up/source indicators. PnL/cost basis remain unavailable. Changing wallet/token/cursor aborts pending reads and clears the previous wallet's data; no wallet provider or data fallback is simulated.
+
+## Wallet portfolio dashboard - 2026-10-13
+
+The Portfolio section accepts a public or connected wallet and lists holdings/activity across the configured Foundry factory index. All positions share one canonical checkpoint. Sold/transferred-out tokens with recorded activity remain visible. Market links open the actual selected token; no source-chain explorer links are fabricated for fork data. Sequential ten-second refresh, 25-second fetch bounds, cancellation and error clearing prevent old-wallet/failure fallback. PnL/USD valuation remain unavailable and token quantities are not summed across assets.

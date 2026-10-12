@@ -1,0 +1,21 @@
+import React, { useEffect, useState } from 'react';
+import { units } from './market-format.mjs';
+export default function WalletPortfolio({wallet,onOpenToken}){
+  const [input,setInput]=useState(''),[inspected,setInspected]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[refresh,setRefresh]=useState(0);
+  const selected=wallet||inspected;
+  useEffect(()=>{
+    const controller=new AbortController();let timer;
+    setData(null);setError('');
+    if(!selected)return()=>controller.abort();
+    const poll=async()=>{
+      try{
+        const response=await fetch(`/api/wallets/${selected}/portfolio`,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(25000)]),cache:'no-store'}),body=await response.json();
+        if(!response.ok)throw new Error(body.error?.message||'Portfolio unavailable.');
+        if(!controller.signal.aborted){setData(body);setError('');}
+      }catch(e){if(!controller.signal.aborted){setData(null);setError(e.message);}}
+      finally{if(!controller.signal.aborted)timer=setTimeout(poll,10000);}
+    };
+    poll();return()=>{controller.abort();clearTimeout(timer);};
+  },[selected,refresh]);
+  return <section id="portfolio" className="market-section" data-portfolio-cursor={data?.cursor}><div className="section-heading"><div><span className="eyebrow">WALLET / FOUNDRY TOKENS</span><h2>Your studio token holdings.</h2></div><button className="text-button" disabled={!selected} onClick={()=>setRefresh(n=>n+1)}>Refresh portfolio</button></div>{!wallet&&<form className="lookup" onSubmit={e=>{e.preventDefault();const value=input.trim();if(!/^0x[0-9a-fA-F]{40}$/.test(value)||/^0x0{40}$/i.test(value)){setData(null);setError('Enter a nonzero EVM wallet address.');return;}setInspected(value);setRefresh(n=>n+1);}}><label htmlFor="portfolio-wallet">Public wallet address</label><div><input id="portfolio-wallet" value={input} onChange={e=>setInput(e.target.value)} placeholder="0x…" spellCheck="false" required/><button className="primary">Inspect portfolio</button></div></form>}<p className="note">{selected?`Inspecting ${selected}. Read-only; no signature is requested.`:'Connect a wallet or inspect a public address.'}</p>{error?<div className="message" role="status">{error}</div>:selected&&!data?<p className="note">Reading one canonical portfolio checkpoint…</p>:data&&<><p className="note">{data.holdingTokenCount} held tokens · {data.positions.length} tokens with recorded activity · {data.indexedTokenCount} indexed tokens scanned. {data.index.caughtUp?'Caught up to the observed canonical head.':'Backfill is still in progress.'}</p><p className="note">{data.scope} {data.policy}</p><p className="note">{data.unresolvedV4AcrossIndex} unresolved v4 trades across the index · {data.legacyV4AcrossIndex} legacy rows. Cost basis and PnL are unavailable.</p><div className="table-scroll"><table><thead><tr><th>Token</th><th>Holdings</th><th>Supply share</th><th>Related buys / sells</th><th>Studio</th><th>Market</th></tr></thead><tbody>{data.positions.map(p=><tr key={p.token.address} data-portfolio-token={p.token.address}><td>{p.token.name} / {p.token.symbol}<small><code>{p.token.address}</code></small></td><td>{units(p.activity.balanceRaw,p.token.decimals)}</td><td>{units(p.activity.shareBps,2)}%</td><td>{p.activity.buyCount} / {p.activity.sellCount}</td><td>Chog #{p.launch.nftId}</td><td><button className="text-button" onClick={()=>onOpenToken(p.token.address)}>View market</button></td></tr>)}</tbody></table></div>{!data.positions.length&&<p className="note">No holdings or attributable activity for this wallet through the indexed checkpoint.</p>}<details className="note"><summary>Portfolio source and capacity</summary><p>Chain {data.provenance.chainId} · {data.provenance.finality} · block {data.snapshot.blockNumber} · {data.snapshot.blockTime}</p><code style={{overflowWrap:'anywhere'}}>{data.snapshot.blockHash}</code><p>{data.provenance.source} · {data.provenance.rpcOrigin} · read {data.provenance.fetchedAt}</p><p>{data.capacity.scannedWindows} windows / {data.capacity.maxWindows} · {data.capacity.scannedEvents} events / {data.capacity.maxEvents}. Capacity errors return no partial holdings.</p></details></>}</section>;
+}

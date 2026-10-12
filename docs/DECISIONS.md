@@ -173,3 +173,7 @@ Implementation choice: use bound lock settlement events to identify literal paye
 ## Public wallet activity implementation - 2026-10-13
 
 Implementation choice: derive selected-token wallet holdings/flows from full validated indexed transfer history and match trades only by recorded payer/recipient. Display limits apply after matching. PnL/cost basis are explicitly unavailable; gifts, delegated payments and unresolved/external routes prevent economic-history claims. No profile authority, economics, service configuration or financial execution approval changed.
+
+## Multi-token portfolio implementation - 2026-10-13
+
+Implementation choice: one repeatable-read PostgreSQL snapshot across the selected factory index, complete per-token balance replay, historical zero-balance positions and explicit global capacity limits. Ten-second sequential UI refresh is an operational choice, not fee economics or a provider decision. No cross-asset quantity totals, profit/valuation, signing or authority is inferred. Supabase remains primary and financial execution remains disabled.

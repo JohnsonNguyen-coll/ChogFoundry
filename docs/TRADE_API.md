@@ -55,3 +55,15 @@ Balances and incoming/outgoing token amounts derive from the complete mint-to-ch
 Counts cover the entire indexed checkpoint history; trades/transfers each return at most the latest 100 matching rows with explicit truncation flags. Catch-up is not latest-chain completeness. Transfer histories include gifts, mint and protocol flows; self-transfers count as both incoming/outgoing while leaving net balance unchanged. pnlRaw and costBasisRaw remain null, and tradeHistoryComplete=false because complete economic history is not established. No last-price valuation or fabricated profit is returned.
 
 Frontend replaces/discards activity when token/wallet/index cursor changes and aborts pending requests. It displays indexed holdings, related buys/sells, separate payer/recipient roles, transfers and canonical source. Reorg rollback removes orphaned rows and restores wallet holdings through existing atomic repository transactions. No schema migration, index rebuild, hosted DB connection or wallet signing is introduced.
+
+## Factory-wide wallet portfolio - 2026-10-13
+
+GET /api/wallets/:address/portfolio
+
+Reads every token window in the configured factory index in one PostgreSQL REPEATABLE READ READ ONLY transaction, together with its checkpoint and revision. Every token must share that checkpoint. Complete per-token mint/transfer replay supplies holdings; tokens with recorded transfers or related trades remain visible even when holdings reach zero. Only literal recorded payer/recipient contributes trade activity. This is a selected-factory portfolio, not all assets on Monad or a complete economic history.
+
+Response contains positions (token/launch/range and wallet activity summary), indexedTokenCount, holdingTokenCount, global unresolved/legacy v4 counts, canonical snapshot/cursor, index catch-up and provenance. Raw quantities remain per asset; they are never added across unlike tokens. PnL/cost basis and USD valuation remain unavailable. No fee credits are summed across tokens sharing one vault.
+
+Capacity is explicit: at most 5,000 total windows, 100,000 total trades plus transfers and 200 tokens. Capacity errors return 503 PORTFOLIO_CAPACITY with no partial/zero fallback. Empty positions require a valid canonical checkpoint and successful replay of every indexed token. Missing configuration, incomplete replay or mismatched checkpoints remain errors. No migration, destructive backfill or stored authenticated wallet profile is introduced.
+
+The dashboard accepts a public address or connected wallet, refreshes sequentially every ten seconds and supports manual refresh. It aborts/discards old-wallet requests, bounds each fetch to 25 seconds, clears data on failure and renders checkpoint/catch-up/capacity limits. Opening a market passes only its actual token address. Public inspection enables no signature or studio authority.

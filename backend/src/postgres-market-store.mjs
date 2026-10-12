@@ -1,3 +1,4 @@
+import { buildWalletPortfolio } from './wallet-portfolio.mjs';
 import { AppError } from './validation.mjs';
 import { buildIndexedMarket } from './indexed-market.mjs';
 const headRow=r=>r?{...r,end_block:Number(r.end_block),start_block:Number(r.start_block)}:null;
@@ -53,6 +54,15 @@ export class PostgresMarketStore {
       const head=headRow((await client.query('SELECT * FROM foundry.market_chunks WHERE index_key=$1 ORDER BY end_block DESC LIMIT 1',[this.key])).rows[0]);
       const revision=Number((await client.query('SELECT revision FROM foundry.market_indexes WHERE index_key=$1',[this.key])).rows[0].revision);
       return buildIndexedMarket(rows.map(r=>r.data_json),head,revision,interval,wallet);
+    },{readOnly:true});
+  }
+  async portfolio(wallet){
+    await this.initialize();
+    return this.database.transaction(async client=>{
+      const head=headRow((await client.query('SELECT * FROM foundry.market_chunks WHERE index_key=$1 ORDER BY end_block DESC LIMIT 1',[this.key])).rows[0]);
+      const revision=Number((await client.query('SELECT revision FROM foundry.market_indexes WHERE index_key=$1',[this.key])).rows[0].revision);
+      const rows=(await client.query('SELECT data_json FROM foundry.market_windows WHERE index_key=$1 ORDER BY token,end_block LIMIT 5001',[this.key])).rows;
+      return buildWalletPortfolio(rows.map(r=>r.data_json),head,revision,wallet);
     },{readOnly:true});
   }
   close(){}

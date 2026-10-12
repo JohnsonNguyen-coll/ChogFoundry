@@ -311,6 +311,7 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
       assert.equal(indexed.trades.filter(t=>t.attribution?.method==='foundry-lock-pool-trade').length,5);
       assert.equal(indexed.trades.find(t=>t.router===alternateAddress).payer,null);
       assert.equal(indexed.attributionSummary.officialV4Matched,5);assert.equal(indexed.attributionSummary.unresolvedV4,1);assert.equal(indexed.attributionSummary.legacyV4Rows,0);
+      const buyerPortfolio=await indexer.portfolio(buyerAddress);assert.equal(buyerPortfolio.positions.length,1);assert.equal(buyerPortfolio.positions[0].activity.balanceRaw,String(await token.balanceOf(buyerAddress)));assert.equal(buyerPortfolio.unresolvedV4AcrossIndex,1);
       const buyerHistory=await indexer.walletHistory(launch.token,buyerAddress);
       assert.equal(buyerHistory.walletActivity.balanceRaw,String(await token.balanceOf(buyerAddress)));
       assert.equal(buyerHistory.walletActivity.relatedTradeCount,5);assert.equal(buyerHistory.walletActivity.unresolvedV4Trades,1);
@@ -328,7 +329,8 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
             const query=new URL(req.url,'http://127.0.0.1'),route=query.pathname;
             if(route.endsWith('/stream'))return await openMarketStream(req,res,indexer,launch.token,60,streams);
             let body;
-            if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
+            if(route.startsWith('/api/wallets/')&&route.endsWith('/portfolio'))body=await indexer.portfolio(route.split('/')[3]);
+            else if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
             else if(route===`/api/tokens/${launch.token}/history`)body=await indexer.market(launch.token);
             else if(route===`/api/tokens/${launch.token}/wallet-history`)body=await indexer.walletHistory(launch.token,query.searchParams.get('wallet'));
             else if(route===`/api/tokens/${launch.token}/approval`){
@@ -375,6 +377,10 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
       const smallHistory=await indexer.walletHistory(launch.token,smallHolder);
       assert.equal(smallHistory.walletActivity.balanceRaw,String(await token.balanceOf(smallHolder)));
       assert.equal(smallHistory.walletActivity.balanceRaw,'1');assert.equal(smallHistory.walletActivity.relatedTradeCount,0);assert.equal(smallHistory.walletActivity.transferCount,1);
+      const smallPortfolio=await indexer.portfolio(smallHolder);assert.equal(smallPortfolio.positions[0].activity.balanceRaw,'1');
+      await(await token.connect(treasury).transfer(buyerAddress,await token.balanceOf(recipient))).wait();
+      const exitedPortfolio=await indexer.portfolio(recipient);assert.equal(exitedPortfolio.holdingTokenCount,0);assert.equal(exitedPortfolio.positions.length,1);assert.equal(exitedPortfolio.positions[0].activity.balanceRaw,'0');
+
 
 
       assert.equal(await local.send('evm_revert',[identityBranch]),true);await local.send('evm_mine',[]);
@@ -382,6 +388,7 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
       assert.equal(restored.trades.some(t=>t.transactionHash===identityReceipt.hash),false);
       assert.equal(restored.attributionSummary.officialV4Matched,5);assert.equal(restored.attributionSummary.unresolvedV4,1);
       assert.equal(restored.tradeCount,indexed.tradeCount);
+      const revertedPortfolio=await indexer.portfolio(recipient);assert.equal(revertedPortfolio.positions.length,0);
       const recipientRestored=await indexer.walletHistory(launch.token,recipient);assert.equal(recipientRestored.walletActivity.trades.some(t=>t.transactionHash===identityReceipt.hash),false);assert.equal(recipientRestored.walletActivity.balanceRaw,String(recipientBefore));
     } finally {await indexer.close();await marketDb.close();}
     const report={mode:'isolated-real-state-fork',sourceChainId:143,localChainId:31337,blockNumber:block.number,blockHash:block.hash,poolManager:candidates.poolManager,poolManagerCodeHash:keccak256(code),poolId:position.poolId,actualPoolInitialization:true,actualLiquiditySettlement:true,actualBidirectionalSwaps:true,authenticatedInitialization:true,fourSwapModes:true,independentCallerFeeCapture:true,quoteSpecifiedPartialFillRollback:true,tokenExactOutputPartialFillRollback:true,tokenExactInputPartialFillRefund:true,priceLimitReached:true,actualPoolManagerTradeFeed:true,indexedCurveAndPoolHistory:true,feeOwnershipTransfer:true,withdrawalEntryPoint:false,postGraduationStudioFeeImplemented:true,hook:hookAddress,lpFeeTestUnits:3000,liveWrites:false};

@@ -29,7 +29,7 @@ function Candles({ candles }) {
     <text x="25" y="280" fontSize="11" fill="#6c7467">{time(values[0].time)}</text><text x="855" y="280" textAnchor="end" fontSize="11" fill="#6c7467">{time(values.at(-1).time)}</text>
   </svg></div><p className="note">Latest {visible.length} populated candles. Time gaps are preserved; empty intervals are not filled. Hover a candle for exact OHLC values.</p></>;
 }
-export default function MarketView({ onOpenStudio, wallet }) {
+export default function MarketView({ onOpenStudio, wallet, selectedToken }) {
   const [directory, setDirectory] = useState(null), [directoryError, setDirectoryError] = useState('');
   const [input, setInput] = useState(''), [token, setToken] = useState(''), [interval, setIntervalValue] = useState(60);
   const [data, setData] = useState(null), [error, setError] = useState(''), [status, setStatus] = useState('idle');
@@ -69,6 +69,7 @@ export default function MarketView({ onOpenStudio, wallet }) {
     }).catch(e => { if (!controller.signal.aborted) fail(e.message); });
     return () => { active = false; controller.abort(); stream?.close(); };
   }, [token, interval, refresh]);
+  useEffect(()=>{if(selectedToken){setInput(selectedToken.address);setToken(selectedToken.address);}},[selectedToken]);
   function choose(value) { setInput(value); setToken(value); }
   function lookup(event) {
     event.preventDefault();

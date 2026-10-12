@@ -28,6 +28,12 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false 
     await page.getByRole('button', { name: 'Open market' }).click();
     trace('waiting for canonical stream');
     await page.getByText('stream connected', { exact: false }).waitFor();
+    await page.getByLabel('Public wallet address',{exact:true}).fill(wallet);
+    await page.getByRole('button',{name:'Inspect portfolio',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelector('#portfolio')?.dataset.portfolioCursor);
+    assert.ok(await page.locator(`[data-portfolio-token="${token}"]`).count()>0);
+    await page.locator(`[data-portfolio-token="${token}"]`).getByRole('button',{name:'View market',exact:true}).click();
+    assert.equal(await page.locator('#market-token').inputValue(),token);
     await page.getByRole('textbox',{name:'Wallet address to inspect'}).fill(wallet);
     await page.getByRole('button',{name:'Inspect wallet'}).click();
     trace('waiting for actual wallet state');
@@ -72,6 +78,9 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false 
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
         await page.locator('#markets').screenshot({ path: fileURLToPath(new URL(`../../artifacts/market-ui-${label}-mobile.png`, import.meta.url)) });
         await page.setViewportSize({ width: 1440, height: 1000 });
+        await page.getByRole('button',{name:'Refresh portfolio',exact:true}).click();
+        await page.waitForFunction(cursor=>document.querySelector('#portfolio')?.dataset.portfolioCursor===cursor,snapshot.cursor);
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
         assert.deepEqual(errors, []);trace(`checked ${label}`);
       },
       async reset(snapshot, orphanHash) {

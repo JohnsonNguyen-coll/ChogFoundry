@@ -136,6 +136,12 @@ export function createApi({ databasePath, marketDatabasePath, origin } = {}) {
         if (![60,300,900,3600].includes(interval)) throw new AppError(400, 'INVALID_INTERVAL', 'Use a candle interval of 60, 300, 900 or 3600 seconds.');
         return send(200, await reader.market(token, from, to, interval));
       }
+      const portfolioRoute=route.match(/^\/api\/wallets\/([^/]+)\/portfolio$/);
+      if(portfolioRoute){
+        const wallet=actionWallet(portfolioRoute[1]);
+        if(!indexer)throw new AppError(503,'FOUNDRY_INDEX_NOT_CONFIGURED','The portfolio deployment index is not configured.');
+        return send(200,await indexer.portfolio(wallet));
+      }
       const wallet = route.match(/^\/api\/wallets\/([^/]+)$/);
       if (wallet) return send(200, await reader.wallet(address(wallet[1])));
       throw new AppError(404, 'NOT_FOUND', 'Endpoint not found.');

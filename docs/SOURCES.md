@@ -164,3 +164,7 @@ Hooked fork source block 112803694 verifies actual receipt evidence, independent
 ## Wallet indexed history - 2026-10-13
 
 Uses current StudioToken Transfer, curve Traded and matched official lock PoolTrade/PoolManager Swap events from actual RPC-indexed windows. Existing complete mint/supply conservation checks remain prerequisites for wallet balance replay. No exchange price feed, synthetic wallet data, inferred trader or research snapshot is used. Scope is the selected token's canonical checkpoint, not a verified complete economic history or authenticated wallet profile.
+
+## Factory wallet portfolio - 2026-10-13
+
+Uses the existing canonical factory launch/index, complete mint/Transfer replay and evidence-attributed curve/v4 trades. PostgreSQL transaction isolation follows the already reviewed PostgresDatabase read-only repeatable-read implementation; source contracts/economic settings are unchanged. Portfolio balances are quantities through a checkpoint, not profit, price or ownership authority. No external valuation feed or fabricated fallback is used.
