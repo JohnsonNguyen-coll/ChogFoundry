@@ -43,3 +43,15 @@ GET /api/tokens/:address/claim-preflight?wallet=<nonzero beneficiary address>
 Validates factory/token/vault/asset bindings independently of current ownerOf. Reads actual category credits, liability and funding at the canonical snapshot. claim() calldata uses the beneficiary as sender and pays that same recorded wallet. Claims aggregate all launches in the vault. No current NFT ownership, profile session or market index grants claim entitlement; there is no redirect-recipient parameter. Zero credits return nothing-to-claim and null gas. Nonzero credits run actual claim settlement and same-block gas estimation without persisting changes.
 
 Both return unsigned transactions, canonical source/provenance and executionEnabled=false. RPC failures are sanitized; unsupported historical gas estimation is explicit. Inspection is not signing permission. The frontend cancels pending action reads and clears results on relevant token/wallet/cursor/quote inputs. No approval/claim/trade broadcast is implemented in runtime.
+
+## Indexed wallet activity - 2026-10-13
+
+GET /api/tokens/:address/wallet-history?wallet=<nonzero address>
+
+Requires a verified factory/deployment index and the primary PostgreSQL repository. The response contains token/launch, canonical snapshot/cursor, index catch-up flags, provenance and walletActivity. It is public inspection and grants no authentication or financial authority.
+
+Balances and incoming/outgoing token amounts derive from the complete mint-to-checkpoint Transfer replay used for holder validation, not the top-50 display or last-500 trades. A missing wallet balance is zero only after complete supply-conserving replay succeeds. Related trade matching is applied before truncation and requires literal payer/recipient evidence; walletRoles separates payment from receipt. Unsupported/legacy v4 rows and external pools are never assigned by transaction sender, token transfers or callbacks.
+
+Counts cover the entire indexed checkpoint history; trades/transfers each return at most the latest 100 matching rows with explicit truncation flags. Catch-up is not latest-chain completeness. Transfer histories include gifts, mint and protocol flows; self-transfers count as both incoming/outgoing while leaving net balance unchanged. pnlRaw and costBasisRaw remain null, and tradeHistoryComplete=false because complete economic history is not established. No last-price valuation or fabricated profit is returned.
+
+Frontend replaces/discards activity when token/wallet/index cursor changes and aborts pending requests. It displays indexed holdings, related buys/sells, separate payer/recipient roles, transfers and canonical source. Reorg rollback removes orphaned rows and restores wallet holdings through existing atomic repository transactions. No schema migration, index rebuild, hosted DB connection or wallet signing is introduced.

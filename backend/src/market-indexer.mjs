@@ -77,11 +77,16 @@ export class MarketIndexer extends EventEmitter {
     const head=this.cachedHead;
     return {configured:true,deploymentBlock:this.config.deploymentBlock,indexedThrough:head?.end_block??null,indexedHash:head?.end_hash??null,observedHead:this.target?.number??null,finality:this.config.finality,caughtUp:!this.lastError&&!!head&&head.end_block===this.target?.number,revision:this.cachedRevision,error:this.lastError?.code??null};
   }
-  async market(token,interval=60) {
+  async market(token,interval=60,wallet=null) {
     await this.sync();
-    const data=await this.store.market(getAddress(token),interval),head=await this.store.head();
+    const data=await this.store.market(getAddress(token),interval,wallet),head=await this.store.head();
     if((await this.provider.getBlock(head.end_block))?.hash!==head.end_hash) throw new AppError(503,'CHAIN_REORG','Indexed snapshot is no longer canonical. Resynchronize.');
     return this.decorate(data);
+  }
+  async walletHistory(token,wallet){
+    const data=await this.market(token,60,getAddress(wallet));
+    const {token:asset,launch,snapshot,range,walletActivity,index,provenance,cursor}=data;
+    return {token:asset,launch,snapshot,range,walletActivity,index,provenance,cursor};
   }
   decorate(data) {
     const status={...this.status(),indexedThrough:data.snapshot.blockNumber,indexedHash:data.snapshot.blockHash,revision:Number(data.cursor.split(':')[0]),caughtUp:!this.lastError&&data.snapshot.blockNumber===this.target?.number};

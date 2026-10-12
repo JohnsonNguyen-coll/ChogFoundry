@@ -9,7 +9,7 @@ import { readCurveQuote, readTradeState, readTradeQuote } from '../../backend/sr
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
-import { Contract, ContractFactory, Interface, getCreateAddress, getCreate2Address, keccak256, zeroPadValue, parseEther, toBeHex, ZeroAddress } from 'ethers';
+import { Wallet, Contract, ContractFactory, Interface, getCreateAddress, getCreate2Address, keccak256, zeroPadValue, parseEther, toBeHex, ZeroAddress } from 'ethers';
 import { chain, nftAbi } from '../../backend/src/config.mjs';
 import { candidates } from '../../backend/scripts/market-inspection.mjs';
 import { MarketIndexer } from '../../backend/src/market-indexer.mjs';
@@ -311,6 +311,13 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
       assert.equal(indexed.trades.filter(t=>t.attribution?.method==='foundry-lock-pool-trade').length,5);
       assert.equal(indexed.trades.find(t=>t.router===alternateAddress).payer,null);
       assert.equal(indexed.attributionSummary.officialV4Matched,5);assert.equal(indexed.attributionSummary.unresolvedV4,1);assert.equal(indexed.attributionSummary.legacyV4Rows,0);
+      const buyerHistory=await indexer.walletHistory(launch.token,buyerAddress);
+      assert.equal(buyerHistory.walletActivity.balanceRaw,String(await token.balanceOf(buyerAddress)));
+      assert.equal(buyerHistory.walletActivity.relatedTradeCount,5);assert.equal(buyerHistory.walletActivity.unresolvedV4Trades,1);
+      assert.equal(buyerHistory.walletActivity.pnlRaw,null);assert.equal(buyerHistory.walletActivity.costBasisRaw,null);
+      assert.ok(buyerHistory.walletActivity.trades.every(t=>t.walletRoles.includes('payer')&&t.walletRoles.includes('recipient')));
+      assert.equal(BigInt(buyerHistory.walletActivity.incomingTokenRaw)-BigInt(buyerHistory.walletActivity.outgoingTokenRaw),BigInt(buyerHistory.walletActivity.balanceRaw));
+
       const poolHolder=indexed.holders.top.find(h=>h.role==='pool-manager');
       assert.ok(poolHolder);assert.equal(poolHolder.balanceRaw,String(await token.balanceOf(candidates.poolManager)));
       assert.equal(indexed.provenance.finality,'local-fork-latest','Local fork blocks must never be described as finalized Mainnet');
@@ -323,6 +330,7 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
             let body;
             if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
             else if(route===`/api/tokens/${launch.token}/history`)body=await indexer.market(launch.token);
+            else if(route===`/api/tokens/${launch.token}/wallet-history`)body=await indexer.walletHistory(launch.token,query.searchParams.get('wallet'));
             else if(route===`/api/tokens/${launch.token}/approval`){
               body=await readApprovalPlan(local,{...configuredTrade,chainId:31337},{side:query.searchParams.get('side'),amountRaw:query.searchParams.get('amountRaw'),wallet:query.searchParams.get('wallet')});body.provenance=indexed.provenance;
             }
@@ -354,11 +362,27 @@ test('real Monad hooked v4: four swap modes, funded fee transfer ownership and h
       assert.equal(identityTrade.payer,buyerAddress);assert.equal(identityTrade.recipient,recipient);
       assert.equal(identityTrade.executedOutputRaw,String(await token.balanceOf(recipient)-recipientBefore));
       assert.equal(attributedBranch.attributionSummary.officialV4Matched,6);
+      const payerHistory=await indexer.walletHistory(launch.token,buyerAddress),recipientHistory=await indexer.walletHistory(launch.token,recipient);
+      assert.deepEqual(payerHistory.walletActivity.trades.find(t=>t.transactionHash===identityReceipt.hash).walletRoles,['payer']);
+      assert.deepEqual(recipientHistory.walletActivity.trades.find(t=>t.transactionHash===identityReceipt.hash).walletRoles,['recipient']);
+      assert.equal(recipientHistory.walletActivity.balanceRaw,String(await token.balanceOf(recipient)));
+      // Real local token transfers prove wallet lookup is independent of the top-50 list.
+      const smallHolder=Wallet.createRandom().address;
+      await(await token.connect(buyer).transfer(smallHolder,1n)).wait();
+      for(let i=0;i<51;i++)await(await token.connect(buyer).transfer(Wallet.createRandom().address,2n)).wait();
+      const holderMarket=await indexer.market(launch.token);
+      assert.ok(!holderMarket.holders.top.some(h=>h.wallet.toLowerCase()===smallHolder.toLowerCase()));
+      const smallHistory=await indexer.walletHistory(launch.token,smallHolder);
+      assert.equal(smallHistory.walletActivity.balanceRaw,String(await token.balanceOf(smallHolder)));
+      assert.equal(smallHistory.walletActivity.balanceRaw,'1');assert.equal(smallHistory.walletActivity.relatedTradeCount,0);assert.equal(smallHistory.walletActivity.transferCount,1);
+
+
       assert.equal(await local.send('evm_revert',[identityBranch]),true);await local.send('evm_mine',[]);
       const restored=await indexer.market(launch.token);
       assert.equal(restored.trades.some(t=>t.transactionHash===identityReceipt.hash),false);
       assert.equal(restored.attributionSummary.officialV4Matched,5);assert.equal(restored.attributionSummary.unresolvedV4,1);
       assert.equal(restored.tradeCount,indexed.tradeCount);
+      const recipientRestored=await indexer.walletHistory(launch.token,recipient);assert.equal(recipientRestored.walletActivity.trades.some(t=>t.transactionHash===identityReceipt.hash),false);assert.equal(recipientRestored.walletActivity.balanceRaw,String(recipientBefore));
     } finally {await indexer.close();await marketDb.close();}
     const report={mode:'isolated-real-state-fork',sourceChainId:143,localChainId:31337,blockNumber:block.number,blockHash:block.hash,poolManager:candidates.poolManager,poolManagerCodeHash:keccak256(code),poolId:position.poolId,actualPoolInitialization:true,actualLiquiditySettlement:true,actualBidirectionalSwaps:true,authenticatedInitialization:true,fourSwapModes:true,independentCallerFeeCapture:true,quoteSpecifiedPartialFillRollback:true,tokenExactOutputPartialFillRollback:true,tokenExactInputPartialFillRefund:true,priceLimitReached:true,actualPoolManagerTradeFeed:true,indexedCurveAndPoolHistory:true,feeOwnershipTransfer:true,withdrawalEntryPoint:false,postGraduationStudioFeeImplemented:true,hook:hookAddress,lpFeeTestUnits:3000,liveWrites:false};
     await writeFile(new URL('../artifacts/v4-hook.json',import.meta.url),JSON.stringify(report,null,2)+'\n');

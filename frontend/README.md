@@ -34,3 +34,7 @@ Quote details provide an exact allowance plan for the actual curve/lock spender.
 ## Event-recorded payer and recipient - 2026-10-12
 
 Recent trades now show recipient separately from payer/callback router. Curve identities retain their market events; v4 payer/recipient require a unique official lock settlement matched to the bound pool swap. Evidence log index is visible. Unsupported routes remain labeled payer unknown. Indexed summary reports matched/unresolved trades and older rows requiring reviewed rescan; no transaction-sender or custody inference is used.
+
+## Wallet token activity - 2026-10-13
+
+Public/connected wallet inspection also reads /wallet-history for the selected token. Indexed holdings and token flows use full mint-to-checkpoint replay; related trade roles distinguish payer and recipient. Expandable lists show the last 100 matching trades/transfers with limits and catch-up/source indicators. PnL/cost basis remain unavailable. Changing wallet/token/cursor aborts pending reads and clears the previous wallet's data; no wallet provider or data fallback is simulated.

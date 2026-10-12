@@ -160,3 +160,7 @@ Prepared calls use existing verified deployment/quote binding checks and canonic
 Source: current contracts/src/StudioV4LiquidityLock.sol PoolTrade emission after successful settlement/refund, and the previously reviewed official PoolManager Swap ABI. Runtime reads actual logs from the factory-bound lock and pool; it never consumes this report as data. Literal payer/recipient are event identities, not wallet ownership or beneficial-owner claims.
 
 Hooked fork source block 112803694 verifies actual receipt evidence, independent-route refusal and PostgreSQL canonical rollback. No external-router decoder, public deployment or audit is claimed.
+
+## Wallet indexed history - 2026-10-13
+
+Uses current StudioToken Transfer, curve Traded and matched official lock PoolTrade/PoolManager Swap events from actual RPC-indexed windows. Existing complete mint/supply conservation checks remain prerequisites for wallet balance replay. No exchange price feed, synthetic wallet data, inferred trader or research snapshot is used. Scope is the selected token's canonical checkpoint, not a verified complete economic history or authenticated wallet profile.

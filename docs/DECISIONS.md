@@ -169,3 +169,7 @@ Implementation choice: exact allowance plans with explicit reset/confirmed-refre
 ## Event-based trade identities - 2026-10-12
 
 Implementation choice: use bound lock settlement events to identify literal payer/recipient for uniquely matched official v4 trades. Unknown external/ambiguous routes stay null; no beneficial-owner or transaction-sender inference. Identity evidence persists in existing PostgreSQL JSON event windows and follows canonical rollback. No economics, signing, deployment or authority decision changed.
+
+## Public wallet activity implementation - 2026-10-13
+
+Implementation choice: derive selected-token wallet holdings/flows from full validated indexed transfer history and match trades only by recorded payer/recipient. Display limits apply after matching. PnL/cost basis are explicitly unavailable; gifts, delegated payments and unresolved/external routes prevent economic-history claims. No profile authority, economics, service configuration or financial execution approval changed.

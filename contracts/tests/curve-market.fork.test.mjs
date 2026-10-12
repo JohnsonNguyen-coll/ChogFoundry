@@ -272,6 +272,7 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
       await indexer.sync(10);
       const changed=await indexer.market(launch.token);
       assert.equal(changed.tradeCount,data.trades.length+1);
+      const walletChanged=await indexer.walletHistory(launch.token,buyerAddress);assert.equal(walletChanged.walletActivity.balanceRaw,String(await token.balanceOf(buyerAddress)));assert.ok(walletChanged.walletActivity.trades.some(t=>t.transactionHash===branchReceipt.hash));
       assert.ok(changed.range.toBlock-changed.range.fromBlock>100,'Persisted history spans multiple RPC windows');
       assert.equal(changed.holders.top.find(h=>h.wallet===buyerAddress.toLowerCase()).balanceRaw,String(await token.balanceOf(buyerAddress)));
       // Exercise the actual HTTP SSE implementation and replay an orphaned cursor.
@@ -282,6 +283,7 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
           let body;
           if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
           else if(route===`/api/tokens/${launch.token}/history`)body=await indexer.market(launch.token,60);
+          else if(route===`/api/tokens/${launch.token}/wallet-history`)body=await indexer.walletHistory(launch.token,new URL(req.url,'http://127.0.0.1').searchParams.get('wallet'));
           else if(route===`/api/tokens/${launch.token}/quote`){
             const query=new URL(req.url,'http://127.0.0.1').searchParams,head=await indexer.store.head();
             const config={...indexConfig,tokenAddress:launch.token,toBlock:head.end_block};
@@ -321,6 +323,7 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
       assert.ok(!reset.data.trades.some(t=>t.transactionHash===branchReceipt.hash),'Orphaned trades disappear from authoritative stream snapshot');
       assert.equal(reset.data.holders.top.find(h=>h.wallet===buyerAddress.toLowerCase()).balanceRaw,String(await token.balanceOf(buyerAddress)));
       assert.notEqual(reset.data.cursor,changed.cursor);
+      const walletReset=await indexer.walletHistory(launch.token,buyerAddress);assert.equal(walletReset.walletActivity.trades.some(t=>t.transactionHash===branchReceipt.hash),false);assert.equal(walletReset.walletActivity.balanceRaw,String(await token.balanceOf(buyerAddress)));
       if(browser)await browser.reset(reset.data,branchReceipt.hash);
       controller.abort();
       const replayController=new AbortController();

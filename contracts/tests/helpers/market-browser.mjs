@@ -32,6 +32,7 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false 
     await page.getByRole('button',{name:'Inspect wallet'}).click();
     trace('waiting for actual wallet state');
     await page.getByText('Creator fee credits',{exact:true}).waitFor();
+    await page.getByText('Indexed token balance',{exact:true}).waitFor();
     await page.getByRole('textbox',{name:'Trade amount'}).fill('0.01');
     await page.getByRole('button',{name:'Preview quote'}).click();
     trace('waiting for actual quote');
@@ -57,6 +58,7 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false 
     return {
       async check(snapshot, label) {
         trace(`checking ${label} snapshot and layout`);
+        await page.waitForFunction(cursor=>document.querySelector('.wallet-activity')?.dataset.walletCursor===cursor,snapshot.cursor);
         await page.waitForFunction(hash => document.querySelector('.market-card')?.dataset.blockHash === hash, snapshot.snapshot.blockHash);
         assert.equal(await page.locator('.market-tables').first().locator('tbody').first().locator('tr').count(), snapshot.trades.length);
         const official=snapshot.trades.filter(t=>t.attribution?.method==='foundry-lock-pool-trade').length;
@@ -75,6 +77,7 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false 
       async reset(snapshot, orphanHash) {
         await this.check(snapshot, 'reorg');
         assert.equal(await page.locator(`tr[data-transaction="${orphanHash}"]`).count(), 0);
+        assert.equal(await page.locator(`tr[data-wallet-transaction="${orphanHash}"]`).count(),0);
         trace('waiting for reorg notice');
         await page.getByText('Chain reorganization:', { exact: false }).waitFor();
       },

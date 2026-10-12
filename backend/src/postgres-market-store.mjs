@@ -43,7 +43,7 @@ export class PostgresMarketStore {
       await client.query('UPDATE foundry.market_indexes SET revision=revision+1 WHERE index_key=$1',[this.key]);
     });
   }
-  async market(token,interval=60) {
+  async market(token,interval=60,wallet=null) {
     if(![60,300,900,3600].includes(interval))throw new AppError(400,'INVALID_INTERVAL','Invalid candle interval.');
     await this.initialize();
     return this.database.transaction(async client=>{
@@ -52,7 +52,7 @@ export class PostgresMarketStore {
       if(rows.length>5000)throw new AppError(503,'INDEX_QUERY_LIMIT','Market query budget exceeded.');
       const head=headRow((await client.query('SELECT * FROM foundry.market_chunks WHERE index_key=$1 ORDER BY end_block DESC LIMIT 1',[this.key])).rows[0]);
       const revision=Number((await client.query('SELECT revision FROM foundry.market_indexes WHERE index_key=$1',[this.key])).rows[0].revision);
-      return buildIndexedMarket(rows.map(r=>r.data_json),head,revision,interval);
+      return buildIndexedMarket(rows.map(r=>r.data_json),head,revision,interval,wallet);
     },{readOnly:true});
   }
   close(){}

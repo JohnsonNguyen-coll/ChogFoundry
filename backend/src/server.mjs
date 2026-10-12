@@ -91,6 +91,12 @@ export function createApi({ databasePath, marketDatabasePath, origin } = {}) {
         if(!indexer) throw new AppError(503,'FOUNDRY_INDEX_NOT_CONFIGURED','The market index deployment is not configured.');
         await indexer.sync();return send(200,{tokens:await indexer.store.tokens(),index:indexer.status()});
       }
+      const walletHistoryRoute=route.match(/^\/api\/tokens\/([^/]+)\/wallet-history$/);
+      if(walletHistoryRoute){
+        const token=address(walletHistoryRoute[1]),wallet=actionWallet(url.searchParams.get('wallet'));
+        if(!indexer)throw new AppError(503,'FOUNDRY_INDEX_NOT_CONFIGURED','The market index deployment is not configured.');
+        return send(200,await indexer.walletHistory(token,wallet));
+      }
       const indexedRoute=route.match(/^\/api\/tokens\/([^/]+)\/(history|stream)$/);
       if(indexedRoute) {
         const token=address(indexedRoute[1]);

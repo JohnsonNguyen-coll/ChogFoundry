@@ -188,3 +188,9 @@ Next prerequisites for public signing remain actual verified testnet deployment/
 Completed canonical official-lock settlement correlation, persisted event evidence/actual settlement amounts, explicit unresolved/legacy counts and frontend payer/recipient display. Verified real routed trades, distinct recipients and PostgreSQL reorg rollback; existing curve identities and candle notional remain intact.
 
 Next: reviewed Supabase/deployment configuration for an actual testnet demo and wallet signing; external/multi-hop/batch router attribution and user portfolio/position summaries still require explicit evidence and completeness limits. No Mainnet financial execution or inferred wallet identity is enabled. Previously indexed windows are preserved and require a separately reviewed rescan for enrichment.
+
+## Wallet activity increment - 2026-10-13
+
+Added token-specific wallet-history API and UI using complete indexed replay, independent of the top-holder/recent-trade displays. Includes explicit role/history/truncation/catch-up/provenance limits, and stale-request cancellation. PostgreSQL remains primary; no schema/data migrations or runtime fork fallback.
+
+Next: configure actual Supabase and reviewed testnet deployment before signing; broader multi-token portfolio, paginated history, external-router attribution and defensible cost basis remain outstanding. PnL stays unavailable and indexed public wallet data never grants studio permissions.

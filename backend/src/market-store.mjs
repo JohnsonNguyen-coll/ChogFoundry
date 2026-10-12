@@ -43,12 +43,12 @@ export class MarketStore {
     });
   }
   rollback(end) { this.transaction(()=>this.db.prepare('DELETE FROM market_chunks WHERE end_block>?').run(end)); }
-  market(token,intervalSeconds=60) {
+  market(token,intervalSeconds=60,wallet=null) {
     if(![60,300,900,3600].includes(intervalSeconds)) throw new AppError(400,'INVALID_INTERVAL','Invalid candle interval.');
     const rows=this.db.prepare('SELECT data_json FROM market_windows WHERE token=? ORDER BY end_block LIMIT 5001').all(token.toLowerCase());
     if(!rows.length) throw new AppError(404,'TOKEN_NOT_INDEXED','No canonical launch for this token has been indexed yet.');
     if(rows.length>5000) throw new AppError(503,'INDEX_QUERY_LIMIT','This market exceeds the current local query budget.');
-    return buildIndexedMarket(rows.map(r=>JSON.parse(r.data_json)),this.head(),this.revision(),intervalSeconds);
+    return buildIndexedMarket(rows.map(r=>JSON.parse(r.data_json)),this.head(),this.revision(),intervalSeconds,wallet);
   }
 
   close(){this.db.close();}
