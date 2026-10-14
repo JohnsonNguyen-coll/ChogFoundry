@@ -42,3 +42,7 @@ Public/connected wallet inspection also reads /wallet-history for the selected t
 ## Wallet portfolio dashboard - 2026-10-13
 
 The Portfolio section accepts a public or connected wallet and lists holdings/activity across the configured Foundry factory index. All positions share one canonical checkpoint. Sold/transferred-out tokens with recorded activity remain visible. Market links open the actual selected token; no source-chain explorer links are fabricated for fork data. Sequential ten-second refresh, 25-second fetch bounds, cancellation and error clearing prevent old-wallet/failure fallback. PnL/USD valuation remain unavailable and token quantities are not summed across assets.
+
+## Launch wizard - 2026-10-14
+
+The Launch section accepts real NFT ID, connected/public creator address, UTF-8 name/symbol, optional maximum first-buy budget, explicit minimum output and deadline. It reads verified factory bindings/current owner and simulates actual launch with rollback. Review includes supply/allocation, observed inventory split, curve fee split, maximum funding/allowance, gas, simulated address and unsigned calldata/source. Missing configuration is unavailable; no sample token/default curve price or financial signature is provided. Actual first-buy spend/output are unavailable from the factory return and require future receipt evidence.

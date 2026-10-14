@@ -1,3 +1,4 @@
+import { launchInput } from './launch-data.mjs';
 import { actionWallet } from './fee-actions.mjs';
 import { preflightInput } from './trade-preflight.mjs';
 import http from 'node:http';
@@ -73,6 +74,11 @@ export function createApi({ databasePath, marketDatabasePath, origin } = {}) {
       if (route === '/api/session') return send(200, { session: auth.public(auth.session(req)) });
       if (route === '/api/studios') return send(200, { profiles: await store.list(), source: database?'Supabase PostgreSQL studio profiles; no onchain launches implied.':'Local persisted studio profiles; no onchain launches implied.' });
       if (route === '/api/overview') return send(200, await reader.overview());
+      const launchRoute=route.match(/^\/api\/studios\/([^/]+)\/launch-preflight$/);
+      if(launchRoute){
+        const input=launchInput({nftId:launchRoute[1],wallet:url.searchParams.get('wallet'),name:url.searchParams.get('name'),symbol:url.searchParams.get('symbol'),initialQuoteIn:url.searchParams.get('initialQuoteIn'),minTokenOut:url.searchParams.get('minTokenOut'),deadline:url.searchParams.get('deadline')});
+        return send(200,await reader.launchPreflight(input));
+      }
       const nft = route.match(/^\/api\/studios\/([^/]+)(\/(transfers|access))?$/);
       if (nft) {
         const id = tokenId(nft[1]);

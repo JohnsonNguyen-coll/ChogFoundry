@@ -1,3 +1,4 @@
+import { readLaunchPreflight } from '../../backend/src/launch-data.mjs';
 import { readClaimPreflight } from '../../backend/src/fee-actions.mjs';
 import { readTradePreflight } from '../../backend/src/trade-preflight.mjs';
 import { readTradeState, readCurveQuote } from '../../backend/src/trade-data.mjs';
@@ -56,9 +57,21 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     const deadline = BigInt((await local.getBlock('latest')).timestamp + 7200);
     const params = { nftId: 1557n, name: 'Actual curve fork verification', symbol: 'CURVE', initialQuoteIn: parseEther('0.2'), minTokenOut: 1n, deadline };
     await (await quote.connect(creator).approve(expectedFactory, parseEther('2'))).wait();
+    const launchConfig=async()=>({chainId:31337,factoryAddress:expectedFactory,collection:chain.collection,quote:chain.quote,toBlock:(await local.getBlock('latest')).number});
+    const inspectLaunch={...params,nftId:String(params.nftId),wallet:owner,initialQuoteIn:String(params.initialQuoteIn),minTokenOut:String(params.minTokenOut),deadline:String(Math.max(Math.floor(Date.now()/1000),(await local.getBlock('latest')).timestamp)+1800)};
+    const initialState={count:await factory.launchCount(),liability:await vault.liability(),balance:await quote.balanceOf(owner)};
+    const launchPreview=await readLaunchPreflight(local,await launchConfig(),inspectLaunch);
+    assert.equal(launchPreview.preflight.status,'simulated');assert.ok(BigInt(launchPreview.preflight.gasEstimateRaw)>0n);assert.equal(launchPreview.preflight.initialQuoteSpentRaw,null);assert.equal(launchPreview.preflight.initialTokenOutRaw,null);assert.equal(launchPreview.preflight.executionEnabled,false);
+    assert.deepEqual({count:await factory.launchCount(),liability:await vault.liability(),balance:await quote.balanceOf(owner)},initialState,'Launch simulation rolls back creation, buy and fee effects');
+    const operatorNFT=new Contract(chain.collection,['function approve(address,uint256)','function getApproved(uint256) view returns(address)'],local);
+    await(await operatorNFT.connect(creator).approve(buyerAddress,1557n)).wait();assert.equal(await operatorNFT.getApproved(1557n),buyerAddress);
+    const operatorPreview=await readLaunchPreflight(local,await launchConfig(),{...inspectLaunch,wallet:buyerAddress,initialQuoteIn:'0',minTokenOut:'0'});assert.ok(operatorPreview.preflight.blockers.includes('OWNER_REQUIRED'));
+    const fundingBlocked=await readLaunchPreflight(local,await launchConfig(),{...inspectLaunch,initialQuoteIn:String((await quote.balanceOf(owner))+(await quote.allowance(owner,expectedFactory))+1n)});assert.ok(fundingBlocked.preflight.blockers.includes('INSUFFICIENT_CHOG_BALANCE'));assert.ok(fundingBlocked.preflight.blockers.includes('FACTORY_APPROVAL_REQUIRED'));
+    await assert.rejects(readLaunchPreflight(local,await launchConfig(),{...inspectLaunch,deadline:'1'}),e=>e.code==='INVALID_DEADLINE');
     const creatorBefore = await quote.balanceOf(owner);
-    const receipt = await (await factory.connect(creator).launch(params)).wait();
+    const receipt = await (await creator.sendTransaction(launchPreview.preflight.transaction)).wait();
     const launch = await factory.launches(0);
+    assert.equal(launch.token,launchPreview.preflight.simulatedTokenAddress);
     const token = new Contract(launch.token, compiled['src/StudioToken.sol'].StudioToken.abi, local);
     assert.equal(await token.totalSupply(), parseEther('1000000000'));
     assert.equal(await token.balanceOf(owner), launch.initialTokenOut);
@@ -108,6 +121,7 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     const oldCredit = await vault.credits(owner);
     await (await nft.connect(creator).transferFrom(owner, buyerAddress, 1557n)).wait();
     await assert.rejects(factory.connect(creator).launch.staticCall({ ...params, initialQuoteIn: 0n, minTokenOut: 0n }));
+    const oldOwnerLaunch=await readLaunchPreflight(local,await launchConfig(),{...inspectLaunch,initialQuoteIn:'0',minTokenOut:'0'});assert.ok(oldOwnerLaunch.preflight.blockers.includes('OWNER_REQUIRED'));
     const sellAmount = preview.tokenOut / 2n;
     const sellQuote = await market.getSellQuote(launch.token, sellAmount);
     await (await token.connect(buyer).approve(marketAddress, sellAmount)).wait();
@@ -290,7 +304,8 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
           const route=new URL(req.url,'http://127.0.0.1').pathname;
           if(route==='/'||route.endsWith('/stream'))return await openMarketStream(req,res,indexer,launch.token,60,streams);
           let body;
-          if(route.startsWith('/api/wallets/')&&route.endsWith('/portfolio'))body=await indexer.portfolio(route.split('/')[3]);
+          if(route==='/api/studios/1557/launch-preflight'){const q=new URL(req.url,'http://127.0.0.1').searchParams;body=await readLaunchPreflight(local,await launchConfig(),{nftId:'1557',wallet:q.get('wallet'),name:q.get('name'),symbol:q.get('symbol'),initialQuoteIn:q.get('initialQuoteIn'),minTokenOut:q.get('minTokenOut'),deadline:q.get('deadline')});body.provenance=(await indexer.market(launch.token)).provenance;}
+          else if(route.startsWith('/api/wallets/')&&route.endsWith('/portfolio'))body=await indexer.portfolio(route.split('/')[3]);
           else if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
           else if(route===`/api/tokens/${launch.token}/history`)body=await indexer.market(launch.token,60);
           else if(route===`/api/tokens/${launch.token}/wallet-history`)body=await indexer.walletHistory(launch.token,new URL(req.url,'http://127.0.0.1').searchParams.get('wallet'));
@@ -312,7 +327,7 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
       });
       await new Promise(resolve=>streamServer.listen(0,'127.0.0.1',resolve));
       const url=`http://127.0.0.1:${streamServer.address().port}`;
-      browser=await marketBrowser(url,launch.token,buyerAddress);
+      browser=await marketBrowser(url,launch.token,buyerAddress,{launch:true});
       if(browser)await browser.check(changed,'populated');
       controller=new AbortController();
       const response=await fetch(url,{signal:controller.signal});

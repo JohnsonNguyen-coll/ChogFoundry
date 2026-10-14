@@ -200,3 +200,9 @@ Next: configure actual Supabase and reviewed testnet deployment before signing; 
 Implemented factory-wide wallet portfolio API/dashboard with one canonical PostgreSQL snapshot, per-token holdings/activity, historical zero positions, unresolved-route/catch-up/capacity indicators and links into market detail. Existing index data is read without schema migrations or backfill.
 
 Next prerequisites for public financial flow remain actual Supabase connectivity and reviewed testnet assets/deployment economics, then user-reviewed signing/receipts. Portfolio pagination and scale validation, external-router attribution and defensible cost basis remain outstanding. No Mainnet execution or beneficial-owner inference is enabled.
+
+## Launch preparation increment - 2026-10-14
+
+Added launch configuration UI and finalized factory/owner/funding checks, actual token-creation/registration/initial-buy simulation, gas estimate and unsigned review. Real-state fork execution verifies prepared calldata and rollback. Caller-selected custom token code/allocation/curve inputs are not supported.
+
+Next prerequisite for a usable public signed launch remains verified reviewed testnet deployment/assets/economics and Supabase connection. Then add user-reviewed factory approval, immediate account/chain/ownership rechecks, signing and receipt-derived actual first-buy results/history. Mainnet financial execution is not authorized.

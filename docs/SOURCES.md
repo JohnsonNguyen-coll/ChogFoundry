@@ -168,3 +168,9 @@ Uses current StudioToken Transfer, curve Traded and matched official lock PoolTr
 ## Factory wallet portfolio - 2026-10-13
 
 Uses the existing canonical factory launch/index, complete mint/Transfer replay and evidence-attributed curve/v4 trades. PostgreSQL transaction isolation follows the already reviewed PostgresDatabase read-only repeatable-read implementation; source contracts/economic settings are unchanged. Portfolio balances are quantities through a checkpoint, not profit, price or ownership authority. No external valuation feed or fabricated fallback is used.
+
+## Actual factory launch preparation - 2026-10-14
+
+ABI and semantics follow current contracts/src/StudioTokenFactory.sol launch(LaunchParams), TOKEN_SUPPLY, ownerOf checks, exact quote funding/refund and TokenLaunched event. Standard eth_call/eth_estimateGas semantics were previously reviewed. The factory returns only an address; simulation is not a receipt or new token deployment. No newly inferred addresses or reserve-model quotes are used.
+
+Isolated real-state curve fork source block 113289062 verifies creation/first-buy rollback, prepared calldata execution/address comparison, actual approved-operator refusal, old-owner refusal after NFT transfer, funding/allowance blocks and browser form cancellation. Budget-block tests read the actual wallet balance/allowance rather than assuming pre-existing balances are zero.

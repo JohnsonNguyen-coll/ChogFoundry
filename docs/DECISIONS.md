@@ -177,3 +177,7 @@ Implementation choice: derive selected-token wallet holdings/flows from full val
 ## Multi-token portfolio implementation - 2026-10-13
 
 Implementation choice: one repeatable-read PostgreSQL snapshot across the selected factory index, complete per-token balance replay, historical zero-balance positions and explicit global capacity limits. Ten-second sequential UI refresh is an operational choice, not fee economics or a provider decision. No cross-asset quantity totals, profit/valuation, signing or authority is inferred. Supabase remains primary and financial execution remains disabled.
+
+## Launch wizard/preflight implementation - 2026-10-14
+
+Implementation choice: public read-only launch configuration and actual factory call simulation, with current literal owner, maximum funding/allowance and explicit minimum/deadline. Existing source enforces fixed-billion supply and zero allocation; no source contract/economics changes. Observed curve/graduation constructor values are not new product decisions. Simulation cannot invent first-buy outputs that the factory does not return. Financial submission and deployment approval remain unchanged.

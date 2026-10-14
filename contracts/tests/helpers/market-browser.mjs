@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Optional browser verification against a live test-owned indexer and actual fork events.
 // No route interception, fabricated responses, wallet provider or runtime fallback.
-export async function marketBrowser(apiBase, token, wallet, { preflight = false } = {}) {
+export async function marketBrowser(apiBase, token, wallet, { preflight = false, launch = false } = {}) {
   if (!process.env.PLAYWRIGHT_RUNTIME) return null;
   const trace=stage=>{if(process.env.MARKET_BROWSER_TRACE)console.log(`[market-browser] ${stage}`);};
   const require = createRequire(import.meta.url);
@@ -60,6 +60,20 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false 
       await page.getByRole('button',{name:'Inspect fee claim',exact:true}).click();
       await page.getByText('Claim status',{exact:true}).waitFor();
       assert.equal(await page.getByText(wallet,{exact:true}).count()>0,true);
+    }
+    if(launch){
+      await page.getByRole('textbox',{name:'Launch NFT token ID',exact:true}).fill('1557');
+      await page.getByRole('textbox',{name:'Launch creator wallet',exact:true}).fill(wallet);
+      await page.getByRole('textbox',{name:'Launch token name',exact:true}).fill('Actual launch review');
+      await page.getByRole('textbox',{name:'Launch token symbol',exact:true}).fill('REVIEW');
+      await page.getByRole('textbox',{name:'Launch deadline minutes',exact:true}).fill('10');
+      await page.getByRole('button',{name:'Inspect launch',exact:true}).click();
+      await page.getByText('Launch status',{exact:true}).waitFor();
+      assert.equal(await page.locator('.launch-review').count(),1);
+      await page.getByRole('textbox',{name:'Launch token symbol',exact:true}).fill('NEXT');
+      assert.equal(await page.locator('.launch-review').count(),0,'Metadata changes discard launch inspection');
+      await page.getByRole('button',{name:'Inspect launch',exact:true}).click();
+      await page.getByText('Launch status',{exact:true}).waitFor();
     }
     return {
       async check(snapshot, label) {

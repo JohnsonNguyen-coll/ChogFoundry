@@ -67,3 +67,15 @@ Response contains positions (token/launch/range and wallet activity summary), in
 Capacity is explicit: at most 5,000 total windows, 100,000 total trades plus transfers and 200 tokens. Capacity errors return 503 PORTFOLIO_CAPACITY with no partial/zero fallback. Empty positions require a valid canonical checkpoint and successful replay of every indexed token. Missing configuration, incomplete replay or mismatched checkpoints remain errors. No migration, destructive backfill or stored authenticated wallet profile is introduced.
 
 The dashboard accepts a public address or connected wallet, refreshes sequentially every ten seconds and supports manual refresh. It aborts/discards old-wallet requests, bounds each fetch to 25 seconds, clears data on failure and renders checkpoint/catch-up/capacity limits. Opening a market passes only its actual token address. Public inspection enables no signature or studio authority.
+
+## Launch preparation - 2026-10-14
+
+GET /api/studios/:tokenId/launch-preflight?wallet=<nonzero address>&name=<UTF-8 name>&symbol=<UTF-8 symbol>&initialQuoteIn=<raw uint256>&minTokenOut=<raw uint256>&deadline=<Unix seconds>
+
+Requires an explicitly verified factory. Validate literal current ownerOf, factory/market/vault collection/quote/registrar bindings, actual fixed-billion supply, quote decimals and approved 30/30/40 curve fee getters at one canonical finalized snapshot. Report observed sale inventory, reserved graduation inventory and curve parameters separately from approval of deployment economics. Approved operators are not owners; public wallet inspection is not a signature or studio authentication.
+
+Name and symbol accept 1–64 and 1–12 UTF-8 bytes respectively, with no controls or edge whitespace. A zero buy budget requires zero minimum. A paid first buy requires a positive user-selected minimum. Deadline must be future relative to chain/server time and within one hour. Balance and allowance checks use the entire maximum budget because factory pulls it first and refunds unused CHOG. Missing owner/funding/allowance returns a blocked review without fake approvals.
+
+When prerequisites pass, actual-wallet eth_call executes factory.launch, including token creation, vault registration, market inventory/initialization, optional purchase/refund and ownership recheck, then rolls everything back. Gas estimation uses the same block and canonical hash is rechecked. Unsigned launch calldata and the returned simulated token address are review evidence, never an inclusion guarantee. No source contract change or reverting preview contract is introduced.
+
+Factory launch returns only the token address. initialQuoteSpentRaw/initialTokenOutRaw remain null; actual first-buy outcomes require receipt/event evidence, rather than a fabricated quote or reading nonexistent post-call state. No approval, signing or Mainnet broadcast is enabled. Metadata/wallet/NFT/budget/minimum/deadline edits cancel and discard stale UI reviews. Missing deployment remains explicit unavailable.
