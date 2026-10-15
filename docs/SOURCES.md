@@ -174,3 +174,9 @@ Uses the existing canonical factory launch/index, complete mint/Transfer replay 
 ABI and semantics follow current contracts/src/StudioTokenFactory.sol launch(LaunchParams), TOKEN_SUPPLY, ownerOf checks, exact quote funding/refund and TokenLaunched event. Standard eth_call/eth_estimateGas semantics were previously reviewed. The factory returns only an address; simulation is not a receipt or new token deployment. No newly inferred addresses or reserve-model quotes are used.
 
 Isolated real-state curve fork source block 113289062 verifies creation/first-buy rollback, prepared calldata execution/address comparison, actual approved-operator refusal, old-owner refusal after NFT transfer, funding/allowance blocks and browser form cancellation. Budget-block tests read the actual wallet balance/allowance rather than assuming pre-existing balances are zero.
+
+## Canonical launch receipt evidence - 2026-10-15
+
+Uses current StudioTokenFactory launch calldata/TokenLaunched, StudioCurveMarket Traded, StudioFeeVault FeesCredited and actual CHOG/StudioToken Transfer logs. Historical getters use the canonical receipt block; current NFT owner is not a substitute for historical creator/accrual evidence. Standard JSON-RPC receipt/transaction/block reads are the source, not fork reports or simulated addresses.
+
+Actual isolated fork source block 113622701 verifies paid/no-buy/refunded launches, direct prepared calldata, post-transfer historical owner identity, wrong-contract/NFT/reverted/unfinalized rejection and orphaned receipt removal after evm_revert. This is disposable fork execution evidence, not an owner-wallet signature or public deployment.

@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Optional browser verification against a live test-owned indexer and actual fork events.
 // No route interception, fabricated responses, wallet provider or runtime fallback.
-export async function marketBrowser(apiBase, token, wallet, { preflight = false, launch = false } = {}) {
+export async function marketBrowser(apiBase, token, wallet, { preflight = false, launch = false, launchReceiptHash = null } = {}) {
   if (!process.env.PLAYWRIGHT_RUNTIME) return null;
   const trace=stage=>{if(process.env.MARKET_BROWSER_TRACE)console.log(`[market-browser] ${stage}`);};
   const require = createRequire(import.meta.url);
@@ -74,6 +74,12 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false,
       assert.equal(await page.locator('.launch-review').count(),0,'Metadata changes discard launch inspection');
       await page.getByRole('button',{name:'Inspect launch',exact:true}).click();
       await page.getByText('Launch status',{exact:true}).waitFor();
+    }
+    if(launchReceiptHash){
+      await page.getByLabel('Launch transaction hash',{exact:true}).fill(launchReceiptHash);
+      await page.getByRole('button',{name:'Verify launch receipt',exact:true}).click();
+      await page.getByText('verified-launch',{exact:true}).waitFor();
+      assert.equal(await page.locator('.receipt-review').count(),1);
     }
     return {
       async check(snapshot, label) {

@@ -1,3 +1,4 @@
+import { transactionHash } from '../src/launch-receipt.mjs';
 import { launchInput } from '../src/launch-data.mjs';
 import { actionWallet } from '../src/fee-actions.mjs';
 import { preflightInput } from '../src/trade-preflight.mjs';
@@ -34,7 +35,7 @@ test('HTTP validates requests and rejects writes before touching RPC; no stubs',
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    for (const [route, method, status] of [['/api/studios/-1', 'GET', 400], ['/api/wallets/invalid', 'GET', 400], ['/api/studios/1/transfers?fromBlock=-1', 'GET', 400], ['/api/overview', 'POST', 405], ['/api/tokens/invalid/quote?side=buy&amountRaw=1','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/quote?side=buy&amountRaw=0','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/account','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/preflight?side=buy&amountRaw=1','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/claim-preflight','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/approval','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/wallet-history','GET',400], ['/api/wallets/invalid/portfolio','GET',400], ['/api/wallets/0x0000000000000000000000000000000000000000/portfolio','GET',400], ['/api/studios/1557/launch-preflight','GET',400], ['/api/unknown', 'GET', 404], ['/api/tokens/invalid/market', 'GET', 400], ['/api/tokens/invalid/history', 'GET', 400], ['/api/tokens/invalid/stream', 'GET', 400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/market?interval=7', 'GET', 400]]) {
+    for (const [route, method, status] of [['/api/studios/-1', 'GET', 400], ['/api/wallets/invalid', 'GET', 400], ['/api/studios/1/transfers?fromBlock=-1', 'GET', 400], ['/api/overview', 'POST', 405], ['/api/tokens/invalid/quote?side=buy&amountRaw=1','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/quote?side=buy&amountRaw=0','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/account','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/preflight?side=buy&amountRaw=1','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/claim-preflight','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/approval','GET',400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/wallet-history','GET',400], ['/api/wallets/invalid/portfolio','GET',400], ['/api/wallets/0x0000000000000000000000000000000000000000/portfolio','GET',400], ['/api/studios/1557/launch-preflight','GET',400], ['/api/studios/1557/launch-receipt?transactionHash=invalid','GET',400], ['/api/unknown', 'GET', 404], ['/api/tokens/invalid/market', 'GET', 400], ['/api/tokens/invalid/history', 'GET', 400], ['/api/tokens/invalid/stream', 'GET', 400], ['/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/market?interval=7', 'GET', 400]]) {
       const response = await fetch(base + route, { method });
       assert.equal(response.status, status); assert.ok((await response.json()).error.code);
     }
@@ -61,6 +62,7 @@ test('market endpoint reports unavailable without a configured deployment; no RP
     }
 
     const portfolio=await fetch(base+'/api/wallets/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/portfolio');assert.equal(portfolio.status,503);assert.equal((await portfolio.json()).error.code,'FOUNDRY_INDEX_NOT_CONFIGURED');
+    const receipt=await fetch(base+'/api/studios/1557/launch-receipt?transactionHash=0x'+'ab'.repeat(32));assert.equal(receipt.status,503);assert.equal((await receipt.json()).error.code,'FOUNDRY_NOT_CONFIGURED');
     assert.equal((await(await fetch(base+'/api/market-index')).json()).configured,false);
     for(const suffix of ['history','stream','wallet-history?wallet=0x350035555E10d9AfAF1566AaebfCeD5BA6C27777']) {
       const result=await fetch(base+'/api/tokens/0x350035555E10d9AfAF1566AaebfCeD5BA6C27777/'+suffix);
@@ -89,4 +91,9 @@ test('launch metadata and optional first buy preserve byte and uint256 boundarie
   assert.equal(launchInput(input).initialQuoteIn,'0');
   assert.equal(launchInput({...input,name:'🚀'.repeat(16)}).name.length,32);
   for(const patch of [{name:'🚀'.repeat(17)},{name:' bad'},{symbol:'X'.repeat(13)},{symbol:'x\n'},{initialQuoteIn:'1'},{minTokenOut:'1'},{initialQuoteIn:String(2n**256n)},{deadline:'1e9'}])assert.throws(()=>launchInput({...input,...patch}));
+});
+
+test('receipt hashes accept only exact 32-byte hex input',()=>{
+  assert.equal(transactionHash('0x'+'AB'.repeat(32)),'0x'+'ab'.repeat(32));
+  for(const value of ['',null,'0x1234','0x'+'g'.repeat(64),'0x'+'aa'.repeat(33)])assert.throws(()=>transactionHash(value));
 });

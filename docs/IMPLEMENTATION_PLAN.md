@@ -206,3 +206,9 @@ Next prerequisites for public financial flow remain actual Supabase connectivity
 Added launch configuration UI and finalized factory/owner/funding checks, actual token-creation/registration/initial-buy simulation, gas estimate and unsigned review. Real-state fork execution verifies prepared calldata and rollback. Caller-selected custom token code/allocation/curve inputs are not supported.
 
 Next prerequisite for a usable public signed launch remains verified reviewed testnet deployment/assets/economics and Supabase connection. Then add user-reviewed factory approval, immediate account/chain/ownership rechecks, signing and receipt-derived actual first-buy results/history. Mainnet financial execution is not authorized.
+
+## Receipt evidence increment - 2026-10-15
+
+Completed finalized direct-factory receipt lookup/review, including actual first-buy spend, token delivery, refund, funded fees, historical accrual owner and block/hash evidence. Preflight simulations remain separate from executed results; no fake receipt/state fallback.
+
+Next prerequisites for public launch signing remain reviewed verified testnet assets/deployment/economics and Supabase connectivity. Future submission must validate chain/account immediately, track replacement/revert/receipts and refresh source ownership/allowances. Nested wallet/router receipt support and broader security review remain outstanding; Mainnet financial execution is not authorized.

@@ -1,3 +1,4 @@
+import { readLaunchReceipt } from '../../backend/src/launch-receipt.mjs';
 import { readLaunchPreflight } from '../../backend/src/launch-data.mjs';
 import { readClaimPreflight } from '../../backend/src/fee-actions.mjs';
 import { readTradePreflight } from '../../backend/src/trade-preflight.mjs';
@@ -64,13 +65,20 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     assert.equal(launchPreview.preflight.status,'simulated');assert.ok(BigInt(launchPreview.preflight.gasEstimateRaw)>0n);assert.equal(launchPreview.preflight.initialQuoteSpentRaw,null);assert.equal(launchPreview.preflight.initialTokenOutRaw,null);assert.equal(launchPreview.preflight.executionEnabled,false);
     assert.deepEqual({count:await factory.launchCount(),liability:await vault.liability(),balance:await quote.balanceOf(owner)},initialState,'Launch simulation rolls back creation, buy and fee effects');
     const operatorNFT=new Contract(chain.collection,['function approve(address,uint256)','function getApproved(uint256) view returns(address)'],local);
-    await(await operatorNFT.connect(creator).approve(buyerAddress,1557n)).wait();assert.equal(await operatorNFT.getApproved(1557n),buyerAddress);
+    const operatorApprovalReceipt=await(await operatorNFT.connect(creator).approve(buyerAddress,1557n)).wait();assert.equal(await operatorNFT.getApproved(1557n),buyerAddress);
     const operatorPreview=await readLaunchPreflight(local,await launchConfig(),{...inspectLaunch,wallet:buyerAddress,initialQuoteIn:'0',minTokenOut:'0'});assert.ok(operatorPreview.preflight.blockers.includes('OWNER_REQUIRED'));
     const fundingBlocked=await readLaunchPreflight(local,await launchConfig(),{...inspectLaunch,initialQuoteIn:String((await quote.balanceOf(owner))+(await quote.allowance(owner,expectedFactory))+1n)});assert.ok(fundingBlocked.preflight.blockers.includes('INSUFFICIENT_CHOG_BALANCE'));assert.ok(fundingBlocked.preflight.blockers.includes('FACTORY_APPROVAL_REQUIRED'));
     await assert.rejects(readLaunchPreflight(local,await launchConfig(),{...inspectLaunch,deadline:'1'}),e=>e.code==='INVALID_DEADLINE');
     const creatorBefore = await quote.balanceOf(owner);
     const receipt = await (await creator.sendTransaction(launchPreview.preflight.transaction)).wait();
     const launch = await factory.launches(0);
+    const verifiedLaunch=await readLaunchReceipt(local,await launchConfig(),'1557',receipt.hash);
+    assert.equal(verifiedLaunch.receipt.tokenAddress,launch.token);assert.equal(verifiedLaunch.receipt.firstBuy.actualSpentRaw,String(launch.initialQuoteIn));assert.equal(verifiedLaunch.receipt.firstBuy.actualTokenOutRaw,String(launch.initialTokenOut));assert.equal(verifiedLaunch.receipt.firstBuy.refundRaw,String(params.initialQuoteIn-launch.initialQuoteIn));assert.equal(verifiedLaunch.receipt.firstBuy.fees.studioOwnerAtAccrual,owner);
+    await assert.rejects(readLaunchReceipt(local,{...await launchConfig(),toBlock:receipt.blockNumber-1},'1557',receipt.hash),e=>e.code==='RECEIPT_NOT_FINALIZED');
+    await assert.rejects(readLaunchReceipt(local,await launchConfig(),'1558',receipt.hash),e=>e.code==='LAUNCH_RECEIPT_MISMATCH');
+    await assert.rejects(readLaunchReceipt(local,await launchConfig(),'1557',operatorApprovalReceipt.hash),e=>e.code==='LAUNCH_RECEIPT_MISMATCH');
+    await assert.rejects(readLaunchReceipt(local,await launchConfig(),'1557','0x'+'00'.repeat(32)),e=>e.code==='RECEIPT_UNAVAILABLE');
+
     assert.equal(launch.token,launchPreview.preflight.simulatedTokenAddress);
     const token = new Contract(launch.token, compiled['src/StudioToken.sol'].StudioToken.abi, local);
     assert.equal(await token.totalSupply(), parseEther('1000000000'));
@@ -95,11 +103,15 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     await assert.rejects(market.connect(buyer).buy.staticCall(launch.token, 1n, 1n, buyerAddress, 0n));
     // A buy failure must revert token creation and vault registration as well.
     const countBefore = await factory.launchCount(), creditedBefore = await vault.totalCredited();
-    await assert.rejects(async () => { await (await factory.connect(creator).launch({ ...params, minTokenOut: parseEther('1000000001') }, { gasLimit: 6000000 })).wait(); });
+    let failedLaunchReceipt;
+    await assert.rejects(async()=>{try{await(await factory.connect(creator).launch({...params,minTokenOut:parseEther('1000000001')},{gasLimit:6000000})).wait();}catch(error){failedLaunchReceipt=error.receipt;throw error;}});
+    assert.ok(failedLaunchReceipt);await assert.rejects(readLaunchReceipt(local,await launchConfig(),'1557',failedLaunchReceipt.hash),e=>e.code==='TRANSACTION_REVERTED');
     assert.equal(await factory.launchCount(), countBefore); assert.equal(await vault.totalCredited(), creditedBefore);
     await conserved();
-    await (await factory.connect(creator).launch({ ...params, initialQuoteIn: 0n, minTokenOut: 0n })).wait();
+    const zeroBuyReceipt=await (await factory.connect(creator).launch({ ...params, initialQuoteIn: 0n, minTokenOut: 0n })).wait();
+    const zeroBuy=await readLaunchReceipt(local,await launchConfig(),'1557',zeroBuyReceipt.hash);assert.equal(zeroBuy.receipt.firstBuy.actualSpentRaw,'0');assert.equal(zeroBuy.receipt.firstBuy.actualTokenOutRaw,'0');assert.equal(zeroBuy.receipt.firstBuy.fees,null);
     const emptyLaunch = await factory.launches(1);
+
     const emptyToken = new Contract(emptyLaunch.token, token.interface, local);
     assert.equal(await emptyToken.balanceOf(owner), 0n);
     assert.equal(await emptyToken.balanceOf(marketAddress), parseEther('1000000000'));
@@ -162,11 +174,19 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     await (await quote.connect(holderSigner).transfer(buyerAddress, parseEther('2'))).wait();
     await (await quote.connect(buyer).approve(expectedFactory, parseEther('2'))).wait();
     const cappedBefore = await quote.balanceOf(buyerAddress);
-    await (await factory.connect(buyer).launch({ ...params, initialQuoteIn: parseEther('2') })).wait();
+    const cappedReceipt=await (await factory.connect(buyer).launch({ ...params, initialQuoteIn: parseEther('2') })).wait();
     const capped = await factory.launches(2);
     assert.equal(capped.initialTokenOut, S);
     const expectedCapCost = potential(S) + fees(potential(S)).reduce((a,b)=>a+b,0n);
     assert.equal(capped.initialQuoteIn, expectedCapCost);
+    const cappedResult=await readLaunchReceipt(local,await launchConfig(),'1557',cappedReceipt.hash);assert.equal(cappedResult.receipt.firstBuy.refundRaw,String(parseEther('2')-expectedCapCost));assert.ok(BigInt(cappedResult.receipt.firstBuy.refundRaw)>0n);
+    const historicalReceipt=await readLaunchReceipt(local,await launchConfig(),'1557',receipt.hash);assert.equal(historicalReceipt.receipt.creator,owner);assert.equal(historicalReceipt.receipt.firstBuy.fees.studioOwnerAtAccrual,owner);
+    const orphanBranch=await local.send('evm_snapshot',[]);
+    const orphanLaunch=await(await factory.connect(buyer).launch({...params,initialQuoteIn:0n,minTokenOut:0n})).wait();
+    assert.equal((await readLaunchReceipt(local,await launchConfig(),'1557',orphanLaunch.hash)).receipt.status,'verified-launch');
+    assert.equal(await local.send('evm_revert',[orphanBranch]),true);await local.send('evm_mine',[]);
+    await assert.rejects(readLaunchReceipt(local,await launchConfig(),'1557',orphanLaunch.hash),e=>e.code==='RECEIPT_UNAVAILABLE');
+
     assert.equal(cappedBefore - await quote.balanceOf(buyerAddress), expectedCapCost);
     assert.equal(await quote.balanceOf(expectedFactory), 0n);
     assert.equal(await quote.allowance(expectedFactory, marketAddress), 0n);
@@ -304,7 +324,8 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
           const route=new URL(req.url,'http://127.0.0.1').pathname;
           if(route==='/'||route.endsWith('/stream'))return await openMarketStream(req,res,indexer,launch.token,60,streams);
           let body;
-          if(route==='/api/studios/1557/launch-preflight'){const q=new URL(req.url,'http://127.0.0.1').searchParams;body=await readLaunchPreflight(local,await launchConfig(),{nftId:'1557',wallet:q.get('wallet'),name:q.get('name'),symbol:q.get('symbol'),initialQuoteIn:q.get('initialQuoteIn'),minTokenOut:q.get('minTokenOut'),deadline:q.get('deadline')});body.provenance=(await indexer.market(launch.token)).provenance;}
+          if(route==='/api/studios/1557/launch-receipt'){body=await readLaunchReceipt(local,await launchConfig(),'1557',new URL(req.url,'http://127.0.0.1').searchParams.get('transactionHash'));body.provenance=(await indexer.market(launch.token)).provenance;}
+          else if(route==='/api/studios/1557/launch-preflight'){const q=new URL(req.url,'http://127.0.0.1').searchParams;body=await readLaunchPreflight(local,await launchConfig(),{nftId:'1557',wallet:q.get('wallet'),name:q.get('name'),symbol:q.get('symbol'),initialQuoteIn:q.get('initialQuoteIn'),minTokenOut:q.get('minTokenOut'),deadline:q.get('deadline')});body.provenance=(await indexer.market(launch.token)).provenance;}
           else if(route.startsWith('/api/wallets/')&&route.endsWith('/portfolio'))body=await indexer.portfolio(route.split('/')[3]);
           else if(route==='/api/tokens')body={tokens:await indexer.store.tokens(),index:indexer.status()};
           else if(route===`/api/tokens/${launch.token}/history`)body=await indexer.market(launch.token,60);
@@ -327,7 +348,7 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
       });
       await new Promise(resolve=>streamServer.listen(0,'127.0.0.1',resolve));
       const url=`http://127.0.0.1:${streamServer.address().port}`;
-      browser=await marketBrowser(url,launch.token,buyerAddress,{launch:true});
+      browser=await marketBrowser(url,launch.token,buyerAddress,{launch:true,launchReceiptHash:cappedReceipt.hash});
       if(browser)await browser.check(changed,'populated');
       controller=new AbortController();
       const response=await fetch(url,{signal:controller.signal});

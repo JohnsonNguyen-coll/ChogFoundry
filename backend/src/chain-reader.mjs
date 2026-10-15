@@ -1,3 +1,4 @@
+import { readLaunchReceipt } from './launch-receipt.mjs';
 import { readLaunchPreflight } from './launch-data.mjs';
 import { readApprovalPlan, readClaimPreflight } from './fee-actions.mjs';
 import { Contract, FetchRequest, JsonRpcProvider, formatUnits, getAddress } from 'ethers';
@@ -132,6 +133,11 @@ export class ChainReader {
     const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
     if(!factoryAddress)throw new AppError(503,'FOUNDRY_NOT_CONFIGURED','No verified factory is configured. Launch inspection is unavailable.');
     return this.snapshot(block=>readLaunchPreflight(this.provider,{chainId:chain.id,factoryAddress,collection:chain.collection,quote:chain.quote,toBlock:block},input),'finalized');
+  }
+  launchReceipt(id,hash){
+    const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
+    if(!factoryAddress)throw new AppError(503,'FOUNDRY_NOT_CONFIGURED','No verified factory is configured. Launch receipt inspection is unavailable.');
+    return this.snapshot(block=>readLaunchReceipt(this.provider,{chainId:chain.id,factoryAddress,collection:chain.collection,quote:chain.quote,toBlock:block},String(id),hash),'finalized');
   }
   anchor() { return this.snapshot(async () => ({}), 'finalized'); }
   ownerProof(id, session) {

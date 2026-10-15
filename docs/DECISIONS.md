@@ -181,3 +181,7 @@ Implementation choice: one repeatable-read PostgreSQL snapshot across the select
 ## Launch wizard/preflight implementation - 2026-10-14
 
 Implementation choice: public read-only launch configuration and actual factory call simulation, with current literal owner, maximum funding/allowance and explicit minimum/deadline. Existing source enforces fixed-billion supply and zero allocation; no source contract/economics changes. Observed curve/graduation constructor values are not new product decisions. Simulation cannot invent first-buy outputs that the factory does not return. Financial submission and deployment approval remain unchanged.
+
+## Completed-launch receipt verification - 2026-10-15
+
+Implementation choice: verify successful direct factory receipts against canonical calldata, factory/curve/vault events and actual asset transfers. Historical creator/accrual identities are preserved without current-owner authorization checks. Unknown, reverted, unfinalized, routed or inconsistent receipts fail explicitly. No signing, source contract, economics or deployment approval changed.

@@ -46,3 +46,7 @@ The Portfolio section accepts a public or connected wallet and lists holdings/ac
 ## Launch wizard - 2026-10-14
 
 The Launch section accepts real NFT ID, connected/public creator address, UTF-8 name/symbol, optional maximum first-buy budget, explicit minimum output and deadline. It reads verified factory bindings/current owner and simulates actual launch with rollback. Review includes supply/allocation, observed inventory split, curve fee split, maximum funding/allowance, gas, simulated address and unsigned calldata/source. Missing configuration is unavailable; no sample token/default curve price or financial signature is provided. Actual first-buy spend/output are unavailable from the factory return and require future receipt evidence.
+
+## Completed launch receipt review - 2026-10-15
+
+The launch wizard also accepts a public transaction hash for its selected NFT. Canonical direct-factory receipts show the created token, original creator, actual paid first-buy/refund/token delivery, recorded fee split/accrual owner, gas and source. Preflight simulated values never become a completed result. Pending/unfinalized/reverted/wrong/orphaned receipts stay unavailable; edits to hash/NFT/wallet cancel old reads. Current ownership and draft metadata do not rewrite a historical launch. No transaction submission is enabled.
