@@ -24,3 +24,10 @@ This is a one-time transfer, not continuous SQLite/Supabase mirroring. Supabase 
 The migration and PostgreSQL repository SQL execute against a real PGlite PostgreSQL WASM engine in tests. No SQL response mocks are used. Profile revision conflicts and browser-role denial are tested. Actual Monad fork events exercise the PostgreSQL market repository, transactional checkpoint gap rejection, rollback and rebuild. Local engine validation does not prove a hosted Supabase connection, production TLS, Supavisor behavior or multi-worker operation. Those need the actual project configuration and db:check/live operation. PGlite is a dev dependency only and never a runtime substitute for Supabase.
 
 Official references: [Supabase connection methods](https://supabase.com/docs/guides/database/connecting-to-postgres), [node-postgres transactions](https://node-postgres.com/features/transactions), [node-postgres SSL](https://node-postgres.com/features/ssl), [PGlite engine documentation](https://pglite.dev/docs/).
+
+
+## Prepared local environment — 2026-10-16
+
+Ignored backend/.env has been created from backend/.env.example without credentials. Fill SUPABASE_DATABASE_URL from your actual project's Connect panel (direct or Session pooler), optionally SUPABASE_DB_CA_PATH if the project requires a CA file, and FOUNDRY_DEPLOYER_ADDRESS with your public Monad wallet address. The user selected this same wallet as platform treasury. Never put a private key in this file. Leave Foundry factory/deployment/quoter fields empty until actual deployment receipts are verified; keep wallet execution false until then.
+
+After saving the actual database connection, run npm run db:migrate and npm run db:check. These operate on the intended Supabase project, so inspect the project/connection first. No hosted connection or migration has been performed merely by creating the template. Restart npm run dev after changing backend/.env. The backend dev command uses the environment file; the integrated dev launcher does too.

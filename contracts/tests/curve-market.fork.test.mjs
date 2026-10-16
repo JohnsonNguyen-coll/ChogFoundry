@@ -1,3 +1,6 @@
+import { reviewedAction, submitReviewedTransaction, inspectTransaction } from '../../frontend/src/wallet-transaction.mjs';
+import { readLaunchApproval } from '../../backend/src/launch-data.mjs';
+import { readApprovalPlan } from '../../backend/src/fee-actions.mjs';
 import { readLaunchReceipt } from '../../backend/src/launch-receipt.mjs';
 import { readLaunchPreflight } from '../../backend/src/launch-data.mjs';
 import { readClaimPreflight } from '../../backend/src/fee-actions.mjs';
@@ -60,6 +63,14 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     await (await quote.connect(creator).approve(expectedFactory, parseEther('2'))).wait();
     const launchConfig=async()=>({chainId:31337,factoryAddress:expectedFactory,collection:chain.collection,quote:chain.quote,toBlock:(await local.getBlock('latest')).number});
     const inspectLaunch={...params,nftId:String(params.nftId),wallet:owner,initialQuoteIn:String(params.initialQuoteIn),minTokenOut:String(params.minTokenOut),deadline:String(Math.max(Math.floor(Date.now()/1000),(await local.getBlock('latest')).timestamp)+1800)};
+    const launchApproval=await readLaunchApproval(local,await launchConfig(),{...inspectLaunch,initialQuoteIn:String(parseEther('2.1'))});
+    assert.equal(launchApproval.approval.spender,expectedFactory);assert.equal(launchApproval.approval.steps[0].kind,'reset');assert.equal(launchApproval.approval.steps[1].status,'requires-confirmed-reset');
+    await(await creator.sendTransaction(launchApproval.approval.steps[0].transaction)).wait();
+    const refreshedApproval=await readLaunchApproval(local,await launchConfig(),{...inspectLaunch,initialQuoteIn:String(parseEther('2.1'))});
+    assert.equal(refreshedApproval.approval.steps.length,1);assert.equal(refreshedApproval.approval.steps[0].kind,'approve-exact');
+    await(await creator.sendTransaction(refreshedApproval.approval.steps[0].transaction)).wait();
+    assert.equal(await quote.allowance(owner,expectedFactory),parseEther('2.1'));
+    await assert.rejects(readLaunchApproval(local,await launchConfig(),{...inspectLaunch,wallet:buyerAddress}),e=>e.code==='OWNER_REQUIRED');
     const initialState={count:await factory.launchCount(),liability:await vault.liability(),balance:await quote.balanceOf(owner)};
     const launchPreview=await readLaunchPreflight(local,await launchConfig(),inspectLaunch);
     assert.equal(launchPreview.preflight.status,'simulated');assert.ok(BigInt(launchPreview.preflight.gasEstimateRaw)>0n);assert.equal(launchPreview.preflight.initialQuoteSpentRaw,null);assert.equal(launchPreview.preflight.initialTokenOutRaw,null);assert.equal(launchPreview.preflight.executionEnabled,false);
@@ -388,6 +399,28 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
       if(streamServer) await new Promise(resolve=>streamServer.close(resolve));
       await indexer.close();
     }
-    console.log(JSON.stringify({ forkBlock:block.number, actualInitialBuy:true, actualCurveBuySell:true, transferFeeOwnership:true, oldCreatorClaim:true, zeroAllocation:true, actualMarketData:true, actualCandles:true, actualHolderReplay:true, postgresRepository:true, persistentIndex:true, realBranchRollback:true, actualSSE:true, graduation:false, liveWrites:false }));
+    {
+    // Real EIP-1193 request adapter to the child-owned node, with actual RPC accounts;
+    // no intercepted requests, fabricated provider responses or upstream writes.
+    const transport={request:async({method,params=[]})=>method==='eth_sendTransaction'?(await deployer.sendTransaction(params[0])).hash:local.send(method,params)};
+    const walletConfig=async()=>({...await launchConfig(),tokenAddress:launch.token});
+    const walletInput={side:'buy',amountRaw:String(parseEther('0.01')),wallet:deployerAddress};
+    await(await quote.connect(buyer).transfer(deployerAddress,parseEther('0.1'))).wait();
+    const allowancePlan=await readApprovalPlan(local,await walletConfig(),walletInput);
+    const reviewedApproval=reviewedAction(allowancePlan,'approval');
+    await assert.rejects(submitReviewedTransaction(transport,reviewedApproval,reviewedApproval,{wallet:deployerAddress}),/account or network/);
+    const approved=await submitReviewedTransaction(transport,reviewedApproval,reviewedAction(await readApprovalPlan(local,await walletConfig(),walletInput),'approval'),{wallet:deployerAddress,chainId:31337});
+    await local.waitForTransaction(approved.hash,1,10000);const approvalState=await inspectTransaction(transport,approved.hash,approved.transaction,31337);assert.ok(['confirming','finalized'].includes(approvalState.status));
+    assert.equal(await quote.allowance(deployerAddress,marketAddress),BigInt(allowancePlan.approval.requiredRaw));
+    const tradeParams={...walletInput,minOutputRaw:'1',deadline:inspectLaunch.deadline};
+    const settlement=await readTradePreflight(local,await walletConfig(),tradeParams),reviewedTrade=reviewedAction(settlement,'preflight');
+    const different={...reviewedTrade,fingerprint:reviewedTrade.fingerprint+'changed'};
+    await assert.rejects(submitReviewedTransaction(transport,reviewedTrade,different,{wallet:deployerAddress,chainId:31337}),/details changed/);
+    const walletTrade=await submitReviewedTransaction(transport,reviewedTrade,reviewedAction(await readTradePreflight(local,await walletConfig(),tradeParams),'preflight'),{wallet:deployerAddress,chainId:31337});
+    await local.waitForTransaction(walletTrade.hash,1,10000);assert.ok(['confirming','finalized'].includes((await inspectTransaction(transport,walletTrade.hash,walletTrade.transaction,31337)).status));
+    assert.ok(await token.balanceOf(deployerAddress)>0n);
+
+    }
+    console.log(JSON.stringify({ forkBlock:block.number, actualInitialBuy:true, actualWalletTransport:true, exactFactoryApproval:true, actualCurveBuySell:true, transferFeeOwnership:true, oldCreatorClaim:true, zeroAllocation:true, actualMarketData:true, actualCandles:true, actualHolderReplay:true, postgresRepository:true, persistentIndex:true, realBranchRollback:true, actualSSE:true, graduation:false, liveWrites:false }));
   });
 });

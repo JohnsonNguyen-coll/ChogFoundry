@@ -1,4 +1,4 @@
-// Provenance recorded in docs/SOURCES.md. Mainnet is READ ONLY.
+// Provenance recorded in docs/SOURCES.md. Backend Mainnet access is READ ONLY; human-confirmed browser wallet execution is separate.
 export const chain = Object.freeze({
   id: 143, name: 'Monad Mainnet', symbol: 'MON',
   rpcUrl: process.env.MONAD_RPC_URL || 'https://rpc.monad.xyz',

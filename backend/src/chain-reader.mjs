@@ -1,5 +1,5 @@
 import { readLaunchReceipt } from './launch-receipt.mjs';
-import { readLaunchPreflight } from './launch-data.mjs';
+import { readLaunchPreflight, readLaunchApproval } from './launch-data.mjs';
 import { readApprovalPlan, readClaimPreflight } from './fee-actions.mjs';
 import { Contract, FetchRequest, JsonRpcProvider, formatUnits, getAddress } from 'ethers';
 import { chain, erc20Abi, nftAbi } from './config.mjs';
@@ -129,10 +129,10 @@ export class ChainReader {
       return kind==='claim'?readClaimPreflight(this.provider,config,wallet):readApprovalPlan(this.provider,config,{...input,wallet});
     },'finalized');
   }
-  launchPreflight(input){
+  launchPreflight(input,approval=false){
     const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
     if(!factoryAddress)throw new AppError(503,'FOUNDRY_NOT_CONFIGURED','No verified factory is configured. Launch inspection is unavailable.');
-    return this.snapshot(block=>readLaunchPreflight(this.provider,{chainId:chain.id,factoryAddress,collection:chain.collection,quote:chain.quote,toBlock:block},input),'finalized');
+    return this.snapshot(block=>(approval?readLaunchApproval:readLaunchPreflight)(this.provider,{chainId:chain.id,factoryAddress,collection:chain.collection,quote:chain.quote,toBlock:block},input),'finalized');
   }
   launchReceipt(id,hash){
     const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;

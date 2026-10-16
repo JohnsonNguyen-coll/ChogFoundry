@@ -50,3 +50,6 @@ The Launch section accepts real NFT ID, connected/public creator address, UTF-8 
 ## Completed launch receipt review - 2026-10-15
 
 The launch wizard also accepts a public transaction hash for its selected NFT. Canonical direct-factory receipts show the created token, original creator, actual paid first-buy/refund/token delivery, recorded fee split/accrual owner, gas and source. Preflight simulated values never become a completed result. Pending/unfinalized/reverted/wrong/orphaned receipts stay unavailable; edits to hash/NFT/wallet cancel old reads. Current ownership and draft metadata do not rewrite a historical launch. No transaction submission is enabled.
+
+
+Mainnet wallet flow (2026-10-16): launch funding approval, launch, curve/v4 exact-input trades and recorded-beneficiary claims can request human wallet confirmation after explicit execution configuration and canonical deployment/Supabase readiness. No public-wallet inspection signs. Fresh backend review and same-block current wallet simulation precede each request. TransactionCenter retains public pending evidence across form changes and tab reload, verifies finality and explicit same-nonce replacements, and never retries automatically. No public deployment or connected hosted database is implied by the UI.

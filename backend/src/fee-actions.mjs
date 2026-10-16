@@ -13,12 +13,12 @@ export function actionWallet(value){
   if(wallet===ZeroAddress)throw new AppError(400,'WALLET_REQUIRED','Provide a nonzero wallet.');
   return wallet;
 }
-async function transaction(provider,config,from,to,data){
+export async function actionTransaction(provider,config,from,to,data){
   const chainId=String(BigInt(await provider.send('eth_chainId',[])));
   if(config.chainId!=null&&BigInt(chainId)!==BigInt(config.chainId))throw new AppError(503,'CHAIN_MISMATCH','Action inspection network mismatch.');
   return {chainId,from,to,data,value:'0x0'};
 }
-async function simulate(provider,config,snapshot,tx){
+export async function simulateAction(provider,config,snapshot,tx){
   const block=await provider.getBlock(config.toBlock);
   if(block?.hash!==snapshot.blockHash)throw new AppError(503,'CHAIN_REORG','Action snapshot changed.');
   const rpcTx={from:tx.from,to:tx.to,data:tx.data,value:tx.value},tag=toQuantity(config.toBlock);
@@ -49,10 +49,10 @@ export async function readApprovalPlan(provider,config,input){
     // Nonzero -> nonzero replacements require a mined reset and a fresh read.
     const amounts=allowance>0n?[0n,required]:[required];
     for(const [i,amount] of amounts.entries()){
-      const tx=await transaction(provider,config,input.wallet,asset,tokenInterface.encodeFunctionData('approve',[spender,amount]));
+      const tx=await actionTransaction(provider,config,input.wallet,asset,tokenInterface.encodeFunctionData('approve',[spender,amount]));
       let gasEstimateRaw=null,status='requires-confirmed-reset';
       if(i===0){
-        const simulation=await simulate(provider,config,state.snapshot,tx);
+        const simulation=await simulateAction(provider,config,state.snapshot,tx);
         if(simulation.result!=='0x'&&!tokenInterface.decodeFunctionResult('approve',simulation.result)[0])throw new AppError(422,'ACTION_REJECTED','Token approval returned false.');
         gasEstimateRaw=simulation.gasEstimateRaw;status='simulated';
       }
@@ -72,10 +72,10 @@ export async function readClaimPreflight(provider,config,wallet){
   const [credits,liability,balance]=await Promise.all([vault.credits(wallet,at),vault.liability(at),quote.balanceOf(state.launch.vault,at)]);
   const total=credits.creator+credits.studio+credits.platform;
   if(balance<liability||total>liability)throw new AppError(503,'VAULT_INSOLVENT','Vault funding or credits are inconsistent.');
-  const tx=await transaction(provider,config,wallet,state.launch.vault,vaultInterface.encodeFunctionData('claim'));
+  const tx=await actionTransaction(provider,config,wallet,state.launch.vault,vaultInterface.encodeFunctionData('claim'));
   let gasEstimateRaw=null;
   if(total>0n){
-    const simulation=await simulate(provider,config,state.snapshot,tx);
+    const simulation=await simulateAction(provider,config,state.snapshot,tx);
     if(simulation.result!=='0x')throw new AppError(503,'CLAIM_INCONSISTENT','Unexpected claim response.');
     gasEstimateRaw=simulation.gasEstimateRaw;
   }

@@ -180,3 +180,15 @@ Isolated real-state curve fork source block 113289062 verifies creation/first-bu
 Uses current StudioTokenFactory launch calldata/TokenLaunched, StudioCurveMarket Traded, StudioFeeVault FeesCredited and actual CHOG/StudioToken Transfer logs. Historical getters use the canonical receipt block; current NFT owner is not a substitute for historical creator/accrual evidence. Standard JSON-RPC receipt/transaction/block reads are the source, not fork reports or simulated addresses.
 
 Actual isolated fork source block 113622701 verifies paid/no-buy/refunded launches, direct prepared calldata, post-transfer historical owner identity, wrong-contract/NFT/reverted/unfinalized rejection and orphaned receipt removal after evm_revert. This is disposable fork execution evidence, not an owner-wallet signature or public deployment.
+
+
+## Mainnet direction and wallet transport — 2026-10-16
+
+Official Monad Mainnet network documentation and Uniswap v4 deployment table were rechecked. The official Monad PoolManager remains 0x188d586ddcf52439676ca21a244753fa19f9ea8e; source: https://developers.uniswap.org/docs/protocols/v4/deployments (Monad143 section). Official CHOG site remains https://www.chog.xyz/. No external requirement that these assets universally do not exist on testnet was established; Mainnet selection is the user's explicit instruction.
+
+Approved economics and treasury policy are user decisions (D20/D21), not source-inferred market facts. The unsigned deployment planner uses current compiled source, exact approved integers and actual RPC nonce/code/block evidence, with no research-state/runtime fallback. Nonce predictions require an unchanged latest/pending sender nonce; dependent deployment gas stays unavailable until preceding contracts exist. Browser transport uses EIP-1193 wallet requests and the previously reviewed JSON-RPC call/estimate/receipt semantics. It never holds keys, signs automatically or submits from the backend.
+
+Actual curve/factory fork source block 113867666 verifies factory reset/exact approval, fresh-review refusal, wrong-network refusal and actual wallet-transport approval/buy against CHOG. It also passes Chromium desktop/mobile existing launch/receipt/chart/history/reorg checks. The transport test uses a real local unlocked signer for transaction population, forwarding actual chain reads without RPC stubs. Local fork receipt observations may remain confirming because its finalized tag does not advance like public Mainnet; no fabricated finality or human-owner signature is claimed.
+
+
+Approved-economics integration source block 113868003: current compiled six-step deployment plan, actual CHOG/NFT, official v4 PoolManager and real quoter/lock/fee-vault events. Verified exact 1.5M-CHOG reserve and 375M-token graduation plus post-transfer historical claims. Funding came from observed existing PoolManager CHOG balance, solely via local fork impersonation; no real network funds moved and no storage fabricated. This source does not imply permission to withdraw existing Mainnet liquidity.

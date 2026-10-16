@@ -97,3 +97,10 @@ test('receipt hashes accept only exact 32-byte hex input',()=>{
   assert.equal(transactionHash('0x'+'AB'.repeat(32)),'0x'+'ab'.repeat(32));
   for(const value of ['',null,'0x1234','0x'+'g'.repeat(64),'0x'+'aa'.repeat(33)])assert.throws(()=>transactionHash(value));
 });
+
+
+test('Mainnet wallet readiness stays blocked without real deployment and Supabase',async()=>{
+  const {server}=createApi({databasePath:':memory:'});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try{const response=await fetch(`http://127.0.0.1:${server.address().port}/api/execution`),data=await response.json();assert.equal(data.chainId,143);assert.equal(data.walletExecutionAvailable,false);assert.ok(data.blockers.includes('SUPABASE_NOT_CONFIGURED'));assert.equal(data.backendBroadcasts,false);}
+  finally{await new Promise(resolve=>server.close(resolve));}
+});

@@ -57,5 +57,5 @@ export async function readTradePreflight(provider,config,input) {
   if((await provider.getBlock(config.toBlock))?.hash!==state.snapshot.blockHash) throw new AppError(503,'CHAIN_REORG','Preflight snapshot is no longer canonical.');
   return {...state,preflight:{status:blockers.length?'blocked':'simulated',blockers,minOutputRaw:input.minOutputRaw,deadline:input.deadline,recipient:input.wallet,
     outputRaw,gasEstimateRaw,transaction,executionEnabled:false,
-    policy:'Unsigned inspection only. No approval or trade is submitted. Recheck chain, account, state, gas and deadline immediately before any future signature. Gas estimate is not a gas limit or fee quote.'}};
+    policy:'Unsigned inspection only. No approval or trade is submitted. Recheck chain, account, state, gas and deadline immediately before a separately reviewed wallet signature. Gas estimate is not a gas limit or fee quote.'}};
 }

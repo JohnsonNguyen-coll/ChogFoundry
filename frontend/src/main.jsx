@@ -1,3 +1,5 @@
+import NetworkReadiness from './NetworkReadiness.jsx';
+import TransactionCenter from './TransactionCenter.jsx';
 import LaunchWizard from './LaunchWizard.jsx';
 import WalletPortfolio from './WalletPortfolio.jsx';
 import React, { useEffect, useState } from 'react';
@@ -87,13 +89,14 @@ function App() {
   const owns = wallet && studio?.nft.owner.toLowerCase() === wallet.toLowerCase();
   return <>
     <header className="topbar"><a href="#" className="brand"><img className="brand-symbol" src={foundryLogo} alt="" width="48" height="48"/>CHOG FOUNDRY</a><nav><a href="#explore">Explore</a><a href="#studio">Studio</a><a href="#launch">Launch</a><a href="#markets">Markets</a><a href="#portfolio">Portfolio</a><a href="#chog">$CHOG</a><a href="https://build.chog.xyz/" target="_blank" rel="noreferrer">Build with Chog ↗</a></nav><button className="wallet" disabled={busy} onClick={() => run(connect)}>{wallet ? short(wallet) : 'Connect wallet'} <span>↗</span></button></header>
-    <main>
+    <main><TransactionCenter />
       <section className="hero"><div><div className="eyebrow"><span className="dot" /> MONAD / LIVE ONCHAIN</div><h1>Your Chog.<br />Your studio.<br /><span>Your next launch.</span></h1><p>One Chog. A studio with a story.<br />Build your next launch with your community.</p><a className="primary" href="#studio">Explore your Chog <span>↓</span></a></div><div className="forge" aria-hidden="true"><div className="forge-label">THE NEXT THING<br />STARTS WITH YOUR CHOG.</div><img className="forge-logo" src={foundryLogo} alt=""/><div className="forge-bottom">CHOG FOUNDRY <span>EST. 2026</span></div></div></section>
       <div className="statusline"><span className="status-tag">LIVE DATA</span><p>{profilesError ? 'Studio profiles are unavailable. Live Monad reads remain active; launch, trade and claims await Foundry contracts.' : profiles ? 'Live Monad data. Owner-managed profiles are available; launch, trade and claims await Foundry contracts.' : 'Checking studio availability. Launch, trade and claims await Foundry contracts.'}</p><button disabled={busy} onClick={() => run(async () => setOverview(await api('/overview')))}>Refresh ↻</button></div>
       {busy && <div className="message" role="status">Loading live data…</div>}
       {error && <div className="message error" role="alert">{error}</div>}
       {notice && <div className="message" role="status">{notice}</div>}
       <section id="chog" className="network-section"><div className="section-heading"><div><span className="eyebrow">01 / ONCHAIN FOUNDATION</span><h2>Chog on Monad</h2></div><span className="live-label">{overview ? '● RPC verified' : 'Data unavailable'}</span></div><div className="stats"><article><span className="caption">QUOTE ASSET</span><h3>{overview?.quote.symbol || '—'}</h3><p>{overview ? <ChainLink address={overview.quote.address}/> : 'Waiting for onchain data'}</p></article><article><span className="caption">TOTAL SUPPLY · $CHOG</span><h3>{amount(overview?.quote.totalSupply)}</h3><p>{overview ? `${overview.quote.decimals} decimals · read from contract` : '—'}</p></article><article><span className="caption">CHOG GENESIS · NFT SUPPLY</span><h3>{amount(overview?.collection.totalSupply)}</h3><p>{overview ? <ChainLink address={overview.collection.address}/> : '—'}</p></article></div><Provenance data={overview?.provenance}/></section>
+      <NetworkReadiness />
       <LaunchWizard wallet={wallet} nftId={studio?.nft.tokenId} />
       <MarketView onOpenStudio={openStudio} wallet={wallet} selectedToken={portfolioToken} />
       <WalletPortfolio wallet={wallet} onOpenToken={address=>{setPortfolioToken({address});document.getElementById('markets')?.scrollIntoView({behavior:'smooth'});}} />

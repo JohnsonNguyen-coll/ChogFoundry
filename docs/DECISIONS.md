@@ -185,3 +185,19 @@ Implementation choice: public read-only launch configuration and actual factory 
 ## Completed-launch receipt verification - 2026-10-15
 
 Implementation choice: verify successful direct factory receipts against canonical calldata, factory/curve/vault events and actual asset transfers. Historical creator/accrual identities are preserved without current-owner authorization checks. Unknown, reverted, unfinalized, routed or inconsistent receipts fail explicitly. No signing, source contract, economics or deployment approval changed.
+
+
+## D20: Mainnet direction — 2026-10-16
+
+User explicitly requested actual Monad Mainnet use because the intended NFT/CHOG assets are unavailable to them on testnet. This supersedes the earlier testnet-first product direction and a blanket prohibition on implementing user-confirmed Mainnet wallet transactions. Backend access and AI tools remain read-only; financial signatures belong to the human wallet. No buyback/campaign budget or automatic financial authority was approved.
+
+User requested a concrete proposal before approving economics. See MAINNET_PROPOSAL.md; 625M/375M, prices, 1.5M CHOG reserve, v4 selection, LP rate/custody and post-graduation rates remain PROPOSED. Treasury/deployer/Supabase are missing. No actual broadcast or deployment is claimed.
+
+Implementation: separate browser wallet transport with readiness endpoint, explicit operational enablement, canonical source/state checks and independent persistent-in-tab transaction journal. Launch approval uses the bound factory and exact maximum initial-buy budget; no NFT approval. No contract source or economic default changed.
+
+
+## D21: Approved Mainnet economics and treasury — 2026-10-16
+
+The user explicitly approved the complete MAINNET_PROPOSAL.md configuration: 625M curve/375M graduation, linear opening0.0008/increase0.0032 CHOG, terminal0.004, reserve1.5M CHOG, official v4, post-graduation protocol30/30/40bps plus LP3000units, permanent full-range custody with held dust/LP earnings. contracts/mainnet-config.mjs records exact approved integers. This supersedes prior pending-economics statements.
+
+The user subsequently selected the deployer wallet itself as platform treasury; multisig is not required. Its actual public address remains to be supplied. The user requested backend/.env to fill in actual Supabase credentials locally; it is created from the ignored template without secrets. No deployment, financial signature or hosted database connection is claimed.

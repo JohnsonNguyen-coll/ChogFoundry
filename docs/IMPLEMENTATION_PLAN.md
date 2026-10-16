@@ -212,3 +212,15 @@ Next prerequisite for a usable public signed launch remains verified reviewed te
 Completed finalized direct-factory receipt lookup/review, including actual first-buy spend, token delivery, refund, funded fees, historical accrual owner and block/hash evidence. Preflight simulations remain separate from executed results; no fake receipt/state fallback.
 
 Next prerequisites for public launch signing remain reviewed verified testnet assets/deployment/economics and Supabase connectivity. Future submission must validate chain/account immediately, track replacement/revert/receipts and refresh source ownership/allowances. Nested wallet/router receipt support and broader security review remain outstanding; Mainnet financial execution is not authorized.
+
+
+## Current Mainnet execution plan — 2026-10-16
+
+This replaces prior testnet-only next steps. Implement human-reviewed launch approval/launch/trade/claim browser transactions against a verified Monad Mainnet deployment; keep backend/agent read-only. Read MAINNET_PROPOSAL.md for pending concrete user review. Readiness requires reviewed deployment, exact first-code block, actual Supabase and healthy canonical index; do not configure fork addresses or guessed assets.
+
+Current work adds factory approval preparation, guarded wallet request/receipt transport and transaction journal across form changes/tab reload. Remaining: review economics/treasury, prepare and verify deployment transactions/source/immutables, configure actual Supabase, exercise actual reviewed economics in full fork suite, connect wallet/browser end-to-end to public deployment, operational capacity/security review. Club/agent/treasury/campaign remain separate unfinished deliverables and are not implied by transaction UI completion.
+
+
+## Approved configuration update — 2026-10-16
+
+D21 approves the economics in contracts/mainnet-config.mjs. Next: prove this exact scale on the real-state fork, prepare unsigned dependency-ordered deployment against the selected public deployer (also treasury), then verify actual receipts/immutable addresses. User fills SUPABASE_DATABASE_URL and FOUNDRY_DEPLOYER_ADDRESS in ignored backend/.env. Do not insert private keys, fabricate addresses or silently enable execution before actual deployment/index validation.

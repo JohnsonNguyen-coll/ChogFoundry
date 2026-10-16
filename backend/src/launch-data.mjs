@@ -1,6 +1,6 @@
 import { Contract, Interface, toQuantity } from 'ethers';
 import { AppError, address, tokenId } from './validation.mjs';
-import { actionWallet } from './fee-actions.mjs';
+import { actionWallet, actionTransaction, simulateAction } from './fee-actions.mjs';
 const factoryAbi=['function collection() view returns(address)','function quote() view returns(address)','function market() view returns(address)','function feeVault() view returns(address)','function TOKEN_SUPPLY() view returns(uint256)','function launch(tuple(uint256 nftId,string name,string symbol,uint256 initialQuoteIn,uint256 minTokenOut,uint256 deadline)) returns(address)'];
 const iface=new Interface(factoryAbi),same=(a,b)=>a.toLowerCase()===b.toLowerCase();
 export function launchInput(input){
@@ -55,5 +55,28 @@ export async function readLaunchPreflight(provider,config,input){
     baseline:{supplyRaw:String(supply),creatorAllocationRaw:'0',saleSupplyRaw:String(sales),graduationInventoryRaw:String(supply-sales),openingPriceRaw:String(opening),priceIncreaseRaw:String(increase),targetReserveRaw:String(target),creatorBps:Number(c),studioBps:Number(s),platformBps:Number(p),policy:'Numerical curve/graduation values are observed deployed inputs, not approval of product economics.'},
     funding:{balanceRaw:String(balance),allowanceRaw:String(allowance),spender:factoryAddress,requiredRaw:input.initialQuoteIn},
     preflight:{status:blockers.length?'blocked':'simulated',blockers,simulatedTokenAddress,gasEstimateRaw,initialQuoteSpentRaw:null,initialTokenOutRaw:null,transaction,executionEnabled:false,
-      policy:'Actual launch eth_call rolls back token creation, registration, inventory, buy and fees. Factory returns only the token address; actual first-buy spend/output remain unavailable until receipt evidence. Maximum budget is funded first and unused CHOG is refunded. Address and execution can change before inclusion. No approval, signing or broadcast is enabled.'}};
+      policy:'Actual launch eth_call rolls back token creation, registration, inventory, buy and fees. Factory returns only the token address; actual first-buy spend/output remain unavailable until receipt evidence. Maximum budget is funded first and unused CHOG is refunded. Address and execution can change before inclusion. This API submits nothing; a separately enabled browser wallet flow requires fresh inspection and human confirmation.'}};
+}
+
+// A launch approval uses the already validated factory as spender, never an NFT operator.
+export async function readLaunchApproval(provider,config,input){
+  const state=await readLaunchPreflight(provider,config,input);
+  if(!state.ownership.ownerMatchesWallet)throw new AppError(403,'OWNER_REQUIRED','Only the current literal NFT owner may prepare launch funding.');
+  const asset=state.deployment.quote,spender=state.deployment.factory;
+  const approvalInterface=new Interface(['function approve(address,uint256) returns(bool)']);
+  const required=BigInt(state.funding.requiredRaw),allowance=BigInt(state.funding.allowanceRaw),steps=[];
+  if(allowance<required){
+    for(const [i,amount] of (allowance>0n?[0n,required]:[required]).entries()){
+      const transaction=await actionTransaction(provider,config,input.wallet,asset,approvalInterface.encodeFunctionData('approve',[spender,amount]));
+      let status='requires-confirmed-reset',gasEstimateRaw=null;
+      if(i===0){
+        const simulation=await simulateAction(provider,config,state.snapshot,transaction);
+        if(simulation.result!=='0x'&&!approvalInterface.decodeFunctionResult('approve',simulation.result)[0])throw new AppError(422,'ACTION_REJECTED','CHOG approval returned false.');
+        status='simulated';gasEstimateRaw=simulation.gasEstimateRaw;
+      }
+      steps.push({kind:amount===0n?'reset':'approve-exact',amountRaw:String(amount),status,gasEstimateRaw,transaction});
+    }
+  }
+  return {...state,approval:{asset,spender,allowanceRaw:String(allowance),requiredRaw:String(required),status:steps.length?'approval-required':'sufficient',steps,executionEnabled:false,
+    policy:'Approve only the maximum first-buy CHOG budget to the bound factory. Confirm a reset and refresh before approval; unused launch budget is refunded. No NFT approval or unlimited allowance is requested.'}};
 }
