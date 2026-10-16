@@ -1,3 +1,4 @@
+import { useSelectedWallet } from './WalletProvider.jsx';
 import React, { useEffect, useState } from 'react';
 
 async function request(route, method = 'GET', data) {
@@ -12,6 +13,7 @@ async function request(route, method = 'GET', data) {
 }
 const empty = { name: '', description: '', website: '', coverUrl: '' };
 export default function StudioProfile({ studio, wallet, busy, run, onProfile }) {
+  const {provider}=useSelectedWallet();
   const [session, setSession] = useState(null);
   const [access, setAccess] = useState(false);
   const [draft, setDraft] = useState(empty);
@@ -22,16 +24,19 @@ export default function StudioProfile({ studio, wallet, busy, run, onProfile }) 
     request('/session').then(data => { if (alive) setSession(data.session); }).catch(() => { if (alive) setSession(null); });
     return () => { alive = false; };
   }, [studio.nft.tokenId, studio.profile]);
-  useEffect(() => { setAccess(false); }, [wallet, session]);
+  useEffect(() => { setAccess(false); }, [wallet, session, provider]);
   const matches = wallet && session?.wallet.toLowerCase() === wallet.toLowerCase();
   const owner = wallet && studio.nft.owner.toLowerCase() === wallet.toLowerCase();
   async function signIn() {
     setAccess(false); setSaved('');
+    if(!provider||!wallet)throw new Error('Connect your wallet on Monad Mainnet before signing in.');
+    const currentAccounts=await provider.request({method:'eth_accounts'}),currentChain=await provider.request({method:'eth_chainId'});
+    if(currentAccounts[0]?.toLowerCase()!==wallet.toLowerCase()||BigInt(currentChain)!==143n)throw new Error('Connected account/network does not match sign-in.');
     const { challengeId, message } = await request('/auth/challenge', 'POST', { wallet });
     const hex = '0x' + Array.from(new TextEncoder().encode(message), byte => byte.toString(16).padStart(2, '0')).join('');
-    const signature = await window.ethereum.request({ method: 'personal_sign', params: [hex, wallet] });
-    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    const signature = await provider.request({ method: 'personal_sign', params: [hex, wallet] });
+    const accounts = await provider.request({ method: 'eth_accounts' });
+    const chainId = await provider.request({ method: 'eth_chainId' });
     if (accounts[0]?.toLowerCase() !== wallet.toLowerCase() || BigInt(chainId) !== 143n) throw new Error('Wallet or network changed during sign-in.');
     const result = await request('/auth/verify', 'POST', { challengeId, message, signature });
     setSession(result.session);

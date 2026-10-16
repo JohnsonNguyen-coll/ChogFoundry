@@ -64,3 +64,6 @@
 
 
 - User approved D21 on 2026-10-16: contracts/mainnet-config.mjs records 625M sale / 375M graduation, opening 0.0008 CHOG/token, increase 0.0032, terminal 0.004, reserve 1.5M CHOG, Uniswap v4 with protocol 30/30/40 bps plus LP3000, permanently held full-range position/dust/LP earnings. Supersedes prior statements that these economics are pending. No fabricated deployment defaults. User then chose the deployer address itself as treasury (multisig NOT required); public wallet address is still missing. Created ignored backend/.env for user to fill; never print its secrets.
+
+
+- User selected RainbowKit (D22), integrated with wagmi2/viem/TanStack. Use useSelectedWallet from WalletProvider for the selected connector's guarded EIP-1193 provider; no application window.ethereum fallback. Sign-in and transaction/receipt paths must use this same selected provider. Connection is not a backend auth session or NFT authority. Keep chain143/account/connector checks, stale-request cancellation and full Transfer-based backend authorization. VITE_WALLETCONNECT_PROJECT_ID is public frontend configuration; no fake/sample ID. Missing ID means browser-wallet discovery only, explicitly labelled; never expose backend credentials in VITE_ variables.

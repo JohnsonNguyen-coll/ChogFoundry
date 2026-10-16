@@ -201,3 +201,10 @@ Implementation: separate browser wallet transport with readiness endpoint, expli
 The user explicitly approved the complete MAINNET_PROPOSAL.md configuration: 625M curve/375M graduation, linear opening0.0008/increase0.0032 CHOG, terminal0.004, reserve1.5M CHOG, official v4, post-graduation protocol30/30/40bps plus LP3000units, permanent full-range custody with held dust/LP earnings. contracts/mainnet-config.mjs records exact approved integers. This supersedes prior pending-economics statements.
 
 The user subsequently selected the deployer wallet itself as platform treasury; multisig is not required. Its actual public address remains to be supplied. The user requested backend/.env to fill in actual Supabase credentials locally; it is created from the ignored template without secrets. No deployment, financial signature or hosted database connection is claimed.
+
+
+## D22: RainbowKit wallet integration — 2026-10-16
+
+User selected RainbowKit. Implementation uses RainbowKit2.2.11, wagmi2.19.5 (compatible with RainbowKit's v2 peer range), viem2.57.7 and TanStack Query5.104.3. The app uses the selected connector's actual EIP-1193 provider for sign-in, approval/launch/trade/claim and transaction inspection. There is no application window.ethereum fallback. Browser wallet discovery remains available without a WalletConnect Project ID; mobile WalletConnect is included only when the user's public VITE_WALLETCONNECT_PROJECT_ID is configured. No sample ID or embedded wallet is introduced.
+
+Connection is separate from backend authentication/owner authority. Account, connector, disconnect and network changes invalidate selected provider use and stale reads. Fresh simulation, explicit human wallet confirmation, fixed Mainnet scope and backend Transfer scans remain unchanged.

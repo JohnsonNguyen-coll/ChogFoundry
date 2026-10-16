@@ -53,3 +53,9 @@ The launch wizard also accepts a public transaction hash for its selected NFT. C
 
 
 Mainnet wallet flow (2026-10-16): launch funding approval, launch, curve/v4 exact-input trades and recorded-beneficiary claims can request human wallet confirmation after explicit execution configuration and canonical deployment/Supabase readiness. No public-wallet inspection signs. Fresh backend review and same-block current wallet simulation precede each request. TransactionCenter retains public pending evidence across form changes and tab reload, verifies finality and explicit same-nonce replacements, and never retries automatically. No public deployment or connected hosted database is implied by the UI.
+
+
+
+Wallet connection now uses RainbowKit + wagmi2 + viem. The selected connector provider powers profile personal_sign and all wallet transaction/receipt paths; the application never falls back to window.ethereum. Only Monad Mainnet143 is configured. A wrong network/disconnect/connector/account change clears usable wallet/provider and stale balances, while the transaction journal remains public historical evidence. Backend ownership/Transfer/session checks are unchanged.
+
+Copy frontend/.env.example to frontend/.env (the ignored file has been prepared if absent). Fill VITE_WALLETCONNECT_PROJECT_ID with your own public Project ID from the WalletConnect/Reown dashboard to enable mobile QR sessions. Do not enter Supabase secrets or wallet keys in any VITE_ field. Without an ID, browser wallets remain usable and WalletConnect is omitted with an explicit notice. Restart the dev server after changing frontend environment values.

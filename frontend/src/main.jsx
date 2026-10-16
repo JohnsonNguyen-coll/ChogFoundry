@@ -1,3 +1,6 @@
+import WalletProvider, { useSelectedWallet } from './WalletProvider.jsx';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { walletConfigurationNote } from './wallet-config.mjs';
 import NetworkReadiness from './NetworkReadiness.jsx';
 import TransactionCenter from './TransactionCenter.jsx';
 import LaunchWizard from './LaunchWizard.jsx';
@@ -32,9 +35,10 @@ function App() {
   const [profilesError, setProfilesError] = useState('');
   const [studio, setStudio] = useState(null);
   const [transfers, setTransfers] = useState(null);
-  const [wallet, setWallet] = useState(null);
+  const {wallet,provider,error:walletError}=useSelectedWallet();
   const [portfolioToken,setPortfolioToken]=useState(null);
-  const [balance, setBalance] = useState(null);
+  const [balanceResult, setBalance] = useState(null);
+  const balance=wallet&&balanceResult?.wallet?.toLowerCase()===wallet.toLowerCase()?balanceResult:null;
   const [id, setId] = useState('');
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
@@ -45,29 +49,22 @@ function App() {
     api('/studios').then(data => { if (alive) setProfiles(data); }).catch(err => { if (alive) setProfilesError(err.message); });
     return () => { alive = false; };
   }, []);
-  useEffect(() => {
-    const ethereum = window.ethereum;
-    const invalidate = () => { setWallet(null); setBalance(null); setNotice('Wallet or network changed. Reconnect to refresh balances.'); };
-    ethereum?.on?.('accountsChanged', invalidate); ethereum?.on?.('chainChanged', invalidate);
-    return () => { ethereum?.removeListener?.('accountsChanged', invalidate); ethereum?.removeListener?.('chainChanged', invalidate); };
-  }, []);
+  useEffect(()=>{
+    const controller=new AbortController();setBalance(null);
+    if(wallet&&provider){
+      fetch(`/api/wallets/${wallet}`,{cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(25000)])}).then(async response=>{
+        const data=await response.json();if(!response.ok)throw new Error(data.error?.message||'Wallet balances unavailable.');
+        const accounts=await provider.request({method:'eth_accounts'}),chain=await provider.request({method:'eth_chainId'});
+        if(accounts[0]?.toLowerCase()!==wallet.toLowerCase()||BigInt(chain)!==143n)throw new Error('Wallet changed while reading balances.');
+        if(!controller.signal.aborted)setBalance(data);
+      }).catch(err=>{if(!controller.signal.aborted)setError(err.message);});
+    }
+    return()=>controller.abort();
+  },[wallet,provider]);
   async function run(action) {
     setBusy(true); setError(''); setNotice('');
     try { await action(); } catch (err) { setError(err.message || 'Unable to complete this request.'); }
     finally { setBusy(false); }
-  }
-  async function connect() {
-    if (!window.ethereum) throw new Error('No EVM wallet was found in this browser.');
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    if (!accounts[0]) throw new Error('The wallet did not provide an account.');
-    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-    if (BigInt(chainId) !== 143n) throw new Error('Select Monad Mainnet in your wallet and reconnect.');
-    const data = await api(`/wallets/${accounts[0]}`);
-    // Recheck after RPC work so an account/network change cannot display stale wallet state.
-    const current = await window.ethereum.request({ method: 'eth_accounts' });
-    const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
-    if (current[0]?.toLowerCase() !== accounts[0].toLowerCase() || BigInt(currentChain) !== 143n) throw new Error('The wallet changed while loading data.');
-    setWallet(accounts[0]); setBalance(data);
   }
   async function lookup(event) {
     event.preventDefault();
@@ -88,8 +85,8 @@ function App() {
   }
   const owns = wallet && studio?.nft.owner.toLowerCase() === wallet.toLowerCase();
   return <>
-    <header className="topbar"><a href="#" className="brand"><img className="brand-symbol" src={foundryLogo} alt="" width="48" height="48"/>CHOG FOUNDRY</a><nav><a href="#explore">Explore</a><a href="#studio">Studio</a><a href="#launch">Launch</a><a href="#markets">Markets</a><a href="#portfolio">Portfolio</a><a href="#chog">$CHOG</a><a href="https://build.chog.xyz/" target="_blank" rel="noreferrer">Build with Chog ↗</a></nav><button className="wallet" disabled={busy} onClick={() => run(connect)}>{wallet ? short(wallet) : 'Connect wallet'} <span>↗</span></button></header>
-    <main><TransactionCenter />
+    <header className="topbar"><a href="#" className="brand"><img className="brand-symbol" src={foundryLogo} alt="" width="48" height="48"/>CHOG FOUNDRY</a><nav><a href="#explore">Explore</a><a href="#studio">Studio</a><a href="#launch">Launch</a><a href="#markets">Markets</a><a href="#portfolio">Portfolio</a><a href="#chog">$CHOG</a><a href="https://build.chog.xyz/" target="_blank" rel="noreferrer">Build with Chog ↗</a></nav><div className="wallet-connect"><ConnectButton accountStatus="address" chainStatus="icon" showBalance={false} /></div></header>
+    <main>{walletConfigurationNote&&<p className="note wallet-configuration">{walletConfigurationNote}</p>}{walletError&&<p className="message error" role="alert">{walletError}</p>}<TransactionCenter />
       <section className="hero"><div><div className="eyebrow"><span className="dot" /> MONAD / LIVE ONCHAIN</div><h1>Your Chog.<br />Your studio.<br /><span>Your next launch.</span></h1><p>One Chog. A studio with a story.<br />Build your next launch with your community.</p><a className="primary" href="#studio">Explore your Chog <span>↓</span></a></div><div className="forge" aria-hidden="true"><div className="forge-label">THE NEXT THING<br />STARTS WITH YOUR CHOG.</div><img className="forge-logo" src={foundryLogo} alt=""/><div className="forge-bottom">CHOG FOUNDRY <span>EST. 2026</span></div></div></section>
       <div className="statusline"><span className="status-tag">LIVE DATA</span><p>{profilesError ? 'Studio profiles are unavailable. Live Monad reads remain active; launch, trade and claims await Foundry contracts.' : profiles ? 'Live Monad data. Owner-managed profiles are available; launch, trade and claims await Foundry contracts.' : 'Checking studio availability. Launch, trade and claims await Foundry contracts.'}</p><button disabled={busy} onClick={() => run(async () => setOverview(await api('/overview')))}>Refresh ↻</button></div>
       {busy && <div className="message" role="status">Loading live data…</div>}
@@ -108,4 +105,4 @@ function App() {
     </main><footer><a className="brand" href="#"><img className="brand-symbol" src={foundryLogo} alt="" width="32" height="32"/>CHOG FOUNDRY</a><span>Your Chog. Your studio. Your next launch.</span><a href="https://www.chog.xyz/" target="_blank" rel="noreferrer">Chog ↗</a></footer>
   </>;
 }
-createRoot(document.getElementById('root')).render(<App/>);
+createRoot(document.getElementById('root')).render(<WalletProvider><App/></WalletProvider>);

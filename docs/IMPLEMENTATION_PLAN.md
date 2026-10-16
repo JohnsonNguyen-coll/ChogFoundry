@@ -224,3 +224,8 @@ Current work adds factory approval preparation, guarded wallet request/receipt t
 ## Approved configuration update — 2026-10-16
 
 D21 approves the economics in contracts/mainnet-config.mjs. Next: prove this exact scale on the real-state fork, prepare unsigned dependency-ordered deployment against the selected public deployer (also treasury), then verify actual receipts/immutable addresses. User fills SUPABASE_DATABASE_URL and FOUNDRY_DEPLOYER_ADDRESS in ignored backend/.env. Do not insert private keys, fabricate addresses or silently enable execution before actual deployment/index validation.
+
+
+## RainbowKit integration — 2026-10-16
+
+Implement RainbowKit/wagmi/viem providers and selected-connector bridge, replace global injected-wallet access in all signing/receipt/profile paths, cancel stale balance/provider reads and expose connection/account/network controls. Configure the user's WalletConnect/Reown Project ID in frontend/.env for mobile QR connections. Missing ID omits this connector explicitly while browser-wallet discovery works. Verify actual modal rendering and the existing real-state market browser suite without injected fake wallets; physical extension/mobile wallet signing remains a separate real-wallet check after configuration.

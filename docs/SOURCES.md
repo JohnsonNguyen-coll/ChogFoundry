@@ -192,3 +192,8 @@ Actual curve/factory fork source block 113867666 verifies factory reset/exact ap
 
 
 Approved-economics integration source block 113868003: current compiled six-step deployment plan, actual CHOG/NFT, official v4 PoolManager and real quoter/lock/fee-vault events. Verified exact 1.5M-CHOG reserve and 375M-token graduation plus post-transfer historical claims. Funding came from observed existing PoolManager CHOG balance, solely via local fork impersonation; no real network funds moved and no storage fabricated. This source does not imply permission to withdraw existing Mainnet liquidity.
+
+
+## RainbowKit integration references — 2026-10-16
+
+Official installation https://rainbowkit.com/en-US/docs/installation (provider nesting, wagmi/viem/TanStack peers and WalletConnect Project ID); wallet list https://rainbowkit.com/en-US/docs/custom-wallet-list; official injectedWallet/connectorsForWallets source https://github.com/rainbow-me/rainbowkit/tree/main/packages/rainbowkit/src/wallets. Installed npm peer metadata requires wagmi ^2.9.0, so integration intentionally pins compatible wagmi2 instead of unrelated latest v3 APIs. Missing-ID browser-only setup supplies no dummy cloud ID; injectedWallet does not use a WalletConnect service.

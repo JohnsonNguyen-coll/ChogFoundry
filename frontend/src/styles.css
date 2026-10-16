@@ -20,3 +20,5 @@
 .wallet-action,.transaction-center{padding:16px;margin:16px 0;border:1px solid var(--line);border-radius:8px;overflow-wrap:anywhere}.wallet-action button,.transaction-center button{margin:8px 12px 8px 0}.transaction-center>div{border-top:1px solid var(--line);padding:12px 0}
 
 .network-readiness{margin:24px 0;padding:20px;border:1px solid var(--line);border-radius:8px;overflow-wrap:anywhere}
+
+.wallet-connect{flex-shrink:0}.wallet-configuration{padding:12px 0;overflow-wrap:anywhere}

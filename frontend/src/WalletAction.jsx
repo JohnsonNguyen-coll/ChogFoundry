@@ -1,8 +1,10 @@
+import { useSelectedWallet } from './WalletProvider.jsx';
 import { pendingFor, subscribe, updateTransaction } from './transaction-journal.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { reviewedAction, submitReviewedTransaction, inspectTransaction } from './wallet-transaction.mjs';
 async function get(path,signal){const response=await fetch(path,{cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(25000)])}),body=await response.json();if(!response.ok)throw new Error(body.error?.message||'Fresh inspection unavailable.');return body;}
 export default function WalletAction({wallet,body,kind,path,label,onFinalized}){
+  const {provider}=useSelectedWallet();
   const [,refresh]=useState(0);useEffect(()=>subscribe(()=>refresh(n=>n+1)),[]);
   const [state,setState]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[policy,setPolicy]=useState(null);
   const lifecycle=useRef(null),submitted=useRef(null),callback=useRef(onFinalized);callback.current=onFinalized;
@@ -12,14 +14,14 @@ export default function WalletAction({wallet,body,kind,path,label,onFinalized}){
   function show(next){if(!lifecycle.current.signal.aborted)setState(next);}
   async function track(){
     if(!submitted.current||busy)return;setBusy(true);setError('');
-    try{const result=await inspectTransaction(window.ethereum,submitted.current.hash,submitted.current.transaction);updateTransaction(submitted.current.hash,result);show(result);if(['finalized','reverted'].includes(result.status)){submitted.current=null;if(result.status==='finalized')callback.current?.(result);}}
+    try{const result=await inspectTransaction(provider,submitted.current.hash,submitted.current.transaction);updateTransaction(submitted.current.hash,result);show(result);if(['finalized','reverted'].includes(result.status)){submitted.current=null;if(result.status==='finalized')callback.current?.(result);}}
     catch(e){if(!lifecycle.current.signal.aborted)setError(e.message);}
     finally{if(!lifecycle.current.signal.aborted)setBusy(false);}
   }
   async function sign(){
     if(submitted.current||busy)return;setBusy(true);setError('');
     try{
-      if(!wallet||!window.ethereum)throw new Error('Connect the wallet that will sign this transaction.');
+      if(!wallet||!provider)throw new Error('Connect the wallet that will sign this transaction.');
       const signal=lifecycle.current.signal,permission=await get('/api/execution',signal);
       setPolicy(permission);
       if(!permission.walletExecutionAvailable||permission.chainId!==143)throw new Error('Mainnet deployment is not ready for wallet transactions.');
@@ -29,7 +31,7 @@ export default function WalletAction({wallet,body,kind,path,label,onFinalized}){
       if((freshBody.deployment?.factory??freshBody.launch?.factory)?.toLowerCase()!==permission.factory.toLowerCase())throw new Error('Deployment changed. Refresh the review.');
       const fresh=reviewedAction(freshBody,kind);
       if(freshBody.provenance?.finality!=='finalized'||freshBody.provenance.chainId!==143)throw new Error('Finalized Mainnet inspection is required.');
-      submitted.current=await submitReviewedTransaction(window.ethereum,reviewed,fresh,{wallet,signal,onState:show});
+      submitted.current=await submitReviewedTransaction(provider,reviewed,fresh,{wallet,signal,onState:show});
     }catch(e){if(!lifecycle.current.signal.aborted)setError(e.message);}
     finally{if(!lifecycle.current.signal.aborted)setBusy(false);}
   }

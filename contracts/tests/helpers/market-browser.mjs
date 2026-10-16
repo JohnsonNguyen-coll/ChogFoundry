@@ -24,6 +24,12 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false,
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     trace('opening live test frontend');
     await page.goto(`http://127.0.0.1:${vite.httpServer.address().port}`, { waitUntil: 'networkidle' });
+    await page.getByRole('button',{name:/connect wallet/i}).first().click();
+    const walletDialog=page.getByRole('dialog');await walletDialog.waitFor();
+    assert.ok(await walletDialog.getByText('Connect a Wallet',{exact:true}).count()>0);
+    if(await page.getByText('Mobile WalletConnect requires a Project ID. Browser wallets are available.',{exact:true}).count())assert.equal(await walletDialog.getByRole('button',{name:/walletconnect/i}).count(),0,'No invented WalletConnect project ID');
+    await walletDialog.getByRole('button',{name:'Close',exact:true}).click();
+    await walletDialog.waitFor({state:'hidden'});
     await page.locator('#market-token').fill(token);
     await page.getByRole('button', { name: 'Open market' }).click();
     trace('waiting for canonical stream');

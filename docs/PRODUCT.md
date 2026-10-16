@@ -101,3 +101,8 @@ Approved direction: design a rising-price curve, verify Uniswap v4 as a graduati
 ## 16. Latest user revision - 2026-10-09
 
 Creator token allocation is zero. Creator allocation vesting is removed from the product baseline. Creator may fund an optional first purchase; tokens bought through the launch market are purchased holdings, not allocated tokens. The fixed one-billion supply is entirely for curve sales and graduation liquidity. Creator fee remains unchanged. This supersedes the 20% creator allocation and 80% combined curve/liquidity allocation in section 15. Final sales/liquidity split must be recalculated.
+
+
+## 17. Approved Mainnet and wallet updates — 2026-10-16
+
+D20/D21 supersede the historical testnet-first and pending economics statements above: Monad Mainnet, exact approved economics in contracts/mainnet-config.mjs, and deployer wallet also acting as treasury. D22 selects RainbowKit for existing-wallet connection, with wagmi/viem implementation. Email/social/embedded wallets are not part of this selection. Connecting a wallet is not authentication or NFT authority; owner/transfer/session rules remain unchanged. The user confirms each financial transaction in their selected wallet. Missing deployment, database or WalletConnect configuration remains explicit.
