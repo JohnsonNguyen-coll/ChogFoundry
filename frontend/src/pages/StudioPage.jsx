@@ -62,6 +62,14 @@ export default function StudioPage() {
               Prepare a launch ↗
             </Link>
           </section>
+          <div className="studio-community-links">
+            <Link className="secondary" to={`/app/clubs/${id}`}>
+              Enter studio club
+            </Link>
+            <Link className="secondary" to={`/app/agent/${id}`}>
+              Ask Claude
+            </Link>
+          </div>
           <article className="nft-card">
             <dl>
               <dt>Current owner</dt>

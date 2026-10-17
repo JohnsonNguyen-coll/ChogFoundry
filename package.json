@@ -26,7 +26,8 @@
     "db:check": "npm run db:check --workspace @chog-foundry/backend",
     "db:import-sqlite": "node --env-file-if-exists=backend/.env backend/scripts/import-sqlite.mjs",
     "deploy:plan": "npm run compile && node --env-file-if-exists=backend/.env contracts/scripts/mainnet-plan.mjs",
-    "start": "node backend/scripts/start.mjs"
+    "start": "node backend/scripts/start.mjs",
+    "raffle:plan": "npm run compile && node --env-file-if-exists=backend/.env contracts/scripts/raffle-plan.mjs"
   },
   "overrides": {
     "tmp": "0.2.7",

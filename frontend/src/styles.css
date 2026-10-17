@@ -1449,3 +1449,245 @@ td small {
     font-size: 8px;
   }
 }
+
+/* Public community content never grants wallet/contract authority. */
+.community-session,
+.community-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.community-session p {
+  font-size: 12px;
+  max-width: 700px;
+  overflow-wrap: anywhere;
+  margin-bottom: 0;
+}
+.community-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+.community-toolbar form {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  max-width: 100%;
+}
+.room-tabs,
+.studio-community-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.studio-community-links {
+  margin-bottom: 25px;
+}
+.room-tabs .active {
+  background: var(--accent);
+  color: white;
+}
+.club-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 255px;
+  gap: 25px;
+  align-items: start;
+}
+.club-conversation,
+.club-members,
+.agent-workspace,
+.treasury-policy,
+.campaign-detail {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  margin-bottom: 25px;
+}
+.club-feed {
+  max-height: 600px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.club-post,
+.agent-turn,
+.receipt-row {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.post-meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 10px;
+  color: var(--muted);
+}
+.user-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.community-compose {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+.community-compose label,
+.engagement-task label,
+.community-toolbar label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.community-compose textarea {
+  width: 100%;
+  resize: vertical;
+}
+.community-compose button {
+  justify-self: start;
+}
+.community-admin {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px;
+  margin: 24px 0;
+}
+.community-admin summary {
+  cursor: pointer;
+}
+.community-admin pre,
+.agent-turn pre,
+.campaign-detail pre {
+  max-height: 320px;
+  overflow: auto;
+  font-size: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.club-members p {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.club-members p > span {
+  color: var(--muted);
+}
+.agent-turn .caption {
+  display: block;
+  margin-top: 12px;
+  color: #bdaaff;
+}
+.campaign-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 25px 0;
+}
+.campaign-flow span {
+  background: #251c40;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  font-size: 12px;
+}
+.engagement-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.engagement-task {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px;
+  background: var(--surface);
+}
+.engagement-task h3 {
+  margin: 0;
+}
+.task-points {
+  font-size: 24px;
+  color: #c1b3ff;
+}
+.engagement-task button {
+  margin-top: auto;
+}
+.community-account h2 {
+  margin: 10px 0;
+  font-size: 32px;
+}
+.inventory-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.inventory-item {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+}
+.receipt-row > a {
+  margin-left: 20px;
+  font-size: 12px;
+}
+@media (max-width: 1100px) {
+  .engagement-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .club-layout {
+    grid-template-columns: minmax(0, 1fr) 210px;
+  }
+}
+@media (max-width: 700px) {
+  .club-layout,
+  .engagement-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .campaign-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .community-toolbar form {
+    width: 100%;
+  }
+  .community-toolbar label {
+    min-width: 0;
+    flex: 1;
+  }
+  .community-session,
+  .club-conversation,
+  .agent-workspace,
+  .campaign-detail {
+    padding: 18px;
+  }
+  .app-nav {
+    justify-content: flex-start;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1440px) {
+  .app-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-start;
+  }
+  .app-wallet {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}

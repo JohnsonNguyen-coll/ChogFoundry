@@ -51,6 +51,20 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false,
     await page.reload({waitUntil:'networkidle'});await page.getByText('stream connected',{exact:false}).waitFor();assert.equal(await page.locator('#market-token').inputValue(),token,'Direct market URL survives reload');
     const base=`http://127.0.0.1:${vite.httpServer.address().port}`;
     await page.waitForURL(`**/app/markets/${token}`);
+    const communityPage=await browser.newPage({viewport:{width:1440,height:1000}});
+    communityPage.on('pageerror',error=>errors.push(error.message));
+    for(const route of ['clubs','agent','treasury','campaigns']){
+      await communityPage.goto(base+'/app/'+route,{waitUntil:'networkidle'});
+      await communityPage.getByRole('heading',{level:1}).waitFor();
+      assert.equal(await communityPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,route+' desktop overflow');
+      await communityPage.screenshot({path:fileURLToPath(new URL('../../artifacts/community-'+route+'-desktop.png',import.meta.url))});
+      await communityPage.setViewportSize({width:390,height:844});
+      assert.equal(await communityPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,route+' mobile overflow');
+      await communityPage.screenshot({path:fileURLToPath(new URL('../../artifacts/community-'+route+'-mobile.png',import.meta.url))});
+      await communityPage.setViewportSize({width:1440,height:1000});
+    }
+    await communityPage.close();
+
     const portfolioPage=await browser.newPage({viewport:{width:1440,height:1000}});portfolioPage.on('pageerror',e=>errors.push(e.message));
     await portfolioPage.goto(base+'/app/portfolio',{waitUntil:'networkidle'});
     async function inspectPortfolio(){await portfolioPage.getByLabel('Public wallet address',{exact:true}).fill(wallet);await portfolioPage.getByRole('button',{name:'Inspect portfolio',exact:true}).click();await portfolioPage.waitForFunction(()=>document.querySelector('#portfolio')?.dataset.portfolioCursor);}

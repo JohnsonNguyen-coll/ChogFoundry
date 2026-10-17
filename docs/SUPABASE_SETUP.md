@@ -31,3 +31,8 @@ Official references: [Supabase connection methods](https://supabase.com/docs/gui
 Ignored backend/.env has been created from backend/.env.example without credentials. Fill SUPABASE_DATABASE_URL from your actual project's Connect panel (direct or Session pooler), optionally SUPABASE_DB_CA_PATH if the project requires a CA file, and FOUNDRY_DEPLOYER_ADDRESS with your public Monad wallet address. The user selected this same wallet as platform treasury. Never put a private key in this file. Leave Foundry factory/deployment/quoter fields empty until actual deployment receipts are verified; keep wallet execution false until then.
 
 After saving the actual database connection, run npm run db:migrate and npm run db:check. These operate on the intended Supabase project, so inspect the project/connection first. No hosted connection or migration has been performed merely by creating the template. Restart npm run dev after changing backend/.env. The backend dev command uses the environment file; the integrated dev launcher does too.
+
+
+## Community schema update - 2026-10-17
+
+`npm run db:migrate` now applies both 001_foundry.sql and additive 002_community.sql. The second migration adds clubs, proposals/votes, X identity links, idempotent point accounting, raffle drafts/entries/manifests, treasury policy/receipt records and private Claude history/request quotas. These tables are backend-only with RLS and no browser-role grants. Nothing is seeded, existing profiles/indexes and local SQLite files are preserved, and running a migration does not enable an actual campaign or connect Claude/X automatically. See COMMUNITY.md for required credentials and release checks.

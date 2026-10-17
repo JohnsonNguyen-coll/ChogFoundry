@@ -204,3 +204,15 @@ Official installation https://rainbowkit.com/en-US/docs/installation (provider n
 User supplied https://chogathon.chog.xyz/dashboard as the visual reference. Read-only browser screenshot and rendered DOM computed styles observed --bg #0e0b1a, --card/#surface #161228, --p/#accent #836ef9 and --tx #f4f1fe. Only presentation colors were used; account/submission/entrant/countdown data were not copied into Foundry. Generic Monad landing reference https://monad.xyz/ was also read.
 
 React Router official declarative routing reference: https://reactrouter.com/start/declarative/routing (nested layout/Outlet, dynamic segments, Link/NavLink and index redirects). Installed compatible v7 package is locked by npm. No routing or navigation grants NFT ownership, wallet authentication or transaction authority.
+
+
+## Claude, X engagement and Pyth Entropy - 2026-10-17
+
+User selected Claude and https://x.com/ChogNFT with follow/like/reply/repost point earning. Provider/API integration uses primary references only:
+
+- Claude Messages API: https://platform.claude.com/docs/en/api/messages/create and authentication https://platform.claude.com/docs/en/manage-claude/authentication. Backend calls the official messages endpoint with a server-only key and explicit model; no live model request was claimed without credentials.
+- X OAuth 2 PKCE/scopes/callback: https://docs.x.com/fundamentals/authentication/oauth-2-0/authorization-code. Read-only follows https://docs.x.com/x-api/users/get-following, user likes https://docs.x.com/x-api/users/get-liked-posts, reposting users https://docs.x.com/x-api/posts/get-reposted-by. Direct reply inspection uses actual post author/referenced_tweets, not a browser-intent success assumption. Actual API access/quota remains unverified without the intended app.
+- Pyth Entropy chainlist https://docs.pyth.network/entropy/chainlist: rendered official Monad row linked https://monadvision.com/address/0xd458261e832415cfd3bae5e416fdf3230ce6f134 and the documented provider 0x52DeaA1c84233F7bb8C8A45baeDE41091c616506. Read-only Mainnet block 114206651/hash 0x5f51fa50aaae0711837ef217b287eeb1568257e32999eb8d44cb214c646c91a8 verified deployed code, getDefaultProvider and getFeeV2. The observed fee was evidence at that block, not a fixed default or spending approval.
+- Request/callback ABI: https://docs.pyth.network/entropy/generate-random-numbers-evm and official https://github.com/pyth-network/pyth-crosschain/blob/main/target_chains/ethereum/entropy_sdk/solidity/IEntropyV2.sol and IEntropyConsumer.sol. Foundry declares an ABI subset without copying the SDK. Callback entry is _entropyCallback(uint64,address,bytes32), guarded by literal Entropy sender and pinned provider.
+
+Actual disposable-fork source block 114210301 verified NFT escrow/cancellation, frozen-root timing, authenticated callback boundary, an actual request to deployed Pyth and the native-fee wallet transport. No real provider callback or prize award was invented. This is not a public deployment, audit, human-owned wallet signature or real-fund transaction.

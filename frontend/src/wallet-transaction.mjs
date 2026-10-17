@@ -33,7 +33,7 @@ export async function submitReviewedTransaction(provider,review,fresh,{wallet,ch
     if(!latest?.hash)throw new Error('Wallet RPC head is unavailable.');
     if(fresh.deadline&&Number(fresh.deadline)<=Math.max(Date.now()/1000,Number(BigInt(latest.timestamp))))throw new Error('Transaction deadline expired. Refresh the review.');
     const code=await provider.request({method:'eth_getCode',params:[tx.to,latest.number]});if(!code||code==='0x')throw new Error('Transaction target has no contract code.');
-    const rpc={from:tx.from,to:tx.to,data:tx.data,value:'0x0'};
+    const rpc={from:tx.from,to:tx.to,data:tx.data,value:tx.value??'0x0'};
     onState({status:'simulating-current-state'});
     const call=await provider.request({method:'eth_call',params:[rpc,latest.number]});
     // ERC-20 approve may return no bytes, but an explicit false must never proceed.
@@ -58,7 +58,7 @@ export async function inspectTransaction(provider,hash,expected,chainId=143){
   if(BigInt(await provider.request({method:'eth_chainId'}))!==BigInt(chainId))throw new Error('Switch back to the transaction network to check its receipt.');
   const tx=await provider.request({method:'eth_getTransactionByHash',params:[hash]});
   if(!tx)return {status:'pending-or-replaced',hash};
-  if(!same(tx.hash,hash)||!same(tx.from,expected.from)||!same(tx.to,expected.to)||!same(tx.input??tx.data,expected.data)||BigInt(tx.value)!==0n||BigInt(tx.chainId)!==BigInt(chainId))throw new Error('Wallet transaction differs from reviewed calldata. Inspect it in the explorer.');
+  if(!same(tx.hash,hash)||!same(tx.from,expected.from)||!same(tx.to,expected.to)||!same(tx.input??tx.data,expected.data)||BigInt(tx.value)!==BigInt(expected.value??'0x0')||BigInt(tx.chainId)!==BigInt(chainId))throw new Error('Wallet transaction differs from reviewed calldata. Inspect it in the explorer.');
   const receipt=await provider.request({method:'eth_getTransactionReceipt',params:[hash]});
   if(!receipt)return {status:'pending',hash,nonceRaw:String(BigInt(tx.nonce))};
   if(!same(receipt.transactionHash,hash)||!same(receipt.from,tx.from)||!same(receipt.to,tx.to)||!same(receipt.blockHash,tx.blockHash)||BigInt(receipt.blockNumber)!==BigInt(tx.blockNumber))throw new Error('Receipt does not match the submitted transaction.');

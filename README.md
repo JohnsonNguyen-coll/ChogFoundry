@@ -117,3 +117,8 @@ Fork integration tests use explicitly labeled local-fork-latest reads only on a 
 ## Supabase primary storage
 
 Supabase PostgreSQL is user-selected primary storage for profiles/revisions and market indexes/checkpoints/event windows. Backend-only SUPABASE_DATABASE_URL is required. Setup, migration, connection checking and one-time SQLite import are in docs/SUPABASE_SETUP.md. Missing or failed Supabase connections return explicit errors without local fallback. Sessions remain in memory. Hosted connection verification is pending until actual project credentials are configured locally; local PostgreSQL engine tests are not a claim of cloud deployment.
+
+
+## Community modules
+
+Clubs, the Claude studio assistant, treasury transparency and @ChogNFT engagement-point raffles now have routed screens and backend source. Apply Supabase migration 002 and configure actual Claude/X/deployer values before using them. FoundryRaffle remains undeployed; real campaign publication/execution stays disabled by default. Numeric point rewards and entry costs have no defaults. See [community setup and limits](docs/COMMUNITY.md).

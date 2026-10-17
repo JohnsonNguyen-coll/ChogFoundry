@@ -1,3 +1,4 @@
+import { communityApi } from './community-api.mjs';
 import { createFrontendHost } from './frontend-host.mjs';
 import { transactionHash } from './launch-receipt.mjs';
 import { launchInput } from './launch-data.mjs';
@@ -43,6 +44,7 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
   const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
   const deploymentBlock=process.env.FOUNDRY_DEPLOYMENT_BLOCK;
   const indexer=factoryAddress&&deploymentBlock?new MarketIndexer(reader.provider,{chainId:chain.id,factoryAddress,deploymentBlock:boundedBlock(deploymentBlock),collection:chain.collection,quote:chain.quote},{databasePath:marketDatabasePath,storeFactory:database?config=>new PostgresMarketStore(config,database):undefined}):null;
+  const community=communityApi({reader,database,auth,indexer,profileStore:store,body});
   const streams=new Set();
   indexer?.start();
   const key = id => `${chain.id}:${chain.collection.toLowerCase()}:${id}`;
@@ -53,6 +55,7 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
     const send = (status, data) => { res.writeHead(status); res.end(JSON.stringify(data)); };
     try {
       const url = new URL(req.url, 'http://localhost'); const route = url.pathname;
+      if(await community(req,res,url,send))return;
       if (route.startsWith('/api/auth/') && req.method === 'POST') {
         auth.checkOrigin(req);
         if (route === '/api/auth/logout') { auth.logout(req); res.setHeader('Set-Cookie', auth.cookie('', 0)); return send(200, { session: null }); }

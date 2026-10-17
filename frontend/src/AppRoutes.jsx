@@ -1,3 +1,7 @@
+import ClubsPage from "./pages/ClubsPage.jsx";
+import AgentPage from "./pages/AgentPage.jsx";
+import TreasuryPage from "./pages/TreasuryPage.jsx";
+import CampaignsPage from "./pages/CampaignsPage.jsx";
 import React, { useEffect } from "react";
 import {
   Routes,
@@ -79,6 +83,13 @@ export default function AppRoutes() {
         <Route path="portfolio" element={<PortfolioPage />} />
         <Route path="activity" element={<Activity />} />
         <Route path="network" element={<NetworkPage />} />
+        <Route path="clubs" element={<ClubsPage />} />
+        <Route path="clubs/:id" element={<ClubsPage />} />
+        <Route path="agent" element={<AgentPage />} />
+        <Route path="agent/:id" element={<AgentPage />} />
+        <Route path="treasury" element={<TreasuryPage />} />
+        <Route path="campaigns" element={<CampaignsPage />} />
+        <Route path="campaigns/:id" element={<CampaignsPage />} />
         <Route path="*" element={<Missing />} />
       </Route>
       <Route path="*" element={<Missing />} />

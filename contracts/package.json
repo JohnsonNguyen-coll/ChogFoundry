@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "compile": "node scripts/compile.mjs",
-    "test:fork": "npm run compile && node --env-file-if-exists=../backend/.env --test --test-concurrency=1 tests/fee-vault.fork.test.mjs tests/chog-compatibility.fork.test.mjs tests/launch-coordinator.fork.test.mjs tests/curve-market.fork.test.mjs tests/v4-graduation.fork.test.mjs tests/v4-hook.fork.test.mjs tests/mainnet-config.fork.test.mjs"
+    "test:fork": "npm run compile && node --env-file-if-exists=../backend/.env --test --test-concurrency=1 tests/fee-vault.fork.test.mjs tests/chog-compatibility.fork.test.mjs tests/launch-coordinator.fork.test.mjs tests/curve-market.fork.test.mjs tests/v4-graduation.fork.test.mjs tests/v4-hook.fork.test.mjs tests/mainnet-config.fork.test.mjs tests/raffle.fork.test.mjs"
   },
   "dependencies": {
     "@openzeppelin/contracts": "5.6.1"

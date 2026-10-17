@@ -241,3 +241,10 @@ Routes: /, /app (redirect /app/explore), /app/explore, /app/studios, /app/studio
 ## Production host increment - 2026-10-17
 
 Implemented a root npm start entry point serving the compiled frontend and existing API on one origin. Deep-link fallback is limited to the application namespace and excludes APIs/static asset errors; source files and build-root escapes are blocked. Runtime startup validates the public origin/port and preserves explicit missing Supabase/deployment state. See PRODUCTION.md. Next release dependencies remain actual database/deployer configuration, canonical deployment receipt/immutable verification, security review and human wallet end-to-end validation. Club/Agent/Treasury/campaign product work remains unfinished.
+
+
+## Community implementation - 2026-10-17
+
+Added Supabase migration 002 and shared backend repositories/routes for clubs, attributed messages/proposals/votes, X OAuth links and verified-action points, atomic point-spend raffle entries/freezing/refunds, Claude history/request limits and treasury policies/canonical receipt journal. Added independent routed frontend screens and studio links. Added undeployed FoundryRaffle with actual NFT escrow, pre-randomness immutable manifest, single Pyth request and committed-winner delivery. The user selected Claude and @ChogNFT follow/like/reply/repost points used for free raffles; numeric awards/costs remain explicit organizer inputs, without defaults.
+
+Release dependencies: configure actual Supabase/Claude/X app/model and deployer; migrate the intended hosted database; review/deploy/verify the raffle contract; choose/publish actual task/raffle economics and dates; then enable and exercise X verification, Claude, provider callback/winner delivery and physical-wallet execution. No public campaign, randomness callback or model response is fabricated. COMMUNITY.md details current functionality, trusted offchain eligibility, receipt-accounting scope and remaining operational/security work.

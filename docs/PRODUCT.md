@@ -106,3 +106,8 @@ Creator token allocation is zero. Creator allocation vesting is removed from the
 ## 17. Approved Mainnet and wallet updates — 2026-10-16
 
 D20/D21 supersede the historical testnet-first and pending economics statements above: Monad Mainnet, exact approved economics in contracts/mainnet-config.mjs, and deployer wallet also acting as treasury. D22 selects RainbowKit for existing-wallet connection, with wagmi/viem implementation. Email/social/embedded wallets are not part of this selection. Connecting a wallet is not authentication or NFT authority; owner/transfer/session rules remain unchanged. The user confirms each financial transaction in their selected wallet. Missing deployment, database or WalletConnect configuration remains explicit.
+
+
+## 18. Community assistant and engagement point raffles - 2026-10-17
+
+D24 records the user's choice of Claude and free onchain-randomness raffles entered using points earned by following, liking, replying to and reposting https://x.com/ChogNFT. Participants perform X actions themselves; backend verification precedes points. Points are non-purchasable/non-transferable and unrelated to token spend/volume. Numeric awards and entry costs remain explicit organizer configuration. This refines the original free raffle concept without introducing a purchase requirement. COMMUNITY.md documents implemented source, trusted offchain eligibility and the still-unconfigured service/deployment prerequisites.

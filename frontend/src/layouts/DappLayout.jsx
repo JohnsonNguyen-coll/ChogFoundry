@@ -11,6 +11,10 @@ const tabs = [
   ["markets", "Markets"],
   ["portfolio", "Portfolio"],
   ["activity", "Transactions"],
+  ["clubs", "Clubs"],
+  ["agent", "Agent"],
+  ["treasury", "Treasury"],
+  ["campaigns", "Campaigns"],
   ["network", "Network"],
 ];
 export default function DappLayout() {
@@ -22,11 +26,17 @@ export default function DappLayout() {
           <Brand />
           <nav className="app-nav" aria-label="Dapp navigation">
             {tabs.map(([path, label]) => (
-              <NavLink key={path} to={`/app/${path}`}>{label}</NavLink>
+              <NavLink key={path} to={`/app/${path}`}>
+                {label}
+              </NavLink>
             ))}
           </nav>
           <div className="app-wallet">
-            <ConnectButton accountStatus="address" chainStatus="name" showBalance={false} />
+            <ConnectButton
+              accountStatus="address"
+              chainStatus="name"
+              showBalance={false}
+            />
           </div>
         </header>
         <main className="app-content">

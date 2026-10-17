@@ -215,3 +215,10 @@ Connection is separate from backend authentication/owner authority. Account, con
 User requested a separate landing page, a Launch App entry into a tabbed dapp with distinct URLs, componentized source and a Monad/Chogathon color direction. Reference clarified as https://chogathon.chog.xyz/dashboard (the earlier word was Vietnamese “mấy”, not a Mayas brand). Read-only visual/DOM inspection found background #0e0b1a, card #161228, primary #836ef9 and foreground #f4f1fe. These are presentation references, not imported competition data or implied affiliation.
 
 Landing / is separate from /app. Functional routes cover explore, owned studios, individual studio IDs, launch, market addresses, portfolio, transactions and network status. Primary studio/launch discovery uses the connected wallet's actual Chog token list instead of an ID search. Public ID/wallet launch inspection is retained only under Network → Advanced inspection, separately labelled and without signing authority. Existing onchain owner/auth checks, real data and execution readiness are unchanged.
+
+
+## D24: Community assistant and engagement raffle direction - 2026-10-17
+
+User-approved: Claude as the studio agent provider; free raffles using onchain randomness; https://x.com/ChogNFT as the engagement target; follow, like, reply and repost earn points that can be used to join a raffle. This refines the earlier no-purchase raffle direction: points come only from free verified social engagement, never token purchases or trade volume.
+
+Not decided: numeric point awards, entry costs, campaign dates/prizes, budgets, Claude model or API credentials. Pyth Entropy integration, owner-only moderation, one-NFT/one-entry campaign bounds and polling are current implementation choices; no actual deployment, public campaign or oracle expenditure is approved by those choices. Real services and addresses must be configured and verified before use. See COMMUNITY.md for the implementation and release boundaries.
