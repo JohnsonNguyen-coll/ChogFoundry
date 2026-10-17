@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import PageIntro from "../components/PageIntro.jsx";
 import useApi from "../hooks/useApi.js";
 import { LoadState } from "../components/Onchain.jsx";
 import { short } from "../lib/api.mjs";
@@ -8,14 +9,16 @@ export default function ExplorePage() {
     { data, error, loading } = useApi("/studios", refresh);
   return (
     <>
-      <section className="page-intro">
-        <span className="eyebrow">THE FOUNDRY / EXPLORE</span>
-        <h1>Ideas find their people.</h1>
+      <PageIntro
+        scene="community"
+        eyebrow="THE FOUNDRY / EXPLORE"
+        title="Ideas find their people."
+      >
         <p>Discover Chog studios and the stories behind their next launch.</p>
         <Link className="primary" to="/app/studios">
-          Open your studio ↗
+          Open your studio &#8599;
         </Link>
-      </section>
+      </PageIntro>
       <section>
         <div className="section-heading">
           <h2>Explore studios</h2>

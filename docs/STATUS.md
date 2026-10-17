@@ -252,3 +252,10 @@ Hosting remains to be configured with frontend history fallback excluding /api. 
 ## Top navigation refinement — 2026-10-17
 
 User requested navbar navigation instead of a sidebar and removal of navigation icons. DappLayout now places the brand, text-only route links and wallet controls in the top header; smaller screens place the horizontally scrollable links on the next header row. Removed sidebar layout/styles and switched the wallet chain indicator to its name. Routes, wallet/auth behavior and original logo colors are unchanged. Frontend production build passed; the running local app was visually verified with active-tab indication.
+
+
+## Production host and release handoff - 2026-10-17
+
+Added the root npm start production server using frontend/dist without Vite. It preserves API authentication/readiness/stream routing, serves deep links with revalidated HTML and hashed immutable assets, and rejects unsafe paths/hidden files/build-root symlink escapes. Backend health does not imply cloud or financial readiness. Added real HTTP/filesystem regression checks without RPC stubs, seeded studios/tokens or fabricated chain data. Production startup requires an explicit valid origin and preserves the single-process session/indexer model. No actual hosting, Mainnet deployment, database migration or transaction was performed. Existing user artwork changes remain intact. See PRODUCTION.md for run instructions and remaining release prerequisites.
+
+Validation: all 23 backend tests passed, including actual HTTP deep links/HEAD, cache and MIME behavior, API origin rejection, traversal and real symlink escape checks. All three live read-only Monad tests and full eight-source/frontend build passed. A separate loopback production process served the actual compiled app at port 4173; Chromium directly loaded and reloaded /app/markets with no captured browser errors. It retained the real missing-deployment response. Screenshot evidence is ignored under contracts/artifacts/production-market-reload.png. No hosted release or physical-wallet transaction was performed.

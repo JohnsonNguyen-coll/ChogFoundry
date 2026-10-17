@@ -236,3 +236,8 @@ Implement RainbowKit/wagmi/viem providers and selected-connector bridge, replace
 Replace the single-page section stack with a marketing landing and an operational dapp layout. Keep frontend/src/main.jsx as bootstrap; AppRoutes owns declarative React Router routes; layouts/, pages/, components/, hooks/ and lib/ separate navigation, screens, shared UI and cancelable data reads. Existing trade/claim/launch/auth implementations are reused without contract/backend changes.
 
 Routes: /, /app (redirect /app/explore), /app/explore, /app/studios, /app/studios/:id, /app/launch?studio=:id, /app/markets, /app/markets/:address, /app/portfolio, /app/activity, /app/network, /app/launch/inspect. Test direct loads, reloads, back/forward, actual market snapshots across routes, form/request cancellation and mobile navigation/layout. Production hosting must serve index.html for frontend routes while preserving /api routing.
+
+
+## Production host increment - 2026-10-17
+
+Implemented a root npm start entry point serving the compiled frontend and existing API on one origin. Deep-link fallback is limited to the application namespace and excludes APIs/static asset errors; source files and build-root escapes are blocked. Runtime startup validates the public origin/port and preserves explicit missing Supabase/deployment state. See PRODUCTION.md. Next release dependencies remain actual database/deployer configuration, canonical deployment receipt/immutable verification, security review and human wallet end-to-end validation. Club/Agent/Treasury/campaign product work remains unfinished.

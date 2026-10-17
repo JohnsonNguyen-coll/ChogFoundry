@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch src/server.mjs",
     "start": "node --env-file-if-exists=.env src/server.mjs",
-    "test": "node --test tests/validation.test.mjs tests/profiles.test.mjs tests/postgres.test.mjs",
+    "test": "node --test tests/validation.test.mjs tests/profiles.test.mjs tests/postgres.test.mjs tests/frontend-host.test.mjs",
     "test:live": "node --env-file-if-exists=.env --test --test-concurrency=1 tests/live.test.mjs tests/auth-live.test.mjs tests/markets-live.test.mjs",
     "check:chain": "node --env-file-if-exists=.env scripts/check-chain.mjs",
     "check:markets": "node --env-file-if-exists=.env scripts/check-markets.mjs",

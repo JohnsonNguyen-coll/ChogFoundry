@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import Brand from "../components/Brand.jsx";
-import logo from "../../assets/chog-foundry-logo.webp";
+import ChogArtwork from "../components/ChogArtwork.jsx";
 export default function LandingPage() {
   return (
     <div className="landing">
@@ -48,27 +48,28 @@ export default function LandingPage() {
               <span className="chain-divider" /> POWERED BY $CHOG
             </div>
           </div>
-          <div className="hero-art" aria-label="Chog Foundry studio emblem">
-            <div className="orbital orbital-one" />
-            <div className="orbital orbital-two" />
+          <div className="hero-art chog-hero-composition">
             <div className="art-grid" />
             <div className="art-caption">
-              CHOG FOUNDRY
+              THE FOUNDRY AT WORK
               <br />
-              <span>AN IDEA BECOMES A STUDIO.</span>
+              <span>BIG IDEAS START WITH A CHOG.</span>
             </div>
-            <div className="emblem-halo" />
-            <img src={logo} alt="Chog Foundry emblem" className="hero-emblem" />
-            <span className="orbit-label label-top">
-              CREATE SOMETHING NEW ↗
-            </span>
+            <div className="chog-print chog-print-main">
+              <ChogArtwork scene="explore" eager />
+              <span>01 / FIND YOUR NEXT IDEA</span>
+            </div>
+            <div className="chog-print chog-print-spark">
+              <ChogArtwork scene="spark" eager />
+              <span>MAKE SOMETHING HAPPEN.</span>
+            </div>
             <div className="art-plaque">
               <span className="live-dot" />
               <div>
                 One Chog. Endless possibilities.
                 <small>A studio with a story of its own.</small>
               </div>
-              <span>◇</span>
+              <span>↗</span>
             </div>
           </div>
         </section>
@@ -89,21 +90,27 @@ export default function LandingPage() {
           {[
             [
               "01",
+              "identity",
               "Bring your Chog.",
               "Connect your wallet and choose the Chog that will represent your studio.",
             ],
             [
               "02",
+              "create",
               "Shape your next launch.",
               "Prepare a fixed-supply token with a transparent paid first buy and CHOG trading.",
             ],
             [
               "03",
+              "handover",
               "Pass on the studio.",
               "Transfer the Chog to pass studio control and future studio fees. Existing creators and earned credits keep their history.",
             ],
-          ].map(([n, title, text]) => (
+          ].map(([n, scene, title, text]) => (
             <article key={n}>
+              <div className="feature-art">
+                <ChogArtwork scene={scene} />
+              </div>
               <span className="feature-number">{n} /</span>
               <h3>{title}</h3>
               <p>{text}</p>

@@ -3,16 +3,19 @@ import { Link } from "react-router-dom";
 import useApi from "../hooks/useApi.js";
 import { amount } from "../lib/api.mjs";
 import { LoadState, ChainLink, Provenance } from "../components/Onchain.jsx";
+import PageIntro from "../components/PageIntro.jsx";
 import NetworkReadiness from "../NetworkReadiness.jsx";
 export default function NetworkPage() {
   const { data, error, loading } = useApi("/overview");
   return (
     <>
-      <section className="page-intro">
-        <span className="eyebrow">MONAD / LIVE ONCHAIN</span>
-        <h1>The onchain foundation.</h1>
+      <PageIntro
+        scene="network"
+        eyebrow="MONAD / LIVE ONCHAIN"
+        title="The onchain foundation."
+      >
         <p>Actual assets, explicit deployment status and verifiable sources.</p>
-      </section>
+      </PageIntro>
       <LoadState loading={loading} error={error} />
       {data && (
         <>

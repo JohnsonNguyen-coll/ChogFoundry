@@ -16,15 +16,20 @@ import LaunchPage from "./pages/LaunchPage.jsx";
 import MarketsPage from "./pages/MarketsPage.jsx";
 import PortfolioPage from "./pages/PortfolioPage.jsx";
 import NetworkPage from "./pages/NetworkPage.jsx";
+import PageIntro from "./components/PageIntro.jsx";
+import ChogArtwork from "./components/ChogArtwork.jsx";
 import TransactionCenter from "./TransactionCenter.jsx";
 function Activity() {
   return (
     <>
-      <section className="page-intro">
-        <span className="eyebrow">YOUR WALLET / ACTIVITY</span>
-        <h1>Every step, accounted for.</h1>
+      <PageIntro
+        scene="activity"
+        eyebrow="YOUR WALLET / ACTIVITY"
+        title="Every step, accounted for."
+        compact
+      >
         <p>Track the transactions submitted from this browser tab.</p>
-      </section>
+      </PageIntro>
       <TransactionCenter />
       <p className="note">
         Pending transactions remain in this tab when you change pages. Wallet
@@ -39,7 +44,10 @@ function StudioRoute() {
 }
 function Missing() {
   return (
-    <section className="empty">
+    <section className="empty missing-page">
+      <div className="missing-illustration">
+        <ChogArtwork scene="lost" eager />
+      </div>
       <h1>Page not found.</h1>
       <Link className="primary" to="/app/explore">
         Back to the Foundry ↗

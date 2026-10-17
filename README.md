@@ -17,6 +17,10 @@ Open http://127.0.0.1:5173. The API listens on loopback port 3001. On Windows, s
 
 Supabase PostgreSQL is now the primary database. Follow docs/SUPABASE_SETUP.md before using profile/indexed-data endpoints. Copy backend/.env.example to backend/.env. APP_ORIGIN must exactly match the browser origin used for sign-in and profile writes. The default is http://127.0.0.1:5173.
 
+## Production build
+
+Run `npm run build`, configure the exact public `APP_ORIGIN`, then run `npm start` at the repository root. This serves `frontend/dist` and `/api` on one origin with deep-link reload support. See [production hosting](docs/PRODUCTION.md) for environment, HTTPS, single-process and SSE proxy requirements. This command does not deploy contracts or enable transactions.
+
 ## Workspaces
 
 | Folder | Implementation |
@@ -29,7 +33,7 @@ Supabase PostgreSQL is now the primary database. Follow docs/SUPABASE_SETUP.md b
 ## Use your studio
 
 1. Connect an EVM wallet on Monad Mainnet.
-2. Enter your Chog Genesis onchain token ID. Display names may use a different number.
+2. Open My studios and select a Chog returned by the live connected-wallet ownership lookup.
 3. Sign in with a wallet message. This does not authorize a transaction.
 4. Verify edit access, then save the studio name, description, HTTPS website and cover image URL.
 

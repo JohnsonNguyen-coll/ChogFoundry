@@ -1,3 +1,4 @@
+import { createFrontendHost } from './frontend-host.mjs';
 import { transactionHash } from './launch-receipt.mjs';
 import { launchInput } from './launch-data.mjs';
 import { actionWallet } from './fee-actions.mjs';
@@ -32,7 +33,8 @@ async function body(req) {
     return value;
   } catch { throw new AppError(400, 'INVALID_JSON', 'Invalid JSON object.'); }
 }
-export function createApi({ databasePath, marketDatabasePath, origin } = {}) {
+export function createApi({ databasePath, marketDatabasePath, origin, frontendDirectory } = {}) {
+  const frontend = frontendDirectory ? createFrontendHost(frontendDirectory) : null;
   const reader = new ChainReader();
   // Explicit local database paths remain for legacy storage tests/import; runtime uses Supabase.
   const database=databasePath===undefined?new PostgresDatabase():null;
@@ -45,6 +47,7 @@ export function createApi({ databasePath, marketDatabasePath, origin } = {}) {
   indexer?.start();
   const key = id => `${chain.id}:${chain.collection.toLowerCase()}:${id}`;
   const server = http.createServer(async (req, res) => {
+    if (frontend && await frontend(req, res)) return;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff');
     const send = (status, data) => { res.writeHead(status); res.end(JSON.stringify(data)); };

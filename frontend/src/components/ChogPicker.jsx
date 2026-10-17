@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import ChogArtwork from "./ChogArtwork.jsx";
 import useWalletAssets from "../hooks/useWalletAssets.js";
 import { LoadState, Provenance } from "./Onchain.jsx";
 export default function ChogPicker({ launch = false }) {
@@ -21,12 +22,19 @@ export default function ChogPicker({ launch = false }) {
         .
       </p>
       {!wallet ? (
-        <div className="empty">
-          <div className="empty-orbit">◇</div>
-          <h3>Bring your Chog.</h3>
-          <p>Connect the wallet holding your Chog to see your studios.</p>
-          <div className="connect-prompt">
-            <ConnectButton />
+        <div className="empty illustrated-empty">
+          <div className="empty-illustration">
+            <ChogArtwork scene={launch ? "guide" : "studios"} eager />
+          </div>
+          <div className="empty-copy">
+            <span className="eyebrow">
+              {launch ? "YOUR NEXT CHAPTER" : "A HOME FOR YOUR IDEAS"}
+            </span>
+            <h3>Bring your Chog.</h3>
+            <p>Connect the wallet holding your Chog to see your studios.</p>
+            <div className="connect-prompt">
+              <ConnectButton />
+            </div>
           </div>
         </div>
       ) : (
