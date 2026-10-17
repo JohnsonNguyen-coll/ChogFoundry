@@ -197,3 +197,10 @@ Approved-economics integration source block 113868003: current compiled six-step
 ## RainbowKit integration references — 2026-10-16
 
 Official installation https://rainbowkit.com/en-US/docs/installation (provider nesting, wagmi/viem/TanStack peers and WalletConnect Project ID); wallet list https://rainbowkit.com/en-US/docs/custom-wallet-list; official injectedWallet/connectorsForWallets source https://github.com/rainbow-me/rainbowkit/tree/main/packages/rainbowkit/src/wallets. Installed npm peer metadata requires wagmi ^2.9.0, so integration intentionally pins compatible wagmi2 instead of unrelated latest v3 APIs. Missing-ID browser-only setup supplies no dummy cloud ID; injectedWallet does not use a WalletConnect service.
+
+
+## Chogathon visual reference and routing — 2026-10-17
+
+User supplied https://chogathon.chog.xyz/dashboard as the visual reference. Read-only browser screenshot and rendered DOM computed styles observed --bg #0e0b1a, --card/#surface #161228, --p/#accent #836ef9 and --tx #f4f1fe. Only presentation colors were used; account/submission/entrant/countdown data were not copied into Foundry. Generic Monad landing reference https://monad.xyz/ was also read.
+
+React Router official declarative routing reference: https://reactrouter.com/start/declarative/routing (nested layout/Outlet, dynamic segments, Link/NavLink and index redirects). Installed compatible v7 package is locked by npm. No routing or navigation grants NFT ownership, wallet authentication or transaction authority.

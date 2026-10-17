@@ -24,6 +24,20 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false,
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     trace('opening live test frontend');
     await page.goto(`http://127.0.0.1:${vite.httpServer.address().port}`, { waitUntil: 'networkidle' });
+    assert.equal(await page.locator('.landing-hero h1').count(),1);
+    assert.equal(await page.locator('#market-token').count(),0,'Landing is separate from the dapp');
+    await page.screenshot({path:fileURLToPath(new URL('../../artifacts/landing-desktop.png',import.meta.url)),fullPage:true});
+    await page.screenshot({path:fileURLToPath(new URL('../../artifacts/landing-hero-desktop.png',import.meta.url))});
+    await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await page.screenshot({path:fileURLToPath(new URL('../../artifacts/landing-mobile.png',import.meta.url)),fullPage:true});
+    await page.setViewportSize({width:1440,height:1000});
+    await page.getByRole('link',{name:'Launch App',exact:false}).first().click();await page.waitForURL('**/app/explore');
+    await page.getByRole('navigation',{name:'Dapp navigation'}).getByRole('link',{name:'My studios',exact:false}).click();
+    await page.getByRole('heading',{name:'Bring your Chog.',exact:true}).waitFor();
+    await page.screenshot({path:fileURLToPath(new URL('../../artifacts/dapp-studios-desktop.png',import.meta.url))});
+    await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.screenshot({path:fileURLToPath(new URL('../../artifacts/dapp-studios-mobile.png',import.meta.url))});await page.setViewportSize({width:1440,height:1000});
+    assert.equal(await page.locator('#token-id').count(),0,'No NFT ID search in the main studio flow');
+    await page.getByRole('navigation',{name:'Dapp navigation'}).getByRole('link',{name:'Markets',exact:false}).click();
     await page.getByRole('button',{name:/connect wallet/i}).first().click();
     const walletDialog=page.getByRole('dialog');await walletDialog.waitFor();
     assert.ok(await walletDialog.getByText('Connect a Wallet',{exact:true}).count()>0);
@@ -34,12 +48,15 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false,
     await page.getByRole('button', { name: 'Open market' }).click();
     trace('waiting for canonical stream');
     await page.getByText('stream connected', { exact: false }).waitFor();
-    await page.getByLabel('Public wallet address',{exact:true}).fill(wallet);
-    await page.getByRole('button',{name:'Inspect portfolio',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('#portfolio')?.dataset.portfolioCursor);
-    assert.ok(await page.locator(`[data-portfolio-token="${token}"]`).count()>0);
-    await page.locator(`[data-portfolio-token="${token}"]`).getByRole('button',{name:'View market',exact:true}).click();
-    assert.equal(await page.locator('#market-token').inputValue(),token);
+    await page.reload({waitUntil:'networkidle'});await page.getByText('stream connected',{exact:false}).waitFor();assert.equal(await page.locator('#market-token').inputValue(),token,'Direct market URL survives reload');
+    const base=`http://127.0.0.1:${vite.httpServer.address().port}`;
+    await page.waitForURL(`**/app/markets/${token}`);
+    const portfolioPage=await browser.newPage({viewport:{width:1440,height:1000}});portfolioPage.on('pageerror',e=>errors.push(e.message));
+    await portfolioPage.goto(base+'/app/portfolio',{waitUntil:'networkidle'});
+    async function inspectPortfolio(){await portfolioPage.getByLabel('Public wallet address',{exact:true}).fill(wallet);await portfolioPage.getByRole('button',{name:'Inspect portfolio',exact:true}).click();await portfolioPage.waitForFunction(()=>document.querySelector('#portfolio')?.dataset.portfolioCursor);}
+    await inspectPortfolio();assert.ok(await portfolioPage.locator(`[data-portfolio-token="${token}"]`).count()>0);
+    await portfolioPage.locator(`[data-portfolio-token="${token}"]`).getByRole('button',{name:'View market',exact:true}).click();await portfolioPage.waitForURL(`**/app/markets/${token}`);
+    await portfolioPage.goBack();await inspectPortfolio();
     await page.getByRole('textbox',{name:'Wallet address to inspect'}).fill(wallet);
     await page.getByRole('button',{name:'Inspect wallet'}).click();
     trace('waiting for actual wallet state');
@@ -67,25 +84,27 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false,
       await page.getByText('Claim status',{exact:true}).waitFor();
       assert.equal(await page.getByText(wallet,{exact:true}).count()>0,true);
     }
+    let launchPage;
+    if(launch||launchReceiptHash){launchPage=await browser.newPage({viewport:{width:1440,height:1000}});launchPage.on('pageerror',e=>errors.push(e.message));await launchPage.goto(base+'/app/launch/inspect',{waitUntil:'networkidle'});}
     if(launch){
-      await page.getByRole('textbox',{name:'Launch NFT token ID',exact:true}).fill('1557');
-      await page.getByRole('textbox',{name:'Launch creator wallet',exact:true}).fill(wallet);
-      await page.getByRole('textbox',{name:'Launch token name',exact:true}).fill('Actual launch review');
-      await page.getByRole('textbox',{name:'Launch token symbol',exact:true}).fill('REVIEW');
-      await page.getByRole('textbox',{name:'Launch deadline minutes',exact:true}).fill('10');
-      await page.getByRole('button',{name:'Inspect launch',exact:true}).click();
-      await page.getByText('Launch status',{exact:true}).waitFor();
-      assert.equal(await page.locator('.launch-review').count(),1);
-      await page.getByRole('textbox',{name:'Launch token symbol',exact:true}).fill('NEXT');
-      assert.equal(await page.locator('.launch-review').count(),0,'Metadata changes discard launch inspection');
-      await page.getByRole('button',{name:'Inspect launch',exact:true}).click();
-      await page.getByText('Launch status',{exact:true}).waitFor();
+      await launchPage.getByRole('textbox',{name:'Launch NFT token ID',exact:true}).fill('1557');
+      await launchPage.getByRole('textbox',{name:'Launch creator wallet',exact:true}).fill(wallet);
+      await launchPage.getByRole('textbox',{name:'Launch token name',exact:true}).fill('Actual launch review');
+      await launchPage.getByRole('textbox',{name:'Launch token symbol',exact:true}).fill('REVIEW');
+      await launchPage.getByRole('textbox',{name:'Launch deadline minutes',exact:true}).fill('10');
+      await launchPage.getByRole('button',{name:'Inspect launch',exact:true}).click();
+      await launchPage.getByText('Launch status',{exact:true}).waitFor();
+      assert.equal(await launchPage.locator('.launch-review').count(),1);
+      await launchPage.getByRole('textbox',{name:'Launch token symbol',exact:true}).fill('NEXT');
+      assert.equal(await launchPage.locator('.launch-review').count(),0,'Metadata changes discard launch inspection');
+      await launchPage.getByRole('button',{name:'Inspect launch',exact:true}).click();
+      await launchPage.getByText('Launch status',{exact:true}).waitFor();
     }
     if(launchReceiptHash){
-      await page.getByLabel('Launch transaction hash',{exact:true}).fill(launchReceiptHash);
-      await page.getByRole('button',{name:'Verify launch receipt',exact:true}).click();
-      await page.getByText('verified-launch',{exact:true}).waitFor();
-      assert.equal(await page.locator('.receipt-review').count(),1);
+      await launchPage.getByLabel('Launch transaction hash',{exact:true}).fill(launchReceiptHash);
+      await launchPage.getByRole('button',{name:'Verify launch receipt',exact:true}).click();
+      await launchPage.getByText('verified-launch',{exact:true}).waitFor();
+      assert.equal(await launchPage.locator('.receipt-review').count(),1);
     }
     return {
       async check(snapshot, label) {
@@ -104,8 +123,8 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false,
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
         await page.locator('#markets').screenshot({ path: fileURLToPath(new URL(`../../artifacts/market-ui-${label}-mobile.png`, import.meta.url)) });
         await page.setViewportSize({ width: 1440, height: 1000 });
-        await page.getByRole('button',{name:'Refresh portfolio',exact:true}).click();
-        await page.waitForFunction(cursor=>document.querySelector('#portfolio')?.dataset.portfolioCursor===cursor,snapshot.cursor);
+        await portfolioPage.getByRole('button',{name:'Refresh portfolio',exact:true}).click();
+        await portfolioPage.waitForFunction(cursor=>document.querySelector('#portfolio')?.dataset.portfolioCursor===cursor,snapshot.cursor);
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
         assert.deepEqual(errors, []);trace(`checked ${label}`);
       },

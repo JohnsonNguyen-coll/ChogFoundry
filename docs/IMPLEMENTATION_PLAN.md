@@ -229,3 +229,10 @@ D21 approves the economics in contracts/mainnet-config.mjs. Next: prove this exa
 ## RainbowKit integration — 2026-10-16
 
 Implement RainbowKit/wagmi/viem providers and selected-connector bridge, replace global injected-wallet access in all signing/receipt/profile paths, cancel stale balance/provider reads and expose connection/account/network controls. Configure the user's WalletConnect/Reown Project ID in frontend/.env for mobile QR connections. Missing ID omits this connector explicitly while browser-wallet discovery works. Verify actual modal rendering and the existing real-state market browser suite without injected fake wallets; physical extension/mobile wallet signing remains a separate real-wallet check after configuration.
+
+
+## Routed product shell — 2026-10-17
+
+Replace the single-page section stack with a marketing landing and an operational dapp layout. Keep frontend/src/main.jsx as bootstrap; AppRoutes owns declarative React Router routes; layouts/, pages/, components/, hooks/ and lib/ separate navigation, screens, shared UI and cancelable data reads. Existing trade/claim/launch/auth implementations are reused without contract/backend changes.
+
+Routes: /, /app (redirect /app/explore), /app/explore, /app/studios, /app/studios/:id, /app/launch?studio=:id, /app/markets, /app/markets/:address, /app/portfolio, /app/activity, /app/network, /app/launch/inspect. Test direct loads, reloads, back/forward, actual market snapshots across routes, form/request cancellation and mobile navigation/layout. Production hosting must serve index.html for frontend routes while preserving /api routing.

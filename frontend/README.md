@@ -59,3 +59,15 @@ Mainnet wallet flow (2026-10-16): launch funding approval, launch, curve/v4 exac
 Wallet connection now uses RainbowKit + wagmi2 + viem. The selected connector provider powers profile personal_sign and all wallet transaction/receipt paths; the application never falls back to window.ethereum. Only Monad Mainnet143 is configured. A wrong network/disconnect/connector/account change clears usable wallet/provider and stale balances, while the transaction journal remains public historical evidence. Backend ownership/Transfer/session checks are unchanged.
 
 Copy frontend/.env.example to frontend/.env (the ignored file has been prepared if absent). Fill VITE_WALLETCONNECT_PROJECT_ID with your own public Project ID from the WalletConnect/Reown dashboard to enable mobile QR sessions. Do not enter Supabase secrets or wallet keys in any VITE_ field. Without an ID, browser wallets remain usable and WalletConnect is omitted with an explicit notice. Restart the dev server after changing frontend environment values.
+
+
+
+## Landing and dapp routes
+
+The landing page lives at /. Launch App opens /app/explore. Dapp tabs have distinct browser URLs: /app/studios, /app/launch, /app/markets, /app/portfolio, /app/activity and /app/network. Studio details use /app/studios/:id; market details use /app/markets/:address; launch selection uses /app/launch?studio=:id. Deep links and browser back/forward are handled by React Router.
+
+Source is split into AppRoutes.jsx, layouts/, pages/, components/, hooks/ and lib/. Existing financial/auth components are retained. Primary NFT discovery comes from the actual connected-wallet Chog list. The old ID lookup is not a landing or My Studios task; public launch/receipt inspection is available only at /app/launch/inspect through Network → Advanced inspection.
+
+Chogathon-inspired palette: #0e0b1a background, #161228 cards, #836ef9 primary, #f4f1fe text. No template competition counts or fabricated launches are used. CSS orbital art is decorative; token/NFT/market data always comes from actual APIs.
+
+Production SPA hosting must rewrite non-file frontend routes to /index.html, without rewriting /api requests. Vite development/preview already supplies SPA history fallback. Environment values and deployment remain unchanged.

@@ -232,3 +232,23 @@ Validation: 17 backend tests and three live read-only RPC tests passed; contract
 Dependency review: added compatible ws8 override at8.22.0 and refreshed the lockfile, removing the high ws advisory including nested WalletConnect consumers. npm audit then reports 22 moderate issues rooted in legacy transitive uuid/decode-uri-component dependency paths. A forced wagmi3 upgrade is incompatible with current RainbowKit's declared wagmi2 peer range and was not performed. Initial wallet bundle emits a size warning; performance/dependency upgrades remain follow-up work, not a security-audit claim.
 
 Final frozen-source Chromium/fork rerun after the obsolete-provider lifecycle guard passed at source block 113871012; frontend production rebuild also passed. No extension/mobile wallet was fabricated to exercise signing.
+
+
+## Landing, Chogathon palette and routed dapp — 2026-10-17
+
+Replaced the single long landing/inspection page with a dedicated marketing landing and a functional dapp shell. Launch App enters /app/explore; seven navigation tabs have browser URLs for explore, owned studios, launch, markets, portfolio, transactions and network. Individual studios and tokens have deep links, and the launch studio selection is in the query string. Unknown routes render a recovery page. Existing financial/auth/data components remain in use; no contract/backend behavior or economics changed.
+
+main.jsx is now bootstrap only. AppRoutes.jsx, layouts/, pages/, components/, hooks/ and lib/ separate route ownership, reusable UI, current-wallet asset loading and canceled API requests. Source is formatted for maintenance. Studio identity changes remount the profile view; transfer reads abort on navigation. Market streams and portfolio polling stop on route unmount, and transaction journal evidence persists across routes. Deep-link market changes hide the prior token snapshot while the new source loads.
+
+Read-only inspection of the user's Chogathon dashboard reference supplied exact background #0e0b1a/card #161228/primary #836ef9/text #f4f1fe colors. No contest counters, projects, account data, deadlines or third-party assets were copied as Foundry application data. Landing orbital artwork is CSS decoration around the existing Foundry logo. The theme applies to marketing, forms, chart colors, dapp navigation and RainbowKit. Reduced motion and responsive horizontal navigation are supported.
+
+Primary My Studios/Launch uses actual NFTs returned for the connected wallet; users no longer need to type an NFT ID. Public launch/receipt inspection remains only under Network advanced tools at /app/launch/inspect and grants no authority. A supplied studio query parameter does not bypass current onchain owner checks or wallet confirmation.
+
+Passed 17 backend tests, full contracts/frontend build and actual curve/factory browser fork suite. Final routing/browser source block 114194102 checks landing→app, main-flow ID lookup removal, real RainbowKit dialog, desktop/mobile overflow, direct market URL reload, portfolio→token URL navigation/back, public launch/receipt inspection on a separate route, actual trades/holders/candles and canonical reorg replacement across independently routed pages. First routing pass at block114193612 also passed. Post-test formatting/centered wallet CTA were visually verified in the actual local app and rebuilt. Screenshots are ignored evidence under contracts/artifacts, not application data. Local dev server is running at127.0.0.1:5173 with API3001; no Mainnet transactions, fake providers or hosted deployment were used.
+
+Hosting remains to be configured with frontend history fallback excluding /api. Existing missing runtime deployment/database/WalletConnect configuration still appears explicitly on the relevant screens; this UI reorganization does not claim those external services were provisioned.
+
+
+## Top navigation refinement — 2026-10-17
+
+User requested navbar navigation instead of a sidebar and removal of navigation icons. DappLayout now places the brand, text-only route links and wallet controls in the top header; smaller screens place the horizontally scrollable links on the next header row. Removed sidebar layout/styles and switched the wallet chain indicator to its name. Routes, wallet/auth behavior and original logo colors are unchanged. Frontend production build passed; the running local app was visually verified with active-tab indication.

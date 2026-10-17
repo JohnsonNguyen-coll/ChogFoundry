@@ -67,3 +67,8 @@
 
 
 - User selected RainbowKit (D22), integrated with wagmi2/viem/TanStack. Use useSelectedWallet from WalletProvider for the selected connector's guarded EIP-1193 provider; no application window.ethereum fallback. Sign-in and transaction/receipt paths must use this same selected provider. Connection is not a backend auth session or NFT authority. Keep chain143/account/connector checks, stale-request cancellation and full Transfer-based backend authorization. VITE_WALLETCONNECT_PROJECT_ID is public frontend configuration; no fake/sample ID. Missing ID means browser-wallet discovery only, explicitly labelled; never expose backend credentials in VITE_ variables.
+
+
+- D23: separate landing / and routed dapp /app; navigation uses React Router URLs, not page-section hashes. AppRoutes/layouts/pages/components/hooks/lib now own shell/screens/shared UI/requests. Chogathon dashboard palette is #0e0b1a/#161228/#836ef9/#f4f1fe. Primary studio/launch flow selects actual connected-wallet Chogs; do not restore NFT ID search to landing/My Studios. Public read-only launch inspection remains under /app/launch/inspect, reached via Network advanced tools. Keep deep-link/back/forward/mobile behavior, canonical SSE cleanup on route changes and persistent transaction journal. SPA host needs index.html fallback excluding /api.
+
+- Latest UI preference: dapp navigation belongs in the top navbar, with text-only links and no sidebar or navigation icons. Keep the original logo colors and the Chogathon palette.

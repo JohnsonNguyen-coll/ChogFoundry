@@ -208,3 +208,10 @@ The user subsequently selected the deployer wallet itself as platform treasury; 
 User selected RainbowKit. Implementation uses RainbowKit2.2.11, wagmi2.19.5 (compatible with RainbowKit's v2 peer range), viem2.57.7 and TanStack Query5.104.3. The app uses the selected connector's actual EIP-1193 provider for sign-in, approval/launch/trade/claim and transaction inspection. There is no application window.ethereum fallback. Browser wallet discovery remains available without a WalletConnect Project ID; mobile WalletConnect is included only when the user's public VITE_WALLETCONNECT_PROJECT_ID is configured. No sample ID or embedded wallet is introduced.
 
 Connection is separate from backend authentication/owner authority. Account, connector, disconnect and network changes invalidate selected provider use and stale reads. Fresh simulation, explicit human wallet confirmation, fixed Mainnet scope and backend Transfer scans remain unchanged.
+
+
+## D23: Landing/dapp routes and Chogathon palette — 2026-10-17
+
+User requested a separate landing page, a Launch App entry into a tabbed dapp with distinct URLs, componentized source and a Monad/Chogathon color direction. Reference clarified as https://chogathon.chog.xyz/dashboard (the earlier word was Vietnamese “mấy”, not a Mayas brand). Read-only visual/DOM inspection found background #0e0b1a, card #161228, primary #836ef9 and foreground #f4f1fe. These are presentation references, not imported competition data or implied affiliation.
+
+Landing / is separate from /app. Functional routes cover explore, owned studios, individual studio IDs, launch, market addresses, portfolio, transactions and network status. Primary studio/launch discovery uses the connected wallet's actual Chog token list instead of an ID search. Public ID/wallet launch inspection is retained only under Network → Advanced inspection, separately labelled and without signing authority. Existing onchain owner/auth checks, real data and execution readiness are unchanged.
