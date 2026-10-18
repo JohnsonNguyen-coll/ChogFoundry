@@ -85,7 +85,7 @@ export default function TreasuryPage() {
             )}
           </section>
           <section>
-            <h2>Chog custody</h2>
+            <h2>Studio NFT custody</h2>
             <p className="note">
               Literal onchain holdings, not a statement that every NFT was
               purchased using platform fees.
@@ -93,12 +93,12 @@ export default function TreasuryPage() {
             <div className="inventory-list">
               {data.inventory.map((id) => (
                 <span className="inventory-item" key={id}>
-                  Chog Genesis #{id}
+                  NFT #{id}
                 </span>
               ))}
             </div>
             {!data.inventory.length && (
-              <p>No Chog NFTs held at the snapshot.</p>
+              <p>No studio collection NFTs held at the snapshot.</p>
             )}
           </section>
           <section>
@@ -120,7 +120,7 @@ export default function TreasuryPage() {
                 </p>
                 {r.nfts?.map((n) => (
                   <p key={n.tokenId}>
-                    Chog #{n.tokenId}: {n.from} to {n.to}
+                    NFT #{n.tokenId}: {n.from} to {n.to}
                   </p>
                 ))}
               </article>

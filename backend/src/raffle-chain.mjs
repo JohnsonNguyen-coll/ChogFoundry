@@ -22,6 +22,8 @@ const abi = [
 const iface = new Interface(abi),
   same = (a, b) => a.toLowerCase() === b.toLowerCase();
 export function raffleAddress() {
+  if (!chain.raffleEscrowSupported)
+    throw new AppError(503, 'COLLECTION_ESCROW_UNSUPPORTED', 'The Daks transfer validator rejected the raffle escrow path. Raffles remain unavailable for this collection; no transfer-policy bypass is provided.');
   if (!process.env.FOUNDRY_RAFFLE_ADDRESS)
     throw new AppError(
       503,

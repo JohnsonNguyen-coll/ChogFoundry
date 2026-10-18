@@ -42,8 +42,8 @@ export class StudioStore {
       this.db.exec('COMMIT'); return this.get(key);
     } catch (error) { this.db.exec('ROLLBACK'); throw error; }
   }
-  list() {
-    return this.db.prepare('SELECT studio_key FROM studio_profiles ORDER BY updated_at DESC LIMIT 50').all().map(row => this.get(row.studio_key));
+  list(prefix = '') {
+    return this.db.prepare('SELECT studio_key FROM studio_profiles WHERE substr(studio_key,1,length(?))=? ORDER BY updated_at DESC LIMIT 50').all(prefix, prefix).map(row => this.get(row.studio_key));
   }
   history(key) {
     return this.db.prepare('SELECT revision,author,saved_at,proof_json FROM studio_revisions WHERE studio_key=? ORDER BY revision DESC LIMIT 100').all(key).map(row => ({ revision: row.revision, author: row.author, savedAt: row.saved_at, ownershipEvidence: JSON.parse(row.proof_json) }));

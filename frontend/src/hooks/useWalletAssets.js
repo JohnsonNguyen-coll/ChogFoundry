@@ -22,7 +22,7 @@ export default function useWalletAssets() {
             accounts[0]?.toLowerCase() !== wallet.toLowerCase() ||
             BigInt(chain) !== 143n
           )
-            throw new Error("Wallet changed while reading your Chogs.");
+            throw new Error("Wallet changed while reading your studio NFTs.");
           if (!controller.signal.aborted)
             setState({ wallet, provider, data, error: "", loading: false });
         })

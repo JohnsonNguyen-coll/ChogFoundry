@@ -19,6 +19,8 @@ export async function prepareRaffleDeployment(
   deployer,
   { localFork = false } = {},
 ) {
+  if (!localFork && !chain.raffleEscrowSupported)
+    throw new Error('The selected collection rejects the current raffle escrow path. No Mainnet raffle deployment plan is available.');
   deployer = getAddress(deployer);
   if (deployer === ZeroAddress)
     throw new Error("A public deployer is required.");

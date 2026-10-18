@@ -98,9 +98,10 @@ export function communityApi({
         agent: agentConfiguration(),
         xConfigured: x.configured(),
         targetX: "https://x.com/ChogNFT",
-        raffleConfigured: !!process.env.FOUNDRY_RAFFLE_ADDRESS,
+        raffleConfigured: chain.raffleEscrowSupported && !!process.env.FOUNDRY_RAFFLE_ADDRESS,
+        raffleEscrowSupported: chain.raffleEscrowSupported,
         campaignsEnabled:
-          process.env.FOUNDRY_CAMPAIGNS_ENABLED === "true" &&
+          chain.raffleEscrowSupported && process.env.FOUNDRY_CAMPAIGNS_ENABLED === "true" &&
           !!database?.configured,
         admin:
           !!session &&
@@ -113,7 +114,8 @@ export function communityApi({
     requireDb();
     if (route === "/api/clubs" && get) {
       const result = await database.query(
-        "SELECT token_id,profile_json,created_by FROM foundry.studio_profiles ORDER BY updated_at DESC LIMIT 50",
+        "SELECT token_id,profile_json,created_by FROM foundry.studio_profiles WHERE left(studio_key,length($1))=$1 ORDER BY updated_at DESC LIMIT 50",
+        [`${chain.id}:${chain.collection.toLowerCase()}:`],
       );
       return finish({
         studios: result.rows.map((r) => ({

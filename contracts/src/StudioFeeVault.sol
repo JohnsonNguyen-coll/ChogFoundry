@@ -80,7 +80,11 @@ contract StudioFeeVault is ReentrancyGuard {
 
         // Resolve after external funding, immediately before accrual. Claim never reads ownerOf.
         address owner = collection.ownerOf(launch.nftId);
-        if (owner == address(0) || owner == address(this)) revert InvalidBeneficiary();
+        if (owner == address(0)) revert InvalidBeneficiary();
+        // transferFrom can place the NFT in this vault without a receiver callback.
+        // Preserve literal-owner credit and trading availability even in that case.
+        // Self-owned credits remain funded liabilities, never donations or claimable
+        // treasury revenue. _claim deliberately forbids self-payment; no rescue exists.
         credits[launch.creator].creator += creatorFee;
         credits[owner].studio += studioFee;
         credits[treasury].platform += platformFee;

@@ -46,14 +46,14 @@ export default function StudioPage() {
         <>
           <section className="page-intro">
             <span className="eyebrow">
-              CHOG GENESIS / STUDIO #{studio.nft.tokenId}
+              {studio.nft.collectionName} / STUDIO #{studio.nft.tokenId}
             </span>
             <h1>
-              {studio.profile?.name || `Chog Studio #${studio.nft.tokenId}`}
+              {studio.profile?.name || `${studio.nft.collectionName} Studio #${studio.nft.tokenId}`}
             </h1>
             <p>
               {studio.profile?.description ||
-                "A new chapter starts with your Chog."}
+                "A new chapter starts with your studio NFT."}
             </p>
             <Link
               className="primary"
@@ -81,7 +81,7 @@ export default function StudioPage() {
                 <ChainLink address={studio.nft.collection} />
               </dd>
               <dt>Studio identity</dt>
-              <dd>Monad · Chog Genesis #{studio.nft.tokenId}</dd>
+              <dd>Monad · {studio.nft.collectionName} #{studio.nft.tokenId}</dd>
             </dl>
             {studio.nft.ownerHasCode && (
               <p className="note">

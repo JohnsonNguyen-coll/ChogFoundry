@@ -23,6 +23,11 @@ test('PostgreSQL engine executes migration and preserves revision atomicity; not
     assert.equal((await store.get('storage-only')).revision,2);
     assert.equal((await store.history('storage-only')).length,2);
     assert.equal((await store.list()).length,1);
+    // Same token ID in different collection namespaces must not leak across directories.
+    await store.save('143:collection-a:1557','1557',input,'storage author',null);
+    await store.save('143:collection-b:1557','1557',input,'storage author',null);
+    assert.deepEqual((await store.list('143:collection-a:')).map(p=>p.key),['143:collection-a:1557']);
+    assert.deepEqual(await store.list('143:missing:'),[]);
     await engine.exec('SET ROLE anon');
     try{await assert.rejects(engine.query('SELECT * FROM foundry.studio_profiles'));}finally{await engine.exec('RESET ROLE');}
     await engine.exec('SET ROLE authenticated');

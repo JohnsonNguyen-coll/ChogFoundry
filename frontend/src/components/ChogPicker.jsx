@@ -10,12 +10,12 @@ export default function ChogPicker({ launch = false }) {
     <section className="chog-picker">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">YOUR CHOG / YOUR STUDIO</span>
+          <span className="eyebrow">YOUR NFT / YOUR STUDIO</span>
           <h2>{launch ? "Choose your launch studio." : "Your studios."}</h2>
         </div>
       </div>
       <p className="note">
-        Each Chog in your wallet opens its own studio. Select yours to{" "}
+        Each NFT from the active collection opens its own studio. Select yours to{" "}
         {launch
           ? "prepare a token launch"
           : "manage its profile and next launch"}
@@ -30,8 +30,8 @@ export default function ChogPicker({ launch = false }) {
             <span className="eyebrow">
               {launch ? "YOUR NEXT CHAPTER" : "A HOME FOR YOUR IDEAS"}
             </span>
-            <h3>Bring your Chog.</h3>
-            <p>Connect the wallet holding your Chog to see your studios.</p>
+            <h3>Bring your studio NFT.</h3>
+            <p>Connect the wallet holding an NFT from the active collection to see your studios.</p>
             <div className="connect-prompt">
               <ConnectButton />
             </div>
@@ -52,7 +52,7 @@ export default function ChogPicker({ launch = false }) {
                     key={id}
                   >
                     <span className="studio-glyph">◇</span>
-                    <span className="caption">CHOG GENESIS</span>
+                    <span className="caption">{data.nfts.collectionName}</span>
                     <h3>Studio #{id}</h3>
                     <span className="text-link">
                       {launch ? "Prepare launch" : "Open studio"} ↗
@@ -62,7 +62,7 @@ export default function ChogPicker({ launch = false }) {
               </div>
             ) : (
               <div className="empty">
-                <h3>No Chog in this wallet.</h3>
+                <h3>No {data.nfts.collectionName} NFT in this wallet.</h3>
                 <p>You can still explore studios and trade Foundry tokens.</p>
                 <Link className="secondary" to="/app/markets">
                   Explore markets ↗

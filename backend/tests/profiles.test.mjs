@@ -24,6 +24,9 @@ test('real SQLite transactions preserve attribution and reject stale revisions',
     assert.throws(() => store.save('storage-test', '0', input, 'third author', null), /changed/);
     assert.equal(store.get('storage-test').revision, 2);
     assert.equal(store.list().length, 1);
+    store.save('143:collection-a:1557', '1557', input, 'storage author', null);
+    store.save('143:collection-b:1557', '1557', input, 'storage author', null);
+    assert.deepEqual(store.list('143:collection-a:').map(p => p.key), ['143:collection-a:1557']);
   } finally { store.close(); }
 });
 

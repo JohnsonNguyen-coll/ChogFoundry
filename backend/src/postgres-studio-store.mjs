@@ -7,7 +7,7 @@ export function profileRow(row) {
 export class PostgresStudioStore {
   constructor(database){this.database=database;}
   async get(key){return profileRow((await this.database.query('SELECT * FROM foundry.studio_profiles WHERE studio_key=$1',[key])).rows[0]);}
-  async list(){return (await this.database.query('SELECT * FROM foundry.studio_profiles ORDER BY updated_at DESC,studio_key LIMIT 50')).rows.map(profileRow);}
+  async list(prefix=''){return (await this.database.query('SELECT * FROM foundry.studio_profiles WHERE left(studio_key,length($1))=$1 ORDER BY updated_at DESC,studio_key LIMIT 50',[prefix])).rows.map(profileRow);}
   async history(key){return (await this.database.query('SELECT revision,author,saved_at,proof_json FROM foundry.studio_revisions WHERE studio_key=$1 ORDER BY revision DESC LIMIT 100',[key])).rows.map(r=>({revision:Number(r.revision),author:r.author,savedAt:r.saved_at,ownershipEvidence:r.proof_json}));}
   async save(key,tokenId,input,author,evidence) {
     const {expectedRevision,...profile}=input;

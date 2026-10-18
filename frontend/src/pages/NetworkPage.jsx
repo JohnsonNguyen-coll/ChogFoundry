@@ -30,7 +30,7 @@ export default function NetworkPage() {
               <h3>{amount(data.quote.totalSupply)}</h3>
             </article>
             <article>
-              <span className="caption">CHOG GENESIS SUPPLY</span>
+              <span className="caption">{data.collection.name} SUPPLY</span>
               <h3>{amount(data.collection.totalSupply)}</h3>
               <ChainLink address={data.collection.address} />
             </article>

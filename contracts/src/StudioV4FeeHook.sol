@@ -124,7 +124,11 @@ contract StudioV4FeeHook {
 
 /// @notice Deterministic deployment utility; mining the hook permission bits does not alter code.
 contract StudioHookDeployer {
+    address public immutable deployer = msg.sender;
+    error Unauthorized();
+
     function deploy(bytes32 salt, bytes calldata creationCode) external returns (address deployed) {
+        if (msg.sender != deployer) revert Unauthorized();
         bytes memory code = creationCode;
         assembly ("memory-safe") { deployed := create2(0, add(code, 32), mload(code), salt) }
         require(deployed != address(0), "deployment failed");

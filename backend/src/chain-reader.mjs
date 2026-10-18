@@ -51,7 +51,7 @@ export class ChainReader {
         this.quote.name({ blockTag }), this.quote.symbol({ blockTag }), this.quote.decimals({ blockTag }), this.quote.totalSupply({ blockTag }),
         this.nft.name({ blockTag }), this.nft.symbol({ blockTag }), this.nft.totalSupply({ blockTag })
       ]);
-      if (name !== 'Chog' || symbol !== 'CHOG' || Number(decimals) !== 18 || nftName !== 'Chog Genesis') throw new AppError(503, 'CONTRACT_IDENTITY_CHANGED', 'Contract metadata differs from the verified identity.');
+      if (name !== 'Chog' || symbol !== 'CHOG' || Number(decimals) !== 18 || nftName !== chain.collectionName) throw new AppError(503, 'CONTRACT_IDENTITY_CHANGED', 'Contract metadata differs from the verified identity.');
       return {
         network: { chainId: chain.id, name: chain.name, currency: chain.symbol, explorer: chain.explorer },
         quote: { address: chain.quote, name, symbol, decimals: Number(decimals), totalSupplyRaw: String(supply), totalSupply: formatUnits(supply, decimals), source: chain.quoteSource },
@@ -72,7 +72,7 @@ export class ChainReader {
       }
       const ownerCode = await this.provider.getCode(owner, blockTag);
       return {
-        nft: { collection: chain.collection, tokenId: String(id), owner, tokenURI: uri, ownerHasCode: ownerCode !== '0x' },
+        nft: { collection: chain.collection, collectionName: chain.collectionName, tokenId: String(id), owner, tokenURI: uri, ownerHasCode: ownerCode !== '0x' },
         studio: { key: `${chain.id}:${chain.collection.toLowerCase()}:${id}`, registration: 'unavailable', launchHistory: null, fees: null },
         // Has code includes smart wallets/EIP-7702; it does not establish custody or a beneficial owner.
         ownershipPolicy: 'Literal ownerOf only. No beneficial-owner inference. This response grants no authenticated permissions.'
@@ -89,7 +89,7 @@ export class ChainReader {
       ]);
       const tokenIds = ownedIds.map(String);
       if (BigInt(tokenIds.length) !== count || new Set(tokenIds).size !== tokenIds.length) throw new AppError(503, 'NFT_DISCOVERY_MISMATCH', 'The NFT list does not match the onchain balance. Please reload.');
-      return { wallet: getAddress(wallet), nfts: { collection: chain.collection, tokenIds, method: 'tokensOfOwner(address)', grantsAuthority: false }, balances: { mon: formatUnits(mon, 18), chog: formatUnits(chog, decimals), chogRaw: String(chog), nftCount: String(count) } };
+      return { wallet: getAddress(wallet), nfts: { collection: chain.collection, collectionName: chain.collectionName, tokenIds, method: 'tokensOfOwner(address)', grantsAuthority: false }, balances: { mon: formatUnits(mon, 18), chog: formatUnits(chog, decimals), chogRaw: String(chog), nftCount: String(count) } };
     });
   }
   transfers(id, fromBlock, toBlock) {
@@ -147,7 +147,7 @@ export class ChainReader {
       if (anchor?.hash !== session.anchor.blockHash) throw new AppError(401, 'SESSION_REORG', 'The sign-in block is no longer canonical. Sign in again.');
       if (current < session.anchor.blockNumber || current - session.anchor.blockNumber > 1500) throw new AppError(401, 'SESSION_TOO_OLD', 'Sign in again before managing this studio.');
       const owner = await this.nft.ownerOf(id, { blockTag: current });
-      if (owner.toLowerCase() !== session.wallet.toLowerCase()) throw new AppError(403, 'OWNER_REQUIRED', 'Only the current Chog NFT owner can manage this studio.');
+      if (owner.toLowerCase() !== session.wallet.toLowerCase()) throw new AppError(403, 'OWNER_REQUIRED', 'Only the current studio NFT owner can manage this studio.');
       for (let start = session.anchor.blockNumber + 1; start <= current; start += 100) {
         const events = await this.nft.queryFilter(this.nft.filters.Transfer(null, null, id), start, Math.min(start + 99, current));
         if (events.length) throw new AppError(401, 'STUDIO_TRANSFERRED', 'This NFT transferred after sign-in. Sign in again; old permissions cannot be reused.');

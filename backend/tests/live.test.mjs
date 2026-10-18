@@ -18,6 +18,18 @@ test('live API matches independent RPC reads at recorded Monad blocks; no mocks'
     assert.equal(overview.provenance.chainId, 143);
     assert.equal(overview.foundry.deployed, false);
     assert.equal(overview.quote.symbol, 'CHOG'); assert.equal(overview.quote.decimals, 18);
+    assert.equal(overview.collection.address, chain.collection);
+    assert.equal(overview.collection.name, chain.collectionName);
+    const config = await read('/api/config');
+    assert.equal(config.collection.address, overview.collection.address);
+    assert.equal(config.collection.key, chain.collectionKey);
+    assert.equal(config.collection.temporary, chain.temporaryCollection);
+    const community = await read('/api/community');
+    assert.equal(community.raffleEscrowSupported, chain.raffleEscrowSupported);
+    if (!chain.raffleEscrowSupported) {
+      assert.equal(community.raffleConfigured, false);
+      assert.equal(community.campaignsEnabled, false);
+    }
     const quote = new Contract(chain.quote, erc20Abi, provider);
     assert.equal(String(await quote.totalSupply({ blockTag: overview.provenance.blockNumber })), overview.quote.totalSupplyRaw);
     assert.equal((await provider.getBlock(overview.provenance.blockNumber)).hash, overview.provenance.blockHash);

@@ -82,7 +82,7 @@ export default function LaunchWizard({
       <form className="trade-form" onSubmit={inspect}>
         {inspectionMode ? (
           <label>
-            Chog token ID
+            Studio NFT token ID
             <input
               aria-label="Launch NFT token ID"
               value={id}
@@ -94,7 +94,7 @@ export default function LaunchWizard({
           </label>
         ) : (
           <label>
-            Selected studio<strong>Chog Genesis #{nftId}</strong>
+            Selected studio<strong>NFT #{nftId}</strong>
           </label>
         )}
         {!wallet && (

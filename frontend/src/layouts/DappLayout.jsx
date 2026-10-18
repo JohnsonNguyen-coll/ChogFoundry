@@ -4,6 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Brand from "../components/Brand.jsx";
 import { useSelectedWallet } from "../WalletProvider.jsx";
 import { walletConfigurationNote } from "../wallet-config.mjs";
+import useApi from "../hooks/useApi.js";
 const tabs = [
   ["explore", "Explore"],
   ["studios", "My studios"],
@@ -19,6 +20,7 @@ const tabs = [
 ];
 export default function DappLayout() {
   const { error } = useSelectedWallet();
+  const configuration = useApi("/config");
   return (
     <div className="app-shell">
       <div className="app-workspace">
@@ -40,6 +42,12 @@ export default function DappLayout() {
           </div>
         </header>
         <main className="app-content">
+          {configuration.data?.collection.temporary && (
+            <p className="message" role="status">
+              Temporary collection: {configuration.data.collection.name}. This deployment uses real Monad Mainnet assets. Chog Genesis will use separate contracts; studios, tokens and fees do not migrate automatically.{" "}
+              <a href={configuration.data.collection.source} target="_blank" rel="noreferrer">View collection</a>
+            </p>
+          )}
           {error && (
             <p className="message error" role="alert">
               {error}
@@ -48,7 +56,7 @@ export default function DappLayout() {
           <Outlet />
         </main>
         <footer className="app-footer">
-          <span>Monad Mainnet · Built around a Chog.</span>
+          <span>Monad Mainnet · {configuration.data?.collection.name || "Collection unavailable"}</span>
           <Link to="/">Home</Link>
           {walletConfigurationNote && (
             <details>

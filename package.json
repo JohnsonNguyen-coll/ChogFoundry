@@ -26,6 +26,10 @@
     "db:check": "npm run db:check --workspace @chog-foundry/backend",
     "db:import-sqlite": "node --env-file-if-exists=backend/.env backend/scripts/import-sqlite.mjs",
     "deploy:plan": "npm run compile && node --env-file-if-exists=backend/.env contracts/scripts/mainnet-plan.mjs",
+    "deploy:rehearse": "node --env-file-if-exists=backend/.env contracts/scripts/mainnet-rehearsal.mjs",
+    "deploy:mainnet": "npm run compile && node --env-file=contracts/.env contracts/scripts/deploy-mainnet.mjs --broadcast",
+    "deploy:check": "node --env-file=contracts/.env contracts/scripts/deploy-mainnet.mjs --check-config",
+    "verify:source": "node contracts/scripts/verify-source.mjs --submit",
     "start": "node backend/scripts/start.mjs",
     "raffle:plan": "npm run compile && node --env-file-if-exists=backend/.env contracts/scripts/raffle-plan.mjs"
   },

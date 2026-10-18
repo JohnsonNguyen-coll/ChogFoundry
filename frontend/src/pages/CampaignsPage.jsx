@@ -71,6 +71,9 @@ export default function CampaignsPage() {
   };
   return (
     <>
+      {configuration.data?.raffleEscrowSupported === false && (
+        <p className="message" role="status">The Daks transfer validator currently blocks raffle escrow. Raffles are unavailable for this temporary collection. Studio launches and trading do not require NFT escrow.</p>
+      )}
       <section className="page-intro">
         <span className="eyebrow">CHOG FOUNDRY / COMMUNITY CAMPAIGNS</span>
         <h1>Show up. Earn points. Join the draw.</h1>
@@ -233,7 +236,7 @@ export default function CampaignsPage() {
                   {c.status.toUpperCase()} / ONE NFT PRIZE
                 </span>
                 <h3>{c.title}</h3>
-                <p>Chog Genesis #{c.prize_token_id}</p>
+                <p>Studio collection NFT #{c.prize_token_id}</p>
                 <p>
                   {c.entry_points} points per entry / {c.entry_count} entries
                 </p>
@@ -265,7 +268,7 @@ export default function CampaignsPage() {
               wallet/X account
             </dd>
             <dt>Prize count</dt>
-            <dd>One Chog Genesis NFT</dd>
+            <dd>One NFT from the active studio collection</dd>
             <dt>Opens</dt>
             <dd>{timestamp(detail.data.campaign.starts_at)}</dd>
             <dt>Closes</dt>
@@ -543,7 +546,7 @@ export default function CampaignsPage() {
               <textarea name="rules" required rows={4} maxLength={4000} />
             </label>
             <label>
-              Actual prize Chog token ID
+              Actual prize NFT token ID
               <input name="prize" required pattern="(0|[1-9][0-9]*)" />
             </label>
             <label>

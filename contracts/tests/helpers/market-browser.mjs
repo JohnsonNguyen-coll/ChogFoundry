@@ -33,7 +33,7 @@ export async function marketBrowser(apiBase, token, wallet, { preflight = false,
     await page.setViewportSize({width:1440,height:1000});
     await page.getByRole('link',{name:'Launch App',exact:false}).first().click();await page.waitForURL('**/app/explore');
     await page.getByRole('navigation',{name:'Dapp navigation'}).getByRole('link',{name:'My studios',exact:false}).click();
-    await page.getByRole('heading',{name:'Bring your Chog.',exact:true}).waitFor();
+    await page.getByRole('heading',{name:'Bring your studio NFT.',exact:true}).waitFor();
     await page.screenshot({path:fileURLToPath(new URL('../../artifacts/dapp-studios-desktop.png',import.meta.url))});
     await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.screenshot({path:fileURLToPath(new URL('../../artifacts/dapp-studios-mobile.png',import.meta.url))});await page.setViewportSize({width:1440,height:1000});
     assert.equal(await page.locator('#token-id').count(),0,'No NFT ID search in the main studio flow');

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { Contract, ContractFactory, id, parseEther, toBeHex } from 'ethers';
+import { Contract, ContractFactory, Wallet, id, parseEther, toBeHex } from 'ethers';
 import { chain, nftAbi } from '../../backend/src/config.mjs';
 import { withMonadFork } from './helpers/monad-fork.mjs';
 
@@ -9,6 +9,12 @@ test('isolated real-state Monad fork: funded fees, NFT transfer and old-owner cl
   await withMonadFork(async ({ local, upstream, block }) => {
     // All writes below use ONLY the child-owned, loopback Anvil fork.
     const accounts = await local.send('eth_accounts', []);
+    // Public dev accounts may have real EIP-7702 delegation code. The collection's
+    // transfer validator can reject them; use an actual fresh EOA for round trips.
+    accounts[1] = Wallet.createRandom().address;
+    assert.equal(await local.getCode(accounts[1]), '0x');
+    await local.send('anvil_impersonateAccount', [accounts[1]]);
+    await local.send('anvil_setBalance', [accounts[1], toBeHex(parseEther('10'))]);
     const [registrar, nextOwner, curve, graduated, treasury, outsider] = await Promise.all(accounts.slice(0, 6).map(a => local.getSigner(a)));
     const nft = new Contract(chain.collection, [...nftAbi, 'function transferFrom(address,address,uint256)'], local);
     const quote = new Contract(chain.quote, [

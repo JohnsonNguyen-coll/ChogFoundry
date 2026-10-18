@@ -78,6 +78,7 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
       }
       if (req.method !== 'GET') throw new AppError(405, 'METHOD_NOT_ALLOWED', 'This method is not supported for this endpoint.');
       if (route === '/api/health') return send(200, { service: 'Chog Foundry API', mode: 'live-chain-read-only-profiles', storage:{provider:database?'supabase-postgres':'sqlite-explicit-local',configured:database?database.configured:true}, rpcChecked: false });
+      if (route === '/api/config') return send(200, { chainId: chain.id, collection: { key: chain.collectionKey, address: chain.collection, name: chain.collectionName, source: chain.collectionSource, temporary: chain.temporaryCollection }, quote: { address: chain.quote, symbol: 'CHOG' }, policy: 'Configured identity only; this response does not certify a deployment. Collection changes require separate contracts and do not migrate existing studios, tokens or fees.' });
       if (route === '/api/execution') {
         const blockers=[];
         if(process.env.FOUNDRY_WALLET_EXECUTION!=='true')blockers.push('WALLET_EXECUTION_NOT_CONFIGURED');
@@ -88,7 +89,7 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
         return send(200,{chainId:chain.id,network:chain.name,walletExecutionAvailable:blockers.length===0,blockers,factory:factoryAddress||null,index,backendBroadcasts:false});
       }
       if (route === '/api/session') return send(200, { session: auth.public(auth.session(req)) });
-      if (route === '/api/studios') return send(200, { profiles: await store.list(), source: database?'Supabase PostgreSQL studio profiles; no onchain launches implied.':'Local persisted studio profiles; no onchain launches implied.' });
+      if (route === '/api/studios') return send(200, { profiles: await store.list(`${chain.id}:${chain.collection.toLowerCase()}:`), source: database?'Supabase PostgreSQL studio profiles; no onchain launches implied.':'Local persisted studio profiles; no onchain launches implied.' });
       if (route === '/api/overview') return send(200, await reader.overview());
       const launchReceiptRoute=route.match(/^\/api\/studios\/([^/]+)\/launch-receipt$/);
       if(launchReceiptRoute)return send(200,await reader.launchReceipt(tokenId(launchReceiptRoute[1]),transactionHash(url.searchParams.get('transactionHash'))));

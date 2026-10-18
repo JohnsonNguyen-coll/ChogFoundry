@@ -30,6 +30,8 @@ test(
         localFork: true,
       });
       assert.equal(plan.treasury, accounts[0]);
+      assert.equal(plan.collection.address, chain.collection);
+      assert.equal(plan.collection.key, chain.collectionKey);
       assert.equal(plan.steps.length, 6);
       assert.equal(plan.executionEnabled, false);
       for (const step of plan.steps) {

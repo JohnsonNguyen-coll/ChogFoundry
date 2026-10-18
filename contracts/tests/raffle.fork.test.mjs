@@ -27,7 +27,7 @@ import {
 import { withMonadFork } from "./helpers/monad-fork.mjs";
 
 test(
-  "real-state raffle escrow, immutable manifest and actual Pyth request; no fabricated oracle fulfillment",
+  chain.raffleEscrowSupported ? "real-state raffle escrow, immutable manifest and actual Pyth request; no fabricated oracle fulfillment" : "The Daks transfer validator rejects raffle escrow atomically; no bypass or fake fulfillment",
   { timeout: 180000 },
   async () => {
     await withMonadFork(async ({ local, block }) => {
@@ -94,6 +94,26 @@ test(
           .connect(outsider)
           .create.staticCall(id, 1557n, close, rulesHash(c)),
       );
+      if (!chain.raffleEscrowSupported) {
+        await assert.rejects(prepareRaffleDeployment(local, accounts[0]), /selected collection rejects/);
+        const data = raffle.interface.encodeFunctionData('create', [id, 1557n, close, rulesHash(c)]);
+        await assert.rejects(raffle.create.staticCall(id, 1557n, close, rulesHash(c)), error => error.data === '0xe1f1d02e');
+        const trace = await local.send('debug_traceCall', [{ from: accounts[0], to: raffle.target, data }, 'latest', { tracer: 'callTracer' }]);
+        const validator = await new Contract(chain.collection, ['function getTransferValidator() view returns(address)'], local).getTransferValidator();
+        const stack = [trace]; let validatorRejected = false;
+        while (stack.length) {
+          const call = stack.pop();
+          if (call.to?.toLowerCase() === validator.toLowerCase() && call.output?.startsWith('0xe1f1d02e')) validatorRejected = true;
+          stack.push(...(call.calls || []));
+        }
+        assert.equal(validatorRejected, true);
+        await assert.rejects(async () => { await (await raffle.create(id, 1557n, close, rulesHash(c), { gasLimit: 2000000 })).wait(); });
+        assert.equal(await nft.ownerOf(1557n), accounts[0]);
+        assert.equal((await raffle.campaigns(id)).exists, false);
+        assert.equal(await raffle.reserved(1557n), false);
+        console.log(JSON.stringify({ sourceBlock: block.number, collection: chain.collection, validator, escrowSupported: false, actualEscrowRejectedAtomically: true, oracleRequest: false, mainnetWrites: false }));
+        return;
+      }
       await (await raffle.create(id, 1557n, close, rulesHash(c))).wait();
       assert.equal(await nft.ownerOf(1557n), raffle.target);
       const snap = await local.send("evm_snapshot", []),
