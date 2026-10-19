@@ -57,6 +57,20 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     const marketAddress = await market.getAddress();
     const factory = await deploy('StudioTokenFactory.sol', 'StudioTokenFactory', [chain.collection, chain.quote, marketAddress, marketAddress, await treasury.getAddress()]);
     assert.equal(await factory.getAddress(), expectedFactory);
+    // Exercise accelerated empty history with actual canonical fork logs and a real reorg.
+    const emptyBranch=await local.send('evm_snapshot',[]), emptyDb=new PGlite();let emptyIndexer;
+    try {
+      await emptyDb.exec(await readFile(new URL('../../backend/supabase/migrations/001_foundry.sql',import.meta.url),'utf8'));
+      const deployment=await factory.deploymentTransaction().wait();
+      await local.send('anvil_mine',['0x12c']);
+      emptyIndexer=new MarketIndexer(local,{chainId:31337,factoryAddress:expectedFactory,deploymentBlock:deployment.blockNumber,collection:chain.collection,quote:chain.quote},{localFork:true,storeFactory:config=>new PostgresMarketStore(config,emptyDb)});
+      assert.equal((await emptyIndexer.sync()).caughtUp,true);
+      assert.deepEqual(await emptyIndexer.store.tokens(),[]);
+      assert.ok((await emptyIndexer.store.checkpoints()).length>=3);
+      await local.send('evm_revert',[emptyBranch]);
+      assert.equal((await emptyIndexer.sync()).caughtUp,true);
+      assert.equal((await emptyIndexer.store.head()).end_block,deployment.blockNumber);
+    }finally{await emptyIndexer?.close();await emptyDb.close();}
     const vault = new Contract(await factory.feeVault(), compiled['src/StudioFeeVault.sol'].StudioFeeVault.abi, local);
     const deadline = BigInt((await local.getBlock('latest')).timestamp + 7200);
     const params = { nftId: 1557n, name: 'Actual curve fork verification', symbol: 'CURVE', initialQuoteIn: parseEther('0.2'), minTokenOut: 1n, deadline };

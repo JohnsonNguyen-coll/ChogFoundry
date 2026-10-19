@@ -5,6 +5,30 @@ import { PGlite } from '@electric-sql/pglite';
 import { PostgresStudioStore } from '../src/postgres-studio-store.mjs';
 import { PostgresDatabase,postgresOptions } from '../src/postgres.mjs';
 import { createApi } from '../src/server.mjs';
+import { PostgresMarketStore } from '../src/postgres-market-store.mjs';
+
+test('empty history checkpoints remain bounded, contiguous, atomic and reversible in PostgreSQL',async()=>{
+  const engine=new PGlite();
+  try {
+    await engine.exec(await readFile(new URL('../supabase/migrations/001_foundry.sql',import.meta.url),'utf8'));
+    const store=new PostgresMarketStore({chainId:143,factoryAddress:'storage-only',finality:'storage-only',deploymentBlock:100},engine);
+    const block={number:6499,hash:'storage-only-checkpoint',timestamp:1};
+    const checkpoints=Array.from({length:64},(_,i)=>({start:100+i*100,end:199+i*100,block:{...block,number:199+i*100}}));
+    await store.commit(100,6499,block,[],{emptyHistory:true,checkpoints});
+    assert.equal((await store.head()).end_block,6499);
+    assert.deepEqual(await store.tokens(),[]);
+    await assert.rejects(store.commit(100,6499,block,[],{emptyHistory:true,checkpoints}),e=>e.code==='INDEX_GAP');
+    await assert.rejects(store.commit(6500,12900,{...block,number:12900},[],{emptyHistory:true}),e=>e.code==='INDEX_GAP');
+    await assert.rejects(store.commit(6500,6600,{...block,number:6600},[]),e=>e.code==='INDEX_GAP');
+    await store.commit(6500,6500,{...block,number:6500},[{token:{address:'storage-only-token'}}]);
+    const revision=await store.revision();
+    await assert.rejects(store.commit(6501,6600,{...block,number:6600},[],{emptyHistory:true,checkpoints:[{start:6501,end:6600,block:{...block,number:6600}}]}),e=>e.code==='INDEX_GAP');
+    assert.equal((await store.head()).end_block,6500);assert.equal(await store.revision(),revision);
+    await store.rollback(99);assert.equal(await store.head(),null);assert.deepEqual(await store.tokens(),[]);
+    await store.commit(100,6499,block,[],{emptyHistory:true,checkpoints});
+    assert.equal((await store.head()).end_block,6499);
+  } finally {await engine.close();}
+});
 
 test('PostgreSQL engine executes migration and preserves revision atomicity; not a Supabase connection',async()=>{
   const engine=new PGlite();

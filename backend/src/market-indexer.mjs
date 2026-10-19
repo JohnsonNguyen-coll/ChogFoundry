@@ -54,7 +54,33 @@ export class MarketIndexer extends EventEmitter {
         await this.store.rollback(ancestor);head=await this.store.head();reorganized=true;
       }
     }
-    for(let i=0;i<maxChunks;i++) {
+    // Before the first launch, only factory launch logs can introduce a token.
+    // Scan every bounded range, concurrently, then atomically persist its empty prefix.
+    const emptyStart=head?head.end_block+1:c.deploymentBlock;
+    let emptyPass=false;
+    if(this.store.supportsEmptyHistory && emptyStart+this.chunkSize<=target.number && (await this.store.tokens()).length===0) {
+      const ranges=Array.from({length:Math.min(64,Math.ceil((target.number-emptyStart+1)/this.chunkSize))},(_,i)=>({start:emptyStart+i*this.chunkSize,end:Math.min(emptyStart+(i+1)*this.chunkSize-1,target.number)}));
+      const results=[];
+      for(let i=0;i<ranges.length;i+=16) {
+        results.push(...await Promise.all(ranges.slice(i,i+16).map(async range=>{
+          const [logs,block]=await Promise.all([this.factory.queryFilter(this.factory.filters.TokenLaunched(),range.start,range.end),p.getBlock(range.end)]);
+          return {...range,logs,block};
+        })));
+      }
+      const firstLaunch=results.findIndex(range=>range.logs.length>0);
+      const empty=firstLaunch<0?results:results.slice(0,firstLaunch);
+      if(empty.length) {
+        const checkpoints=empty;
+        const end=empty.at(-1).end;
+        const [block,prior,endCode,canonicalTarget]=await Promise.all([p.getBlock(end),p.getBlock(head?.end_block??c.deploymentBlock-1),p.getCode(c.factoryAddress,end),p.getBlock(target.number)]);
+        if(!block?.hash||prior?.hash!==(head?.end_hash||base.hash)||canonicalTarget?.hash!==target.hash||endCode!==code) throw new AppError(503,'CHAIN_REORG','Empty history changed while scanning. No checkpoint was committed.');
+        if(checkpoints.at(-1).block?.hash!==block.hash)throw new AppError(503,'CHAIN_REORG','Checkpoint changed during empty history scan.');
+        await this.store.commit(emptyStart,end,block,[],{emptyHistory:true,checkpoints});
+        head=await this.store.head();
+        emptyPass=firstLaunch<0;
+      }
+    }
+    for(let i=0;!emptyPass&&i<maxChunks;i++) {
       const start=head?head.end_block+1:c.deploymentBlock;
       if(start>target.number) break;
       const end=Math.min(start+this.chunkSize-1,target.number),endBlock=await p.getBlock(end);
@@ -100,7 +126,7 @@ export class MarketIndexer extends EventEmitter {
   }
   start() {
     if(this.timer||this.stopped) return;
-    const tick=async()=>{try{await this.sync();}catch{}finally{if(!this.stopped){this.timer=setTimeout(tick,3000);this.timer.unref();}}};
+    const tick=async()=>{try{await this.sync();}catch{}finally{if(!this.stopped){const delay=!this.lastError&&this.target&&!this.status().caughtUp?50:3000;this.timer=setTimeout(tick,delay);this.timer.unref();}}};
     this.timer=setTimeout(tick,0);this.timer.unref();
   }
   async close() {

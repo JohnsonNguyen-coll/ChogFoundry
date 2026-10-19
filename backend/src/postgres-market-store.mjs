@@ -3,6 +3,7 @@ import { AppError } from './validation.mjs';
 import { buildIndexedMarket } from './indexed-market.mjs';
 const headRow=r=>r?{...r,end_block:Number(r.end_block),start_block:Number(r.start_block)}:null;
 export class PostgresMarketStore {
+  supportsEmptyHistory=true;
   constructor(config,database){this.config=config;this.database=database;this.source=database.provider==='supabase-postgres'?'Canonical RPC event index in Supabase PostgreSQL':'Canonical RPC event index in PostgreSQL test engine';this.key=`${config.chainId}:${config.factoryAddress.toLowerCase()}:${config.finality}`;this.initialized=false;}
   async initialize() {
     if(this.initialized)return;
@@ -24,14 +25,27 @@ export class PostgresMarketStore {
   async checkpoints(){await this.initialize();return (await this.database.query('SELECT * FROM foundry.market_chunks WHERE index_key=$1 ORDER BY end_block DESC LIMIT 1001',[this.key])).rows.map(headRow);}
   async tokens(){await this.initialize();return (await this.database.query('SELECT DISTINCT token FROM foundry.market_windows WHERE index_key=$1 ORDER BY token',[this.key])).rows.map(r=>r.token);}
   async revision(){await this.initialize();return Number((await this.database.query('SELECT revision FROM foundry.market_indexes WHERE index_key=$1',[this.key])).rows[0].revision);}
-  async commit(start,end,block,windows) {
+  async commit(start,end,block,windows,{emptyHistory=false,checkpoints=[]}={}) {
     await this.initialize();
-    if(end<start||end-start>=100||block.number!==end)throw new AppError(503,'INDEX_GAP','Invalid index chunk.');
+    if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||end<start||end-start>=(emptyHistory?6400:100)||block.number!==end||emptyHistory&&windows.length)throw new AppError(503,'INDEX_GAP','Invalid index chunk.');
+    if(emptyHistory){
+      let next=start;
+      if(!checkpoints.length||checkpoints.length>64)throw new AppError(503,'INDEX_GAP','Missing bounded empty checkpoints.');
+      for(const part of checkpoints){
+        if(part.start!==next||!Number.isSafeInteger(part.end)||part.end<part.start||part.end-part.start>=100||part.block?.number!==part.end||!part.block.hash)throw new AppError(503,'INDEX_GAP','Invalid empty checkpoint.');
+        next=part.end+1;
+      }
+      if(next!==end+1||checkpoints.at(-1).block.hash!==block.hash)throw new AppError(503,'INDEX_GAP','Incomplete empty checkpoints.');
+    }
     await this.database.transaction(async client=>{
       await client.query('SELECT index_key FROM foundry.market_indexes WHERE index_key=$1 FOR UPDATE',[this.key]);
       const head=headRow((await client.query('SELECT * FROM foundry.market_chunks WHERE index_key=$1 ORDER BY end_block DESC LIMIT 1',[this.key])).rows[0]);
       if(start!==(head?head.end_block+1:this.config.deploymentBlock))throw new AppError(503,'INDEX_GAP','Concurrent or noncontiguous index chunk. Resynchronize.');
-      await client.query('INSERT INTO foundry.market_chunks(index_key,end_block,start_block,end_hash,block_time) VALUES($1,$2,$3,$4,$5)',[this.key,end,start,block.hash,new Date(block.timestamp*1000).toISOString()]);
+      if(emptyHistory&&(await client.query('SELECT 1 FROM foundry.market_windows WHERE index_key=$1 LIMIT 1',[this.key])).rows.length)throw new AppError(503,'INDEX_GAP','Empty history cannot skip existing token events.');
+      if(emptyHistory){
+        const rows=checkpoints.map(p=>({start:p.start,end:p.end,hash:p.block.hash,time:new Date(p.block.timestamp*1000).toISOString()}));
+        await client.query('INSERT INTO foundry.market_chunks(index_key,end_block,start_block,end_hash,block_time) SELECT $1,r."end",r.start,r.hash,r.time FROM jsonb_to_recordset($2::jsonb) AS r(start bigint,"end" bigint,hash text,time text)',[this.key,JSON.stringify(rows)]);
+      }else await client.query('INSERT INTO foundry.market_chunks(index_key,end_block,start_block,end_hash,block_time) VALUES($1,$2,$3,$4,$5)',[this.key,end,start,block.hash,new Date(block.timestamp*1000).toISOString()]);
       for(const data of windows)await client.query('INSERT INTO foundry.market_windows(index_key,token,end_block,data_json) VALUES($1,$2,$3,$4)',[this.key,data.token.address.toLowerCase(),end,JSON.stringify(data)]);
       await client.query('UPDATE foundry.market_indexes SET revision=revision+1 WHERE index_key=$1',[this.key]);
     });
