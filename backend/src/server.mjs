@@ -1,4 +1,5 @@
 import { communityApi } from './community-api.mjs';
+import { PUBLIC_WS_RPCS, sharedRpcPool } from './rpc-pool.mjs';
 import { createFrontendHost } from './frontend-host.mjs';
 import { transactionHash } from './launch-receipt.mjs';
 import { launchInput } from './launch-data.mjs';
@@ -43,7 +44,7 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
   const auth = new AuthService(reader, origin);
   const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
   const deploymentBlock=process.env.FOUNDRY_DEPLOYMENT_BLOCK;
-  const indexer=factoryAddress&&deploymentBlock?new MarketIndexer(reader.provider,{chainId:chain.id,factoryAddress,deploymentBlock:boundedBlock(deploymentBlock),collection:chain.collection,quote:chain.quote},{databasePath:marketDatabasePath,storeFactory:database?config=>new PostgresMarketStore(config,database):undefined}):null;
+  const indexer=factoryAddress&&deploymentBlock?new MarketIndexer(reader.provider,{chainId:chain.id,factoryAddress,deploymentBlock:boundedBlock(deploymentBlock),collection:chain.collection,quote:chain.quote},{databasePath:marketDatabasePath,wsUrl:[...PUBLIC_WS_RPCS,...(process.env.ALCHEMY_WS_URL?[process.env.ALCHEMY_WS_URL]:[])],storeFactory:database?config=>new PostgresMarketStore(config,database):undefined}):null;
   const community=communityApi({reader,database,auth,indexer,profileStore:store,body});
   const streams=new Set();
   indexer?.start();
@@ -56,6 +57,10 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
     try {
       const url = new URL(req.url, 'http://localhost'); const route = url.pathname;
       if(await community(req,res,url,send))return;
+      if(route==='/api/rpc'&&req.method==='POST'){
+        auth.checkOrigin(req);
+        return send(200,await sharedRpcPool().request(await body(req)));
+      }
       if (route.startsWith('/api/auth/') && req.method === 'POST') {
         auth.checkOrigin(req);
         if (route === '/api/auth/logout') { auth.logout(req); res.setHeader('Set-Cookie', auth.cookie('', 0)); return send(200, { session: null }); }
@@ -84,9 +89,14 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
         if(process.env.FOUNDRY_WALLET_EXECUTION!=='true')blockers.push('WALLET_EXECUTION_NOT_CONFIGURED');
         if(!database?.configured)blockers.push('SUPABASE_NOT_CONFIGURED');
         if(!indexer)blockers.push('DEPLOYMENT_NOT_CONFIGURED');
-        let index=null;
-        if(!blockers.length){await indexer.sync();index=indexer.status();if(!index.caughtUp)blockers.push('INDEX_CATCHING_UP');}
-        return send(200,{chainId:chain.id,network:chain.name,walletExecutionAvailable:blockers.length===0,blockers,factory:factoryAddress||null,index,backendBroadcasts:false});
+        const index=indexer?.status()??null;
+        let deployment=null;
+        if(!blockers.length){
+          const migrations=await database.query('SELECT version FROM foundry.schema_migrations WHERE version IN (1,2)');
+          if(migrations.rows.length!==2)blockers.push('DATABASE_MIGRATIONS_REQUIRED');
+          else deployment=await reader.executionDeployment(factoryAddress,boundedBlock(deploymentBlock));
+        }
+        return send(200,{chainId:chain.id,network:chain.name,walletExecutionAvailable:blockers.length===0,blockers,factory:factoryAddress||null,index,deployment,backendBroadcasts:false});
       }
       if (route === '/api/session') return send(200, { session: auth.public(auth.session(req)) });
       if (route === '/api/studios') return send(200, { profiles: await store.list(`${chain.id}:${chain.collection.toLowerCase()}:`), source: database?'Supabase PostgreSQL studio profiles; no onchain launches implied.':'Local persisted studio profiles; no onchain launches implied.' });

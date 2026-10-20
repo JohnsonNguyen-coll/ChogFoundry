@@ -1,5 +1,6 @@
-import { Contract, FetchRequest, JsonRpcProvider, encodeBase58, getAddress, keccak256 } from 'ethers';
+import { Contract, encodeBase58, getAddress, keccak256 } from 'ethers';
 import { chain, erc20Abi } from '../src/config.mjs';
+import { PooledReadProvider } from '../src/rpc-pool.mjs';
 
 // Research candidates from official deployment tables; NOT settlement configuration.
 export const candidates = Object.freeze({
@@ -17,8 +18,7 @@ const sources = {
 };
 
 export async function inspectMarkets() {
-  const request = new FetchRequest(chain.rpcUrl); request.timeout = 12000;
-  const provider = new JsonRpcProvider(request, undefined, { batchMaxCount: 1, cacheTimeout: -1 });
+  const provider = new PooledReadProvider();
   try {
     if (BigInt(await provider.send('eth_chainId', [])) !== 143n) throw new Error('Expected Monad Mainnet, chain ID 143.');
     const block = await provider.getBlock('finalized');
@@ -83,7 +83,7 @@ export async function inspectMarkets() {
     const { code: ignoredQuote, ...quoteInfo } = quoteCode;
     const { code: ignoredImplementation, ...implementationInfo } = implementation || {};
     return {
-      provenance: { chainId: 143, blockNumber: blockTag, blockHash: block.hash, blockTime: new Date(block.timestamp * 1000).toISOString(), fetchedAt: new Date().toISOString(), rpcOrigin: new URL(chain.rpcUrl).origin, finality: 'finalized', source: 'Monad JSON-RPC' },
+      provenance: { chainId: 143, blockNumber: blockTag, blockHash: block.hash, blockTime: new Date(block.timestamp * 1000).toISOString(), fetchedAt: new Date().toISOString(), rpcOrigin: 'Monad public RPC pool', rpcSources:provider.pool.sources(), finality: 'finalized', source: 'Monad JSON-RPC' },
       sources,
       quote: { ...quoteInfo, name, symbol, decimals: Number(decimals), totalSupplyRaw: String(totalSupply),
         proxyStandard: match ? 'ERC-1167' : null, implementation: implementation ? implementationInfo : null,

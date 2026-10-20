@@ -311,8 +311,11 @@ details[open] > summary {
   color: #8e7ca4;
 }
 .monad-mark {
-  font-size: 24px;
-  color: #c4adff;
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 .chain-divider {
   height: 13px;

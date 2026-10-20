@@ -3,10 +3,11 @@ import { Contract, getAddress, keccak256 } from 'ethers';
 import { MarketStore } from './market-store.mjs';
 import { readMarketWindow } from './market-data.mjs';
 import { AppError } from './validation.mjs';
+import { RpcHeadStream } from './rpc-head-stream.mjs';
 
 const factoryAbi=['function collection() view returns(address)','function quote() view returns(address)','event TokenLaunched(bytes32 indexed launchId,uint256 indexed nftId,address indexed token,address creator,uint256 supply,uint256 initialQuoteIn,uint256 initialTokenOut)'];
 export class MarketIndexer extends EventEmitter {
-  constructor(provider,config,{databasePath,storeFactory,chunkSize=100,localFork=false}={}) {
+  constructor(provider,config,{databasePath,storeFactory,chunkSize=100,localFork=false,wsUrl=null}={}) {
     super();
     if(!Number.isSafeInteger(config.deploymentBlock)||config.deploymentBlock<1||!Number.isSafeInteger(config.chainId)||config.chainId<1||!Number.isSafeInteger(chunkSize)||chunkSize<1||chunkSize>100) throw new AppError(503,'INVALID_INDEX_CONFIG','Provide an exact verified factory deployment block and chain ID.');
     if(localFork) {
@@ -15,9 +16,10 @@ export class MarketIndexer extends EventEmitter {
     }
     this.localFork=localFork;
     this.config={finality:localFork?'local-fork-latest':'finalized',chainId:config.chainId,factoryAddress:getAddress(config.factoryAddress),deploymentBlock:config.deploymentBlock,collection:getAddress(config.collection),quote:getAddress(config.quote)};
-    this.rpcOrigin=new URL(provider._getConnection().url).origin;
+    this.rpcOrigin=provider.pool?'Monad public RPC pool':new URL(provider._getConnection().url).origin;
     this.provider=provider;this.store=storeFactory?storeFactory(this.config):new MarketStore(this.config,databasePath);this.factory=new Contract(this.config.factoryAddress,factoryAbi,provider);
     this.chunkSize=chunkSize;this.pending=null;this.timer=null;this.stopped=false;this.target=null;this.lastError=null;this.cachedHead=null;this.cachedRevision=0;
+    this.headStream=wsUrl?new RpcHeadStream(wsUrl,config.chainId,()=>this.wake?.()):null;
   }
   async sync(maxChunks=3) {
     if(this.stopped) throw new AppError(503,'INDEX_STOPPED','The market indexer is stopped.');
@@ -101,7 +103,7 @@ export class MarketIndexer extends EventEmitter {
   }
   status() {
     const head=this.cachedHead;
-    return {configured:true,deploymentBlock:this.config.deploymentBlock,indexedThrough:head?.end_block??null,indexedHash:head?.end_hash??null,observedHead:this.target?.number??null,finality:this.config.finality,caughtUp:!this.lastError&&!!head&&head.end_block===this.target?.number,revision:this.cachedRevision,error:this.lastError?.code??null};
+    return {configured:true,deploymentBlock:this.config.deploymentBlock,indexedThrough:head?.end_block??null,indexedHash:head?.end_hash??null,observedHead:this.target?.number??null,finality:this.config.finality,caughtUp:!this.lastError&&!!head&&head.end_block===this.target?.number,revision:this.cachedRevision,error:this.lastError?.code??null,realtime:this.headStream?.status()??{transport:'http-polling'}};
   }
   async market(token,interval=60,wallet=null) {
     await this.sync();
@@ -122,15 +124,26 @@ export class MarketIndexer extends EventEmitter {
   }
   decorate(data) {
     const status={...this.status(),indexedThrough:data.snapshot.blockNumber,indexedHash:data.snapshot.blockHash,revision:Number(data.cursor.split(':')[0]),caughtUp:!this.lastError&&data.snapshot.blockNumber===this.target?.number};
-    return {...data,index:status,provenance:{chainId:this.config.chainId,blockNumber:data.snapshot.blockNumber,blockHash:data.snapshot.blockHash,blockTime:data.snapshot.blockTime,fetchedAt:new Date().toISOString(),rpcOrigin:this.rpcOrigin,source:this.store.source||'Canonical RPC event index in local SQLite',finality:this.config.finality}};
+    return {...data,index:status,provenance:{chainId:this.config.chainId,blockNumber:data.snapshot.blockNumber,blockHash:data.snapshot.blockHash,blockTime:data.snapshot.blockTime,fetchedAt:new Date().toISOString(),rpcOrigin:this.rpcOrigin,...(this.provider.pool?{rpcSources:this.provider.pool.sources()}:{}),source:this.store.source||'Canonical RPC event index in local SQLite',finality:this.config.finality}};
   }
   start() {
-    if(this.timer||this.stopped) return;
-    const tick=async()=>{try{await this.sync();}catch{}finally{if(!this.stopped){const delay=!this.lastError&&this.target&&!this.status().caughtUp?50:3000;this.timer=setTimeout(tick,delay);this.timer.unref();}}};
+    if(this.wake||this.stopped) return;
+    let running=false,lastStarted=0;
+    const tick=async()=>{
+      if(this.stopped||running)return;running=true;lastStarted=Date.now();
+      try{await this.sync();}catch{}
+      finally{running=false;if(!this.stopped){const delay=!this.lastError&&this.target&&!this.status().caughtUp?50:this.headStream?.state==='connected'?15000:3000;this.timer=setTimeout(tick,delay);this.timer.unref();}}
+    };
+    this.wake=()=>{
+      if(this.stopped||running)return;
+      clearTimeout(this.timer);this.timer=setTimeout(tick,Math.max(0,1000-(Date.now()-lastStarted)));this.timer.unref();
+    };
+    this.headStream?.start();
     this.timer=setTimeout(tick,0);this.timer.unref();
   }
   async close() {
     this.stopped=true;clearTimeout(this.timer);
+    this.headStream?.close();
     if(this.pending) await this.pending.catch(()=>{});
     await this.store.close();this.removeAllListeners();
   }

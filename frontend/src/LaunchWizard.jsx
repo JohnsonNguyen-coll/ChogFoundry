@@ -13,7 +13,6 @@ export default function LaunchWizard({
     [symbol, setSymbol] = useState(""),
     [budget, setBudget] = useState("0"),
     [minimum, setMinimum] = useState(""),
-    [minutes, setMinutes] = useState(""),
     [data, setData] = useState(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -29,7 +28,7 @@ export default function LaunchWizard({
     setError("");
     setBusy(false);
     return () => pending.current?.abort();
-  }, [creator, id, name, symbol, budget, minimum, minutes]);
+  }, [creator, id, name, symbol, budget, minimum]);
   async function inspect(e, approval = false) {
     e.preventDefault();
     pending.current?.abort();
@@ -39,15 +38,13 @@ export default function LaunchWizard({
     setError("");
     setBusy(true);
     try {
-      if (!/^[1-9][0-9]?$/.test(minutes) || Number(minutes) > 60)
-        throw new Error("Choose a deadline of 1 to 60 minutes.");
       const input = new URLSearchParams({
         wallet: creator,
         name,
         symbol,
         initialQuoteIn: paid ? parseAmount(budget) : "0",
         minTokenOut: paid ? parseAmount(minimum) : "0",
-        deadline: String(Math.floor(Date.now() / 1000) + Number(minutes) * 60),
+        deadline: String(Math.floor(Date.now() / 1000) + 20 * 60),
       });
       const requestPath = `/api/studios/${encodeURIComponent(id)}/${approval ? "launch-approval" : "launch-preflight"}?${input}`;
       const response = await fetch(requestPath, {
@@ -150,16 +147,6 @@ export default function LaunchWizard({
             />
           </label>
         )}
-        <label>
-          Deadline (minutes)
-          <input
-            aria-label="Launch deadline minutes"
-            value={minutes}
-            onChange={(e) => setMinutes(e.target.value)}
-            inputMode="numeric"
-            required
-          />
-        </label>
         <button className="primary" disabled={busy}>
           {busy ? "Inspecting factory…" : "Inspect launch"}
         </button>

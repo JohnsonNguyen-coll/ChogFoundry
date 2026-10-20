@@ -1,7 +1,8 @@
 import { readLaunchReceipt } from './launch-receipt.mjs';
+import { PooledReadProvider } from './rpc-pool.mjs';
 import { readLaunchPreflight, readLaunchApproval } from './launch-data.mjs';
 import { readApprovalPlan, readClaimPreflight } from './fee-actions.mjs';
-import { Contract, FetchRequest, JsonRpcProvider, formatUnits, getAddress } from 'ethers';
+import { Contract, formatUnits, getAddress } from 'ethers';
 import { chain, erc20Abi, nftAbi } from './config.mjs';
 import { AppError } from './validation.mjs';
 import { readTradePreflight } from './trade-preflight.mjs';
@@ -10,8 +11,7 @@ import { readMarketWindow } from './market-data.mjs';
 
 export class ChainReader {
   constructor() {
-    const request = new FetchRequest(chain.rpcUrl); request.timeout = 12000;
-    this.provider = new JsonRpcProvider(request, undefined, { batchMaxCount: 1, cacheTimeout: -1 });
+    this.provider = new PooledReadProvider();
     this.quote = new Contract(chain.quote, erc20Abi, this.provider);
     this.nft = new Contract(chain.collection, nftAbi, this.provider);
     this.busy = false;
@@ -29,7 +29,7 @@ export class ChainReader {
       return { ...result, provenance: {
         chainId: chain.id, blockNumber: block.number, blockHash: block.hash,
         blockTime: new Date(block.timestamp * 1000).toISOString(), fetchedAt: new Date().toISOString(),
-        rpcOrigin: new URL(chain.rpcUrl).origin, source: 'Monad JSON-RPC', finality: tag
+        rpcOrigin: 'Monad public RPC pool', rpcSources:this.provider.pool.sources(), source: 'Monad JSON-RPC', finality: tag
       } };
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -138,6 +138,17 @@ export class ChainReader {
     const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
     if(!factoryAddress)throw new AppError(503,'FOUNDRY_NOT_CONFIGURED','No verified factory is configured. Launch receipt inspection is unavailable.');
     return this.snapshot(block=>readLaunchReceipt(this.provider,{chainId:chain.id,factoryAddress,collection:chain.collection,quote:chain.quote,toBlock:block},String(id),hash),'finalized');
+  }
+  async executionDeployment(factoryAddress,deploymentBlock) {
+    return this.snapshot(async block=>{
+      const factory=new Contract(getAddress(factoryAddress),['function collection() view returns(address)','function quote() view returns(address)'],this.provider);
+      const [code,priorCode,currentCode,collection,quote]=await Promise.all([
+        this.provider.getCode(factoryAddress,deploymentBlock),this.provider.getCode(factoryAddress,deploymentBlock-1),this.provider.getCode(factoryAddress,block),
+        factory.collection({blockTag:block}),factory.quote({blockTag:block})
+      ]);
+      if(block<deploymentBlock||code==='0x'||priorCode!=='0x'||currentCode!==code||collection.toLowerCase()!==chain.collection.toLowerCase()||quote.toLowerCase()!==chain.quote.toLowerCase())throw new AppError(503,'DEPLOYMENT_BINDING_MISMATCH','Configured factory deployment does not match the active assets.');
+      return {factory:getAddress(factoryAddress)};
+    },'finalized');
   }
   anchor() { return this.snapshot(async () => ({}), 'finalized'); }
   ownerProof(id, session) {

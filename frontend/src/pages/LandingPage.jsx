@@ -44,7 +44,7 @@ export default function LandingPage() {
               </a>
             </div>
             <div className="hero-chain">
-              <span className="monad-mark">◇</span> BUILT ON MONAD{" "}
+              <img className="monad-mark" src="/monad-logomark.svg" alt="" width="24" height="24" /> BUILT ON MONAD{" "}
               <span className="chain-divider" /> POWERED BY $CHOG
             </div>
           </div>
