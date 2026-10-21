@@ -1,8 +1,17 @@
 // Keep raw amounts exact; floating point is used only for chart pixel coordinates.
 export function units(raw, decimals = 18) {
-  const n = BigInt(raw), scale = 10n ** BigInt(decimals);
-  const fraction = (n % scale).toString().padStart(decimals, '0').replace(/0+$/, '');
-  return `${(n / scale).toLocaleString('en-US')}${fraction ? '.' + fraction : ''}`;
+  const n=BigInt(raw),negative=n<0n,absolute=negative?-n:n;
+  const cut=10n**BigInt(Math.max(0,decimals-2));
+  const rounded=decimals>2?(absolute+cut/2n)/cut:absolute*10n**BigInt(2-decimals);
+  if(absolute>0n&&rounded===0n)return negative?'> -0.01':'<0.01';
+  const fraction=(rounded%100n).toString().padStart(2,'0').replace(/0+$/,'');
+  return `${negative?'-':''}${(rounded/100n).toLocaleString('en-US')}${fraction?'.'+fraction:''}`;
+}
+export function decimal(value) {
+  if(value==null)return 'Unavailable';
+  const text=String(value),match=text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
+  if(!match)return text;
+  return units(BigInt((match[1]||'')+match[2]+(match[3]||'')),(match[3]||'').length);
 }
 export function fixedPrice(value) {
   if (!/^\d+(?:\.\d{1,36})?$/.test(value)) throw new Error('Invalid execution price.');

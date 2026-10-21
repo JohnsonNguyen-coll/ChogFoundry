@@ -66,7 +66,7 @@ export default function StudioPage() {
               Enter studio club
             </Link>
             <Link className="secondary" to={`/app/agent/${id}`}>
-              Ask Claude
+              Ask Foundry Assistant
             </Link>
           </div>
           <section className="studio-token-list">

@@ -1,3 +1,4 @@
+import {decimal} from '../market-format.mjs';
 export async function api(route, signal) {
   const response = await fetch(`/api${route}`, {
       cache: "no-store",
@@ -14,6 +15,5 @@ export const short = (value) =>
   value ? `${value.slice(0, 6)}…${value.slice(-4)}` : "—";
 export function amount(value) {
   if (value == null) return "Unavailable";
-  const [whole, fraction] = value.split(".");
-  return `${BigInt(whole).toLocaleString("en-US")}${fraction && fraction !== "0" ? "." + fraction : ""}`;
+  return decimal(value);
 }

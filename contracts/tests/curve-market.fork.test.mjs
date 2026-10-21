@@ -8,7 +8,7 @@ import { readTradePreflight } from '../../backend/src/trade-preflight.mjs';
 import { readTradeState, readCurveQuote } from '../../backend/src/trade-data.mjs';
 import { marketBrowser } from './helpers/market-browser.mjs';
 import { formatUnits } from 'ethers';
-import { candleGeometry, fixedPrice, units as displayUnits } from '../../frontend/src/market-format.mjs';
+import { candleGeometry, fixedPrice, decimal, units as displayUnits } from '../../frontend/src/market-format.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -266,7 +266,7 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     }
     assert.equal(candleGeometry([]),null);
     assert.equal(displayUnits(data.trades[0].tokenAmountRaw).replaceAll(',',''),
-      formatUnits(BigInt(data.trades[0].tokenAmountRaw),18).replace(/\.0$/, ''));
+      decimal(formatUnits(BigInt(data.trades[0].tokenAmountRaw),18)).replaceAll(',',''));
     const tradeConfig={factoryAddress:expectedFactory,tokenAddress:launch.token,collection:chain.collection,quote:chain.quote,toBlock:end.number};
     const buyPreview=await readCurveQuote(local,tradeConfig,{side:'buy',amountRaw:String(parseEther('0.01')),wallet:buyerAddress});
     const directBuy=await market.getBuyQuote(launch.token,parseEther('0.01'),{blockTag:end.number});

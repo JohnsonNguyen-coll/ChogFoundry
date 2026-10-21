@@ -2,6 +2,7 @@ import React from 'react';
 import useApi from '../hooks/useApi.js';
 import NftArtwork from './NftArtwork.jsx';
 import {short} from '../lib/api.mjs';
+import {decimal} from '../market-format.mjs';
 
 export default function LaunchSummary({id,name,symbol,budget,creator}) {
   const studio=useApi(/^(0|[1-9][0-9]*)$/.test(id)?`/studios/${id}`:null);
@@ -12,7 +13,7 @@ export default function LaunchSummary({id,name,symbol,budget,creator}) {
       <div className="launch-token-mark" aria-hidden="true">{symbol.trim().slice(0,3).toUpperCase()||'✦'}</div>
       <h3>{name.trim()||'Your token name'}</h3>
       <p className="launch-ticker">{symbol.trim()?`$${symbol.trim()}`:'TOKEN'} <span>/ CHOG</span></p>
-      <div className="launch-preview-facts"><div><span>Supply</span><strong>1,000,000,000</strong></div><div><span>Creator allocation</span><strong>0 tokens</strong></div><div><span>First-buy budget</span><strong>{budget&&budget!=='0'?`${budget} CHOG`:'No first buy'}</strong></div></div>
+      <div className="launch-preview-facts"><div><span>Supply</span><strong>1,000,000,000</strong></div><div><span>Creator allocation</span><strong>0 tokens</strong></div><div><span>First-buy budget</span><strong>{budget&&budget!=='0'?`${decimal(budget)} CHOG`:'No first buy'}</strong></div></div>
       <p className="launch-preview-caption">Draft preview · your token is created only after you confirm the launch in your wallet.</p>
     </div>
     <div className="launch-studio-card">

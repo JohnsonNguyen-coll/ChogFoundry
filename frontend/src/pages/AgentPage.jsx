@@ -1,147 +1,80 @@
-import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import React, {useEffect,useState} from "react";
+import {Link,useParams,useSearchParams} from "react-router-dom";
 import useApi from "../hooks/useApi.js";
 import useWalletSession from "../hooks/useWalletSession.js";
 import useCommunityAction from "../hooks/useCommunityAction.js";
 import WalletSession from "../components/WalletSession.jsx";
-import { LoadState } from "../components/Onchain.jsx";
-import { communityRequest, timestamp } from "../lib/community.mjs";
+import {LoadState} from "../components/Onchain.jsx";
+import {Spinner} from "../components/Loading.jsx";
+import NftArtwork from "../components/NftArtwork.jsx";
+import AssistantTools,{assistantTasks} from "../components/AssistantTools.jsx";
+import {communityRequest,timestamp} from "../lib/community.mjs";
+
+const assistantError=value=>/Claude|ANTHROPIC|CLAUDE_/i.test(value||'')?'The assistant is temporarily unavailable. Please try again later.':value;
+const sourceNames={'studio-onchain':'Studio ownership','studio-profile':'Studio profile','club-lounge':'Public club discussion','token-onchain':'Token information'};
 export default function AgentPage() {
-  const { id } = useParams(),
-    auth = useWalletSession(),
-    [prompt, setPrompt] = useState(""),
-    [token, setToken] = useState(""),
-    [refresh, setRefresh] = useState(0),
-    action = useCommunityAction(
-      `${id}:${auth.wallet}:${auth.session?.expiresAt}`,
-    ),
-    directory = useApi(!id ? "/clubs" : null),
-    { data, error, loading } = useApi(
-      id && auth.matches ? `/agent/${id}?wallet=${auth.wallet}` : null,
-      refresh,
-    );
-  useEffect(() => {
-    setPrompt("");
-    setToken("");
-  }, [id, auth.wallet]);
-  return (
-    <>
-      <section className="page-intro">
-        <span className="eyebrow">CHOG FOUNDRY / CLAUDE</span>
-        <h1>Your next idea, with a little help.</h1>
-        <p>
-          Draft concepts, understand launch settings and summarize public studio
-          conversations. You make the final decisions.
-        </p>
-      </section>
-      <WalletSession auth={auth} />
-      <LoadState
-        loading={loading || directory.loading}
-        error={error || directory.error || action.error}
-      />
-      {!id && (
-        <div className="studio-grid">
-          {directory.data?.studios.map((s) => (
-            <Link
-              className="studio-preview"
-              to={`/app/agent/${s.id}`}
-              key={s.id}
-            >
-              <h3>{s.name}</h3>
-              <span>Open studio assistant</span>
-            </Link>
-          ))}
-          {directory.data && !directory.data.studios.length && (
-            <p className="empty">
-              Visit a studio to open its assistant. No studio profiles have been
-              published yet.
-            </p>
-          )}
+  const {id}=useParams(),[search]=useSearchParams(),auth=useWalletSession();
+  const [prompt,setPrompt]=useState(''),[token,setToken]=useState(''),[task,setTask]=useState('concept'),[refresh,setRefresh]=useState(0);
+  const action=useCommunityAction(`${id}:${auth.wallet}:${auth.session?.expiresAt}`);
+  const directory=useApi(!id?'/clubs':null);
+  const owned=useApi(!id&&auth.wallet?`/wallets/${auth.wallet}`:null);
+  const tokens=useApi(id?`/studios/${id}/tokens`:null);
+  const {data,error,loading}=useApi(id&&auth.matches?`/agent/${id}?wallet=${auth.wallet}`:null,refresh);
+  const requestedTask=search.get('task');
+  useEffect(()=>{
+    const preset=assistantTasks.find(item=>item.id===requestedTask);
+    setPrompt(preset?.prompt||'');setTask(preset?.id||'concept');setToken('');
+  },[id,auth.wallet,requestedTask]);
+  const studios=new Map((directory.data?.studios||[]).map(studio=>[String(studio.id),{...studio,mine:false}]));
+  for(const nftId of owned.data?.nfts.tokenIds||[]){
+    const previous=studios.get(String(nftId));
+    studios.set(String(nftId),{id:String(nftId),name:previous?.name||`Studio #${nftId}`,mine:true});
+  }
+  const studioList=[...studios.values()].sort((a,b)=>Number(b.mine)-Number(a.mine));
+  function chooseTask(preset){setTask(preset.id);if(id)setPrompt(preset.prompt);}
+  return <div className="assistant-page">
+    <header className="assistant-hero">
+      <div><span className="eyebrow">CHOG FOUNDRY / YOUR CREATIVE PARTNER</span><h1>A spark today.<br/><span>Your next launch tomorrow.</span></h1><p>Meet Foundry Assistant. A little help to shape your ideas, understand your token and bring the club along.</p><div className="assistant-hero-tags"><span>Studio context</span><span>Community ideas</span><span>You make the call</span></div></div>
+      <div className="assistant-hero-art" aria-hidden="true"><div className="assistant-orbit"><span>✦</span></div><div className="assistant-orbit-label">IDEA → CONCEPT → LAUNCH</div><span className="assistant-orbit-caption">A little spark goes a long way.</span></div>
+    </header>
+    {!id?<>
+      <div className="section-heading assistant-section-heading"><div><span className="eyebrow">A GOOD PLACE TO START</span><h2>What are we working on?</h2></div><p>Pick a direction, then choose your studio.</p></div>
+      <AssistantTools active={task} onSelect={chooseTask}/>
+      <div className="section-heading assistant-section-heading"><div><span className="eyebrow">YOUR STUDIO, YOUR CONTEXT</span><h2>Choose a studio</h2></div><Link className="text-link" to="/app/studios">View my studios ↗</Link></div>
+      <LoadState loading={directory.loading||owned.loading} error={directory.error||owned.error}/>
+      <div className="assistant-studio-grid">{studioList.map(studio=><article className="assistant-studio-choice" key={studio.id}>
+        {studio.mine&&owned.data?<NftArtwork id={studio.id} collection={owned.data.nfts.collection} collectionName={owned.data.nfts.collectionName}/>:<span className="assistant-studio-monogram">#{studio.id}</span>}
+        <div><span className="caption">{studio.mine?'YOUR STUDIO':'COMMUNITY STUDIO'}</span><h3>{studio.name}</h3><Link className="text-link" to={`/app/agent/${studio.id}?task=${task}`}>Open assistant ↗</Link></div>
+      </article>)}</div>
+      {!directory.loading&&!owned.loading&&!directory.error&&!owned.error&&!studioList.length&&<div className="assistant-directory-empty"><span className="assistant-empty-mark" aria-hidden="true">✦</span><div><h3>Every idea needs a home.</h3><p>{auth.wallet?'No studios found yet. Open My studios to check the NFTs in your wallet.':'Connect your wallet to find your NFT studios, or explore a community studio.'}</p><Link className="secondary" to={auth.wallet?'/app/studios':'/app/explore'}>{auth.wallet?'Find my studio':'Explore studios'} ↗</Link></div></div>}
+    </>:<>
+      <div className="assistant-workspace-bar"><Link to="/app/agent">← All studios</Link><span>Studio #{id}</span><Link to={`/app/clubs/${id}`}>Visit club ↗</Link></div>
+      <div className="assistant-workspace-layout"><aside className="assistant-task-sidebar"><span className="eyebrow">MAKE A START</span><AssistantTools active={task} onSelect={chooseTask} disabled={action.busy}/><p className="note">Suggestions become a draft. Your wallet confirms any financial action separately.</p></aside>
+      <section className="assistant-conversation" aria-label="Studio assistant conversation">
+        <div className="assistant-conversation-heading"><div><span className="assistant-mini-mark" aria-hidden="true">✦</span><div><h2>Foundry Assistant</h2><span>Your creative space · Studio #{id}</span></div></div><WalletSession auth={auth}/></div>
+        <LoadState loading={loading} error={assistantError(error||action.error)}/>
+        {data&&!data.configuration.configured&&<p className="message" role="status">The assistant is not available yet. Please try again later.</p>}
+        <div className="assistant-conversation-history">
+          {(!data||!data.history.length)&&!loading&&<div className="assistant-chat-empty"><span aria-hidden="true">✦</span><h3>Where should we begin?</h3><p>Choose a starting point or ask your own question. Replies use the studio information available at the time.</p></div>}
+          {data?.history.map(reply=><article className="assistant-exchange" key={reply.id}>
+            <div className="assistant-question"><span className="caption">YOU</span><p className="user-content">{reply.prompt}</p></div>
+            <div className="assistant-answer"><span className="caption">FOUNDRY ASSISTANT</span><p className="user-content">{reply.response}</p><small>{timestamp(reply.created_at)}</small><details className="assistant-sources"><summary>Sources used for this reply</summary><ul>{reply.sources_json.map(source=><li key={source.id}><strong>{sourceNames[source.id]||'Studio information'}</strong>{source.blockNumber!=null&&<span>Block {source.blockNumber}</span>}{(source.fetchedAt||source.readAt||source.updatedAt)&&<span>{timestamp(source.fetchedAt||source.readAt||source.updatedAt)}</span>}{source.truncated&&<span>Only recent messages were included.</span>}</li>)}</ul></details></div>
+          </article>)}
+          {action.busy&&<div className="assistant-thinking"><Spinner label="Working on your question…"/></div>}
         </div>
-      )}
-      {id && (
-        <section className="agent-workspace">
-          <div className="section-heading">
-            <h2>Studio #{id} assistant</h2>
-            <Link to={`/app/clubs/${id}`}>Visit club</Link>
-          </div>
-          <p className="note">
-            Claude has no wallet or execution tools. Your question, public
-            studio profile, current studio information from the blockchain and up to 100 lounge
-            posts are sent to Claude. Private assistant history is visible only
-            to its signed-in wallet.
-          </p>
-          {data && !data.configuration.configured && (
-            <p className="message">
-              Claude is not configured. Add ANTHROPIC_API_KEY and CLAUDE_MODEL
-              to the backend environment.
-            </p>
-          )}
-          <div className="agent-history">
-            {data?.history.map((r) => (
-              <article className="agent-turn" key={r.id}>
-                <span className="caption">YOUR QUESTION</span>
-                <p className="user-content">{r.prompt}</p>
-                <span className="caption">CLAUDE / {r.model}</span>
-                <p className="user-content">{r.response}</p>
-                <small>{timestamp(r.created_at)}</small>
-                <details>
-                  <summary>Sources and scope</summary>
-                  {r.sources_json.map((s) => (
-                    <pre key={s.id}>{JSON.stringify(s, null, 2)}</pre>
-                  ))}
-                </details>
-              </article>
-            ))}
-          </div>
-          <form
-            className="community-compose"
-            onSubmit={(e) => {
-              e.preventDefault();
-              action.run(async (signal) => {
-                await communityRequest(
-                  `/agent/${id}`,
-                  { prompt, tokenAddress: token || undefined },
-                  signal,
-                );
-                if (!signal.aborted) {
-                  setPrompt("");
-                  setRefresh((n) => n + 1);
-                }
-                return "Claude response saved.";
-              });
-            }}
-          >
-            <label>
-              Foundry token address (optional onchain inspection)
-              <input
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder="0x..."
-              />
-            </label>
-            <label>
-              Ask about this studio
-              <textarea
-                required
-                rows={4}
-                maxLength={4000}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Help turn our community ideas into a launch concept..."
-              />
-            </label>
-            <button
-              className="primary"
-              disabled={
-                !auth.matches || !data?.configuration.configured || action.busy
-              }
-            >
-              {action.busy ? "Asking Claude..." : "Send to Claude"}
-            </button>
-          </form>
-        </section>
-      )}
-    </>
-  );
+        <form className="assistant-composer" onSubmit={event=>{
+          event.preventDefault();action.run(async signal=>{
+            await communityRequest(`/agent/${id}`,{prompt,tokenAddress:token||undefined},signal);
+            if(!signal.aborted){setPrompt('');setRefresh(value=>value+1);}
+            return 'Reply saved.';
+          });
+        }}>
+          <label htmlFor="assistant-prompt">Ask about this studio</label><textarea id="assistant-prompt" required rows={3} maxLength={4000} value={prompt} disabled={action.busy} onChange={event=>setPrompt(event.target.value)} placeholder="An idea, a question, a starting point…"/>
+          <div className="assistant-composer-footer"><div>{tokens.data?.assets.length>0&&<label>Include a token<select value={token} disabled={action.busy} onChange={event=>setToken(event.target.value)}><option value="">Studio overview</option>{tokens.data.assets.map(asset=><option value={asset.token.address} key={asset.token.address}>{asset.token.name} ({asset.token.symbol})</option>)}</select></label>}{tokens.error&&<p className="note">Token details could not be loaded. You can still ask about the studio.</p>}<span className="note">You decide what happens next.</span></div><button className="primary" disabled={!auth.matches||!data?.configuration.configured||action.busy||!prompt.trim()}>{action.busy?'Thinking…':'Send message →'}</button></div>
+          {!auth.wallet&&<p className="note">Connect your wallet to start a conversation.</p>}
+          <details className="assistant-privacy"><summary>About your conversation</summary><p>Your question, public studio information and recent public club messages are processed by an AI service. Your saved conversation is visible only to your signed-in wallet. The assistant cannot sign, transfer funds or trade.</p></details>
+        </form>
+      </section></div>
+    </>}
+  </div>;
 }

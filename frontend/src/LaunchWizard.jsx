@@ -27,6 +27,7 @@ export default function LaunchWizard({
     nameTooLong = new TextEncoder().encode(name).length > 64,
     symbolTooLong = new TextEncoder().encode(symbol).length > 12;
   const buyQuote=useInitialBuyQuote(id,budget);
+  const needsApproval=data?.preflight?.blockers?.includes('FACTORY_APPROVAL_REQUIRED')&&!data?.approval;
   useEffect(() => {
     if (nftId != null) setId(nftId);
   }, [nftId]);
@@ -38,11 +39,11 @@ export default function LaunchWizard({
     return () => pending.current?.abort();
   }, [creator, id, name, symbol, budget]);
   async function inspect(e, approval = false) {
-    e.preventDefault();
+    e?.preventDefault();
     pending.current?.abort();
     const controller = new AbortController();
     pending.current = controller;
-    setData(null);
+    if(!reviewOpen)setData(null);
     setError("");
     setBusy(true);
     try {
@@ -69,7 +70,10 @@ export default function LaunchWizard({
         throw new Error(
           body.error?.message || "Launch inspection unavailable.",
         );
-      if (!controller.signal.aborted) {setData({ ...body, requestPath });setReviewOpen(true);}
+      if (!controller.signal.aborted) {
+        const reviewed=body.approval?.steps?.length===0?{...body,approval:undefined}:body;
+        setData({ ...reviewed, requestPath });setReviewOpen(true);
+      }
     } catch (e) {
       if (!controller.signal.aborted) setError(e.message);
     } finally {
@@ -176,7 +180,7 @@ export default function LaunchWizard({
           Check CHOG spending approval ↗
         </button>}
       </form>
-      {error && (
+      {error && !reviewOpen && (
         <div className="message error" role="alert">
           {error}
         </div>
@@ -186,6 +190,8 @@ export default function LaunchWizard({
         <button type="button" className="secondary launch-reopen-review" onClick={()=>setReviewOpen(true)}>Open launch review</button>
         <Modal open={reviewOpen} onClose={()=>setReviewOpen(false)} title="Review your launch" className="launch-review-modal">
         <div className="launch-review">
+          {busy?<div className="section-loading"><Spinner label="Checking your launch…"/></div>:<>
+          {error&&<p className="message error" role="alert">{error}</p>}
           {data.approval && (
             <>
               <p>
@@ -273,7 +279,7 @@ export default function LaunchWizard({
               {data.provenance?.rpcOrigin} · {data.provenance?.fetchedAt}
             </p>
           </details>
-          <WalletAction
+          {needsApproval?<div className="wallet-action"><p>Approve the app to spend up to {units(data.funding.requiredRaw)} CHOG for your first buy. You confirm this in your wallet before launching.</p><button type="button" className="primary" onClick={event=>inspect(event,true)}>Approve CHOG to continue</button></div>:<WalletAction
             wallet={wallet}
             body={data}
             kind={data.approval ? "approval" : "preflight"}
@@ -282,11 +288,12 @@ export default function LaunchWizard({
               data.approval
                 ? data.approval.steps[0]?.kind === "reset"
                   ? "Reset CHOG spending approval in wallet"
-                  : "Approve exact launch budget in wallet"
+                  : `Approve ${units(data.approval.requiredRaw)} CHOG in wallet`
                 : "Launch token in wallet"
             }
-            onFinalized={() => setData(null)}
-          />
+            onFinalized={() => data.approval?inspect(null,data.approval.steps[0]?.kind==='reset'):setData(null)}
+          />}
+          </>}
         </div>
         </Modal>
         </>

@@ -1,7 +1,7 @@
 import React, { useContext, createContext, useEffect, useState } from "react";
 import TradePanel from "./TradePanel.jsx";
 import {Link} from 'react-router-dom';
-import { units, candleGeometry } from "./market-format.mjs";
+import { units, decimal, candleGeometry } from "./market-format.mjs";
 
 const short = (value) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const time = (seconds) =>
@@ -82,8 +82,8 @@ function Candles({ candles }) {
               stroke={c.c >= c.o ? "var(--buy)" : "var(--sell)"}
             >
               <title>
-                {time(c.time)}; Open {c.open}; High {c.high}; Low {c.low}; Close{" "}
-                {c.close} CHOG per token; {c.tradeCount} trades
+                {time(c.time)}; Open {decimal(c.open)}; High {decimal(c.high)}; Low {decimal(c.low)}; Close{" "}
+                {decimal(c.close)} CHOG per token; {c.tradeCount} trades
               </title>
               <line x1={x(c.time)} x2={x(c.time)} y1={y(c.h)} y2={y(c.l)} />
               <rect
@@ -378,7 +378,7 @@ export default function MarketView({
                 <article>
                   <span className="caption">LAST EXECUTION · CHOG / TOKEN</span>
                   <h3 className="execution-price">
-                    {data.candles.at(-1)?.close ?? "Unavailable"}
+                    {decimal(data.candles.at(-1)?.close)}
                   </h3>
                 </article>
                 <article>
