@@ -1,7 +1,13 @@
-import React, { useContext, createContext, useEffect, useState } from "react";
+import React, { useContext, createContext, useEffect, useState, lazy, Suspense } from "react";
 import TradePanel from "./TradePanel.jsx";
+import WalletActivity from "./WalletActivity.jsx";
+import FeeActionReview from "./FeeActionReview.jsx";
+import {Spinner} from './components/Loading.jsx';
 import {Link} from 'react-router-dom';
-import { units, decimal, candleGeometry } from "./market-format.mjs";
+import {chartPriceUnit,displayChartPrice} from "./market-chart.mjs";
+import { units } from "./market-format.mjs";
+
+const MarketChart=lazy(()=>import('./components/MarketChart.jsx'));
 
 const short = (value) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const time = (seconds) =>
@@ -26,10 +32,10 @@ function Address({ value }) {
   );
 }
 async function request(path, signal) {
-  const response = await fetch("/api" + path, { signal, cache: "no-store" });
+  const response = await fetch("/api" + path, { signal: AbortSignal.any([signal,AbortSignal.timeout(25000)]), cache: "no-store" });
   const data = await response.json();
   if (!response.ok)
-    throw new Error(data.error?.message || "Market data is unavailable.");
+    throw Object.assign(new Error(response.status>=500?"Market data is temporarily unavailable.":data.error?.message || "Market data is unavailable."),{code:data.error?.code});
   return data;
 }
 function Transaction({ value }) {
@@ -46,81 +52,13 @@ function Transaction({ value }) {
     <span title={value}>{short(value)} (local fork)</span>
   );
 }
-function Candles({ candles }) {
-  const visible = candles.slice(-120),
-    geometry = candleGeometry(visible);
-  if (!geometry)
-    return (
-      <div className="empty">
-        The chart will appear after the first recorded trade.
-      </div>
-    );
-  const { values, x, y, width } = geometry;
-  return (
-    <>
-      <div className="chart-scroll">
-        <svg
-          className="candle-chart"
-          viewBox="0 0 880 290"
-          role="img"
-          aria-label="CHOG execution price candles. Each candle has an OHLC tooltip."
-        >
-          {[35, 140, 245].map((row) => (
-            <line
-              key={row}
-              x1="25"
-              x2="855"
-              y1={row}
-              y2={row}
-              stroke="var(--line)"
-            />
-          ))}
-          {values.map((c) => (
-            <g
-              key={c.time}
-              fill={c.c >= c.o ? "var(--buy)" : "var(--sell)"}
-              stroke={c.c >= c.o ? "var(--buy)" : "var(--sell)"}
-            >
-              <title>
-                {time(c.time)}; Open {decimal(c.open)}; High {decimal(c.high)}; Low {decimal(c.low)}; Close{" "}
-                {decimal(c.close)} CHOG per token; {c.tradeCount} trades
-              </title>
-              <line x1={x(c.time)} x2={x(c.time)} y1={y(c.h)} y2={y(c.l)} />
-              <rect
-                x={x(c.time) - width / 2}
-                y={Math.min(y(c.o), y(c.c))}
-                width={width}
-                height={Math.max(1, Math.abs(y(c.o) - y(c.c)))}
-              />
-            </g>
-          ))}
-          <text x="25" y="280" fontSize="11" fill="var(--muted)">
-            {time(values[0].time)}
-          </text>
-          <text
-            x="855"
-            y="280"
-            textAnchor="end"
-            fontSize="11"
-            fill="var(--muted)"
-          >
-            {time(values.at(-1).time)}
-          </text>
-        </svg>
-      </div>
-      <p className="note">
-        Latest {visible.length} populated candles. Time gaps are preserved;
-        empty intervals are not filled. Hover a candle for exact OHLC values.
-      </p>
-    </>
-  );
-}
 export default function MarketView({
   onOpenStudio,
   wallet,
   selectedToken,
   onSelectToken,
 }) {
+  const [tab,setTab]=useState("transactions");
   const [directory, setDirectory] = useState(null),
     [directoryError, setDirectoryError] = useState("");
   const [input, setInput] = useState(""),
@@ -138,7 +76,7 @@ export default function MarketView({
     setDirectoryError("");
     const poll=()=>request("/tokens", controller.signal)
       .then((next) => {
-        if (!controller.signal.aborted) setDirectory(next);
+        if (!controller.signal.aborted) {setDirectory(next);setDirectoryError('');}
       })
       .catch((e) => {
         if (!controller.signal.aborted){setDirectory(null);setDirectoryError(e.message);}
@@ -158,15 +96,32 @@ export default function MarketView({
       return;
     }
     const controller = new AbortController();
-    let stream,
+    let stream, retryTimer, pollTimer, fallback=false, pollHealthy=false,
       active = true;
+    const stopPolling=()=>{fallback=false;pollHealthy=false;clearTimeout(pollTimer);};
     const fail = (message) => {
       if (active) {
+        stopPolling();
         setData(null);
         setError(message);
         setStatus("unavailable");
+        clearTimeout(retryTimer);
+        retryTimer=setTimeout(()=>{if(active)setRefresh(n=>n+1);},8000);
       }
     };
+    const poll=async()=>{
+      try{
+        const next=await request(`/tokens/${token}/history?interval=${interval}`,controller.signal);
+        if(!active||!fallback)return;
+        if(next.token.address.toLowerCase()!==token.toLowerCase()||next.intervalSeconds!==interval)throw Object.assign(new Error('Market response mismatch.'),{code:'MARKET_BINDING_MISMATCH'});
+        pollHealthy=true;setData(next);setError('');setStatus('polling');
+      }catch(e){
+        if(!active||!fallback)return;
+        if(['CHAIN_REORG','MARKET_BINDING_MISMATCH','INDEX_REORG_DEPTH','CHAIN_MISMATCH'].includes(e.code)){fail('This market is being reverified after a network change.');return;}
+        pollHealthy=false;setStatus('reconnecting');setError('Market updates are delayed. Reconnecting automatically.');
+      }finally{if(active&&fallback)pollTimer=setTimeout(poll,5000);}
+    };
+    const startPolling=()=>{if(!active||fallback)return;fallback=true;pollTimer=setTimeout(poll,500);};
     const replace = (event, reorganized = false) => {
       if (!active) return;
       try {
@@ -176,6 +131,7 @@ export default function MarketView({
           next.intervalSeconds !== interval
         )
           throw new Error();
+        stopPolling();
         setData(next);
         setError("");
         setStatus("connected");
@@ -199,20 +155,25 @@ export default function MarketView({
         stream.addEventListener("snapshot", replace);
         stream.addEventListener("reset", (event) => replace(event, true));
         stream.addEventListener("unavailable", (event) => {
-          let message = "Canonical market data is unavailable.";
+          let message = "Market data is temporarily unavailable.";
           try {
-            message = JSON.parse(event.data).error?.message || message;
+            const failure=JSON.parse(event.data).error;
+            if(failure?.code==='MARKET_BINDING_MISMATCH')message='This token’s market could not be verified.';
+            if(['INDEX_RPC_FAILED','RPC_POOL_UNAVAILABLE','RPC_READ_FAILED','INDEX_READ_BUSY'].includes(failure?.code)){
+              setError('Market updates are delayed. Reconnecting automatically.');setStatus('reconnecting');startPolling();return;
+            }
           } catch {}
           fail(message);
           stream.close();
         });
         stream.onerror = () => {
           if (active) {
-            setData(null);
+            if(pollHealthy){setStatus('polling');return;}
             setStatus("reconnecting");
             setError(
-              "Live updates disconnected. Reconnecting…",
+              "Live updates interrupted. Showing the last confirmed snapshot while reconnecting.",
             );
+            startPolling();
           }
         };
       })
@@ -223,6 +184,8 @@ export default function MarketView({
       active = false;
       controller.abort();
       stream?.close();
+      clearTimeout(retryTimer);
+      stopPolling();
     };
   }, [token, interval, refresh]);
   useEffect(() => {
@@ -255,315 +218,49 @@ export default function MarketView({
     if (token === value) setRefresh((n) => n + 1);
     else choose(value);
   }
-  return (
-    <section id="markets" className="market-section">
-      <div className="section-heading">
-        <div>
-          <span className="eyebrow">MARKETS / TRADE IN CHOG</span>
-          <h2>Trade Foundry tokens.</h2>
-        </div>
-        <button
-          className="text-button"
-          onClick={() => setRefresh((n) => n + 1)}
-        >
-          Refresh markets ↻
-        </button>
+  const tabs=[['transactions','Transactions'],['holders','Holders'],['activity','My activity'],['fees','Claim fees'],['info','Token info']];
+  return <section id="markets" className="market-section terminal">
+    <header className="terminal-toolbar">
+      <div className="terminal-title"><span className="eyebrow">FOUNDRY MARKETS</span><h2>Trading terminal<span className="terminal-chain">Monad</span></h2></div>
+      <div className="terminal-tools">
+        <label className="market-select-label">Market<select aria-label="Select market" value={token} onChange={e=>choose(e.target.value)}><option value="" disabled>Select a token</option>{directory?.tokens.map(value=><option key={value} value={value}>{directory.assets?.find(a=>a.token.address.toLowerCase()===value.toLowerCase())?.token.symbol||short(value)} / CHOG</option>)}{token&&!directory?.tokens.some(value=>value.toLowerCase()===token.toLowerCase())&&<option value={token}>{short(token)} / CHOG</option>}</select></label>
+        <button className="secondary" onClick={()=>setRefresh(n=>n+1)}>Refresh</button>
       </div>
-      <p className="note">
-        Discover tokens launched on Chog Foundry. Select a token for its chart,
-        live trades, holders and buy/sell panel. Prices are in CHOG.
-      </p>
-      {directoryError ? (
-        <div className="message" role="status">
-          Token directory unavailable: {directoryError}
-        </div>
-      ) : !directory ? (
-        <p className="note">Reading the token directory…</p>
-      ) : directory.tokens.length ? (
-        <div className="nft-picker">
-          {directory.tokens.map((value) => (
-            <button key={value} onClick={() => choose(value)} title={value}>
-              {directory.assets?.find(a=>a.token.address.toLowerCase()===value.toLowerCase())?.token.symbol||short(value)}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="empty market-empty">
-          <h3>{directory.index.caughtUp?'The first launch starts here.':'Loading launch history…'}</h3>
-          <p>{directory.index.caughtUp?'No tokens have been launched on this Foundry deployment yet. Charts and trade history appear after a real token launch and its first trade.':'The market index is catching up. Tokens will appear as their launches are verified.'}</p>
-          <div className="profile-actions"><Link className="primary" to="/app/launch">Launch a token ↗</Link><Link className="secondary" to="/app/studios">Your studios ↗</Link></div>
-        </div>
-      )}
-      <details className="market-advanced"><summary>Open a market by contract address</summary>
-      <form className="lookup market-lookup" onSubmit={lookup}>
-        <label htmlFor="market-token">Foundry token address</label>
-        <div>
-          <input
-            id="market-token"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="0x…"
-            required
-            spellCheck="false"
-          />
-          <button className="primary" type="submit">
-            Open market ↗
-          </button>
-        </div>
-      </form>
-      </details>
-      {token&&<div className="market-controls">
-        <label>
-          Candle interval{" "}
-          <select
-            value={interval}
-            onChange={(e) => setIntervalValue(Number(e.target.value))}
-          >
-            <option value={60}>1 minute</option>
-            <option value={300}>5 minutes</option>
-            <option value={900}>15 minutes</option>
-            <option value={3600}>1 hour</option>
-          </select>
-        </label>
-        <span role="status">
-          {status === "connected"
-            ? data?.provenance.finality === "finalized"
-              ? "● Finalized stream connected"
-              : "● Local fork stream connected"
-            : status === "idle"
-              ? "Select a token"
-              : status}
-        </span>
-      </div>}
-      {error && (
-        <div className="message error" role="alert">
-          {error}
-        </div>
-      )}
-      {reset && (
-        <div className="message" role="status">
-          Chain reorganization: the previous branch was discarded and replaced.
-        </div>
-      )}
-      {data &&
-        (!selectedToken ||
-          data.token.address.toLowerCase() ===
-            selectedToken.address.toLowerCase()) && (
-          <MarketChain.Provider value={data.provenance.chainId}>
-            <div
-              className="market-card"
-              data-cursor={data.cursor}
-              data-block-hash={data.snapshot.blockHash}
-            >
-              <div className="section-heading">
-                <div>
-                  <span className="caption">
-                    {data.launch.graduated
-                      ? "OFFICIAL V4 POOL"
-                      : "BONDING CURVE"}
-                  </span>
-                  <h3>
-                    {data.token.name} / {data.token.symbol}
-                  </h3>
-                  <Address value={data.token.address} />
-                </div>
-                <button
-                  className="text-button"
-                  onClick={() => onOpenStudio(data.launch.nftId)}
-                >
-                  Open Chog #{data.launch.nftId} studio ↗
-                </button>
+    </header>
+    <details className="terminal-lookup"><summary>Find a token by address</summary><form onSubmit={lookup} className="terminal-address-form"><input aria-label="Foundry token address" value={input} onChange={e=>setInput(e.target.value)} placeholder="Paste a Foundry token address" spellCheck="false" required/><button className="secondary">Open market</button></form></details>
+    {directoryError&&!token&&<div className="message" role="status">Unable to load the token list. Retrying automatically.</div>}
+    {directory&&!directory.tokens.length&&!token&&<div className="empty market-empty"><h3>{directory.index.caughtUp?'Your next launch starts here.':'Loading launch history…'}</h3><p>{directory.index.caughtUp?'Launch a token to open its market, chart and community.':'Markets will appear as their launches are confirmed.'}</p><Link className="primary" to="/app/launch">Launch a token</Link></div>}
+    {error&&<div className="message error terminal-error" role="alert"><span>{error} Retrying automatically.</span><button className="text-button" onClick={()=>setRefresh(n=>n+1)}>Retry now</button></div>}
+    {(!data&&token&&!error||!directory&&!token&&!directoryError)&&<div className="terminal-loading"><Spinner label="Loading market…"/></div>}
+    {reset&&<div className="message" role="status">Trade history was updated after a network change.</div>}
+    {data&&(!selectedToken||data.token.address.toLowerCase()===selectedToken.address.toLowerCase())&&<MarketChain.Provider value={data.provenance.chainId}>
+      <div className="terminal-market" data-cursor={data.cursor} data-block-hash={data.snapshot.blockHash}>
+        <header className="terminal-token-header">
+          <div className="terminal-token-identity"><div className="token-monogram" aria-hidden="true">{data.token.symbol.slice(0,2).toUpperCase()}</div><div><h3>{data.token.name}<span>{data.token.symbol} / CHOG</span></h3><div className="terminal-token-links"><Address value={data.token.address}/><button className="text-button" onClick={()=>onOpenStudio(data.launch.nftId)}>Studio #{data.launch.nftId} ↗</button></div></div></div>
+          <dl className="terminal-stats"><div><dt>Last trade price</dt><dd>{data.candles.length?displayChartPrice(data.candles.at(-1).close,chartPriceUnit(data.candles).factor):"—"}<small> {chartPriceUnit(data.candles).factor===1?"CHOG":"CHOG / 1M"}</small></dd></div><div><dt>Trades</dt><dd>{data.tradeCount.toLocaleString('en-US')}</dd></div><div><dt>Holders</dt><dd>{data.holders?.count?.toLocaleString('en-US')??'—'}</dd></div><div><dt>Market</dt><dd className="market-stage">{data.launch.graduated?'Liquidity pool':'Bonding curve'}</dd></div></dl>
+        </header>
+        <div className="terminal-grid">
+          <div className="terminal-main">
+            <section className="terminal-chart-panel" aria-label="Price chart">
+              <div className="terminal-chart-toolbar"><div className="chart-intervals" role="group" aria-label="Candle interval">{[[60,'1m'],[300,'5m'],[900,'15m'],[3600,'1h']].map(([value,label])=><button key={value} aria-pressed={interval===value} className={interval===value?'active':''} onClick={()=>setIntervalValue(value)}>{label}</button>)}</div><span className={`market-live ${status==='connected'?'connected':''}`} role="status"><i/>{status==='connected'?(data.provenance.chainId===143?'Live':'Local fork'):status==='polling'?'HTTP updates':status==='connecting'?'Connecting…':'Reconnecting…'}</span></div>
+              <div className="chart-pair-label"><strong>{data.token.symbol} / CHOG</strong><span>Trade price · {interval<3600?`${interval/60} min`:'1 hour'}</span></div>
+              <Suspense fallback={<div className="chart-module-loading"><Spinner label="Loading chart…"/></div>}><MarketChart candles={data.candles} marketKey={`${data.token.address}:${interval}`}/></Suspense>
+              <footer className="chart-footnote"><span>Prices in CHOG · {data.candles.length} recorded candles</span><a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" title="TradingView Lightweight Charts™ — Copyright (c) 2025 TradingView, Inc.">Charts by TradingView ↗</a></footer>
+            </section>
+            <section className="terminal-history">
+              <div className="terminal-tabs" role="tablist" aria-label="Market information">{tabs.map(([value,label])=><button key={value} id={`market-tab-${value}`} role="tab" aria-selected={tab===value} aria-controls={`market-panel-${value}`} tabIndex={tab===value?0:-1} onKeyDown={e=>{if(!['ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;e.preventDefault();const i=tabs.findIndex(([key])=>key===value),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;setTab(tabs[next][0]);document.getElementById(`market-tab-${tabs[next][0]}`)?.focus();}} onClick={()=>setTab(value)}>{label}{value==='transactions'&&<span>{data.tradeCount}</span>}{value==='holders'&&data.holders&&<span>{data.holders.count}</span>}</button>)}</div>
+              <div className="terminal-tab-content" id={`market-panel-${tab}`} role="tabpanel" aria-labelledby={`market-tab-${tab}`} tabIndex={0}>
+                {tab==='transactions'&&<><div className="table-scroll"><table><thead><tr><th>Time (UTC)</th><th>Type</th><th>{data.token.symbol}</th><th title="Trade amount before protocol fees">CHOG amount</th><th>Wallet</th><th>Transaction</th></tr></thead><tbody>{[...data.trades].reverse().map(t=><tr key={t.id} data-transaction={t.transactionHash}><td className="trade-time" title={time(t.timestamp)}>{new Date(t.timestamp*1000).toISOString().slice(11,19)}<small>{new Date(t.timestamp*1000).toISOString().slice(0,10)}</small></td><td><span className={`trade-side ${t.side}`}>{t.side==='buy'?'Buy':'Sell'}</span></td><td>{units(t.tokenAmountRaw,data.token.decimals)}</td><td>{units(t.quoteBaseRaw)}</td><td><Address value={t.payer||t.router}/>{!t.payer&&<small>Router · payer unknown</small>}</td><td><Transaction value={t.transactionHash}/></td></tr>)}</tbody></table></div>{!data.trades.length&&<div className="terminal-empty">No trades yet. The first trade starts the chart.</div>}<p className="terminal-table-note">{data.tradesTruncated?'Latest 500 trades. ':''}CHOG amounts exclude protocol fees. <button className="text-button" onClick={()=>setTab('info')}>Data details ↗</button></p></>}
+                {tab==='holders'&&<>{data.holders?<><div className="table-scroll"><table><thead><tr><th>#</th><th>Wallet</th><th>Balance</th><th>Supply share</th><th>Type</th></tr></thead><tbody>{data.holders.top.map((h,i)=><tr key={h.wallet}><td>{i+1}</td><td><Address value={h.wallet}/></td><td>{units(h.balanceRaw,data.token.decimals)}</td><td><span className="holder-share">{units(h.shareBps,2)}%<span className="holder-share-track"><i style={{width:`${Math.min(100,Number(h.shareBps)/100)}%`}}/></span></span></td><td>{h.role}</td></tr>)}</tbody></table></div><p className="terminal-table-note">Top {data.holders.top.length} addresses, including market and liquidity contracts.</p></>:<div className="terminal-empty">Holder data is currently unavailable.</div>}</>}
+                {tab==='activity'&&(wallet?<WalletActivity token={data.token} wallet={wallet} signingWallet={wallet} cursor={data.cursor}/>:<div className="terminal-empty">Connect your wallet to see your activity for this token.</div>)}
+                <div hidden={tab!=='fees'}>{wallet?<FeeActionReview token={data.token} wallet={wallet} signingWallet={wallet} cursor={data.cursor}/>:<div className="terminal-empty">Connect your wallet to view and claim your fees.</div>}</div>
+                {tab==='info'&&<div className="terminal-info"><h3>Token details</h3><dl><dt>Token contract</dt><dd><Address value={data.token.address}/></dd><dt>Original creator</dt><dd><Address value={data.launch.creator}/></dd><dt>Fee vault</dt><dd><Address value={data.launch.vault}/></dd><dt>Total supply</dt><dd>{data.token.supplyRaw?`${units(data.token.supplyRaw,data.token.decimals)} ${data.token.symbol}`:"Unavailable"}</dd><dt>History status</dt><dd>{data.index.caughtUp?'Up to date':'Syncing'}</dd></dl><details><summary>Data sources and trade attribution</summary><p>Trades and candles come from confirmed onchain transactions. Empty time intervals are not filled with made-up prices. Holders include protocol contracts.</p><p>{data.priceUnit}</p><p>{data.attributionSummary?.policy}</p><p>Holder status: {data.holderStatus}</p><p>Some routes do not identify the sending or receiving wallet. Unresolved v4 trades: {data.attributionSummary?.unresolvedV4??'Unavailable'}.</p><p>{data.provenance.source} · {data.provenance.finality} · chain {data.provenance.chainId}</p><p>Block {data.provenance.blockNumber} · {data.provenance.blockTime}</p><code>{data.provenance.blockHash}</code><p>Read at {data.provenance.fetchedAt}</p><p>Indexed blocks {data.range.fromBlock}–{data.range.toBlock}</p><p>{data.candlesTruncated?'Latest 500 populated candle intervals.':'All recorded candles.'}</p></details></div>}
               </div>
-              <div className="stats">
-                <article>
-                  <span className="caption">LAST EXECUTION · CHOG / TOKEN</span>
-                  <h3 className="execution-price">
-                    {decimal(data.candles.at(-1)?.close)}
-                  </h3>
-                </article>
-                <article>
-                  <span className="caption">RECORDED TRADES</span>
-                  <h3>{data.tradeCount.toLocaleString("en-US")}</h3>
-                </article>
-                <article>
-                  <span className="caption">HOLDERS</span>
-                  <h3>
-                    {data.holders?.count?.toLocaleString("en-US") ??
-                      "Unavailable"}
-                  </h3>
-                  <p>Includes protocol contracts; addresses are not people.</p>
-                </article>
-              </div>
-              <TradePanel
-                token={data.token}
-                wallet={wallet}
-                cursor={data.cursor}
-              />
-              <p className="note">{data.priceUnit}</p>
-              <Candles candles={data.candles} />
-              {data.attributionSummary && (
-                <details className="note"><summary>Trade data details</summary><p>
-                  {data.attributionSummary.officialV4Matched} v4 trades matched
-                  to official settlement events ·{" "}
-                  {data.attributionSummary.unresolvedV4} unresolved routes.{" "}
-                  {data.attributionSummary.legacyV4Rows > 0
-                    ? `${data.attributionSummary.legacyV4Rows} legacy rows need a reviewed history rescan to obtain new attribution.`
-                    : ""}{" "}
-                  {data.attributionSummary.policy}
-                </p></details>
-              )}
-              <div className="market-tables">
-                <div>
-                  <h3>Recent trades</h3>
-                  <p className="note">
-                    {data.tradesTruncated
-                      ? "Latest 500 trades; older history is omitted."
-                      : "All recorded trades."}{" "}
-                    Some trades may not show the sending or receiving wallet when that information cannot be verified.
-                  </p>
-                  <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Time (UTC)</th>
-                          <th>Side</th>
-                          <th>Tokens</th>
-                          <th>CHOG amount</th>
-                          <th>Payer / router</th>
-                          <th>Recipient</th>
-                          <th>Transaction</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...data.trades].reverse().map((t) => (
-                          <tr key={t.id} data-transaction={t.transactionHash}>
-                            <td>{time(t.timestamp)}</td>
-                            <td className={t.side}>
-                              {t.side.toUpperCase()}
-                              <small>{t.stage}</small>
-                            </td>
-                            <td title={t.tokenAmountRaw}>
-                              {units(t.tokenAmountRaw, data.token.decimals)}
-                            </td>
-                            <td title={t.quoteBaseRaw}>
-                              {units(t.quoteBaseRaw)}
-                            </td>
-                            <td>
-                              <Address value={t.payer || t.router} />
-                              <small>
-                                {t.payer
-                                  ? t.attribution?.method ===
-                                    "foundry-lock-pool-trade"
-                                    ? "Official settlement payer"
-                                    : "Curve event payer"
-                                  : "Callback router; payer unknown"}
-                              </small>
-                              {t.attribution?.evidence && (
-                                <small
-                                  title={`Evidence: ${t.attribution.evidence.blockHash}:${t.attribution.evidence.logIndex}`}
-                                >
-                                  PoolTrade log #
-                                  {t.attribution.evidence.logIndex}
-                                </small>
-                              )}
-                            </td>
-                            <td>
-                              <Address value={t.recipient} />
-                              <small>
-                                {t.recipient
-                                  ? "Contract-recorded recipient"
-                                  : "Unresolved route"}
-                              </small>
-                            </td>
-                            <td>
-                              <Transaction value={t.transactionHash} />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {!data.trades.length && (
-                    <p className="note">No executed trades yet.</p>
-                  )}
-                </div>
-                <div>
-                  <h3>Holders</h3>
-                  <p className="note">
-                    {data.holderStatus}. Top {data.holders?.top.length ?? 0}{" "}
-                    addresses.
-                  </p>
-                  {data.holders && (
-                    <div className="table-scroll">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Address</th>
-                            <th>Balance</th>
-                            <th>Supply share</th>
-                            <th>Role</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.holders.top.map((h) => (
-                            <tr key={h.wallet}>
-                              <td>
-                                <Address value={h.wallet} />
-                              </td>
-                              <td title={h.balanceRaw}>
-                                {units(h.balanceRaw, data.token.decimals)}
-                              </td>
-                              <td>{units(h.shareBps, 2)}%</td>
-                              <td>{h.role}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <dl className="market-identity">
-                <dt>Original creator</dt>
-                <dd>
-                  <Address value={data.launch.creator} />
-                </dd>
-                <dt>Fee vault</dt>
-                <dd>
-                  <Address value={data.launch.vault} />
-                </dd>
-                <dt>Indexed range</dt>
-                <dd>
-                  {data.range.fromBlock}–{data.range.toBlock} ·{" "}
-                  {data.index.caughtUp
-                    ? `Caught up to observed ${data.provenance.finality === "finalized" ? "finalized" : "local fork"} head`
-                    : `Catching up to block ${data.index.observedHead ?? "unavailable"}`}
-                </dd>
-              </dl>
-              <details className="note">
-                <summary>Data & source details</summary>
-                <p>
-                  {data.provenance.source} · {data.provenance.finality} · chain{" "}
-                  {data.provenance.chainId}
-                </p>
-                <p>
-                  Block {data.provenance.blockNumber} ·{" "}
-                  {data.provenance.blockTime}
-                </p>
-                <code>{data.provenance.blockHash}</code>
-                <p>
-                  Read at {data.provenance.fetchedAt} ·{" "}
-                  {data.provenance.rpcOrigin}
-                </p>
-                <p>
-                  {data.candlesTruncated
-                    ? "Candle history is truncated to the latest 500 populated intervals."
-                    : "The chart includes all trades recorded so far."}
-                </p>
-              </details>
-            </div>
-          </MarketChain.Provider>
-        )}
-    </section>
-  );
+            </section>
+          </div>
+          <div className="terminal-sidebar"><TradePanel key={data.token.address} token={data.token} wallet={wallet} cursor={data.cursor}/><div className="terminal-sidebar-note"><span className="eyebrow">YOUR CHOG. YOUR NEXT LAUNCH.</span><p>Every trade supports this token’s creator and studio.</p><button className="text-button" onClick={()=>onOpenStudio(data.launch.nftId)}>Visit studio #{data.launch.nftId} ↗</button></div></div>
+        </div>
+      </div>
+    </MarketChain.Provider>}
+  </section>;
 }

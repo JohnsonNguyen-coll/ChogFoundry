@@ -3,6 +3,7 @@ import LaunchReceipt from "./LaunchReceipt.jsx";
 import LaunchSummary from "./components/LaunchSummary.jsx";
 import Modal from './components/Modal.jsx';
 import useInitialBuyQuote from './hooks/useInitialBuyQuote.js';
+import useLaunchCompletion from './hooks/useLaunchCompletion.js';
 import {Spinner} from './components/Loading.jsx';
 import {statusLabel} from './lib/status-label.mjs';
 import React, { useEffect, useRef, useState } from "react";
@@ -11,6 +12,7 @@ export default function LaunchWizard({
   wallet,
   nftId,
   inspectionMode = false,
+  onLaunchComplete,
 }) {
   const [id, setId] = useState(""),
     [publicWallet, setPublicWallet] = useState(""),
@@ -28,6 +30,7 @@ export default function LaunchWizard({
     nameTooLong = new TextEncoder().encode(name).length > 64,
     symbolTooLong = new TextEncoder().encode(symbol).length > 12;
   const buyQuote=useInitialBuyQuote(id,budget);
+  const completion=useLaunchCompletion({id,wallet,onComplete:onLaunchComplete});
   const needsApproval=data?.preflight?.blockers?.includes('FACTORY_APPROVAL_REQUIRED')&&!data?.approval;
   useEffect(() => {
     if (nftId != null) setId(nftId);
@@ -84,8 +87,9 @@ export default function LaunchWizard({
   function actionConfirmed(result){
     if(result.changedApproval)setApprovalNotice(`Your wallet approved ${units(result.changedApproval.approvedAmountRaw)} CHOG. The reviewed limit was ${units(result.changedApproval.reviewedAmountRaw)} CHOG.`);
     if(data.approval)void inspect(null,data.approval.steps[0]?.kind==='reset');
-    else setData(null);
+    else {setData(null);void completion.complete(result.hash);}
   }
+  if(completion.hash)return <section className="launch-completed"><span className="eyebrow">CHOG FOUNDRY / LAUNCH CONFIRMED</span><span className="launch-completed-mark" aria-hidden="true">✦</span><h1>Your next chapter is onchain.</h1>{completion.loading?<Spinner label="Verifying your token and opening its market…"/>:completion.error?<><p role="alert">{completion.error}</p><button type="button" className="primary" onClick={completion.retry}>Load my token</button></>:<p>Opening your token market…</p>}<a className="text-link" href={`https://monadscan.com/tx/${completion.hash}`} target="_blank" rel="noreferrer">View launch transaction ↗</a></section>;
   return (
     <section id="launch" className="launch-workspace">
       <header className="launch-page-heading">
