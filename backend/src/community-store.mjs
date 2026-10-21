@@ -77,12 +77,12 @@ export class CommunityStore {
       )
     ).rows[0];
   }
-  async post(key, wallet, input, proof) {
+  async post(key, wallet, input, proof, currentOwner=null) {
     wallet = lower(wallet);
     return this.db.transaction(async (c) => {
       await this.lock(c, "post:" + wallet);
       if (
-        !(
+        lower(currentOwner||'')!==wallet && !(
           await c.query(
             "SELECT 1 FROM foundry.club_members WHERE studio_key=$1 AND wallet=$2 AND following=true",
             [key, wallet],
@@ -119,7 +119,7 @@ export class CommunityStore {
       return { id: String(row.id) };
     });
   }
-  async vote(key, id, wallet, active) {
+  async vote(key, id, wallet, active, currentOwner=null) {
     return this.db.transaction(async (c) => {
       const post = (
         await c.query(
@@ -130,7 +130,7 @@ export class CommunityStore {
       if (!post || post.hidden || post.kind === "message")
         fail(404, "PROPOSAL_NOT_FOUND", "This proposal is unavailable.");
       if (
-        !(
+        lower(currentOwner||'')!==lower(wallet) && !(
           await c.query(
             "SELECT 1 FROM foundry.club_members WHERE studio_key=$1 AND wallet=$2 AND following=true",
             [key, lower(wallet)],

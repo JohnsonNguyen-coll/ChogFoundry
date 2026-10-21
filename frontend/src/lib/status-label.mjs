@@ -4,6 +4,8 @@ const labels = {
   finalized:'Confirmed', reverted:'Failed', confirming:'Confirming', pending:'Pending',
   submitted:'Sent to the network', orphaned:'Confirmation changed — check again',
   'replaced-finalized':'Replacement confirmed',
+  'approval-changed':'Approval confirmed with a different spending limit',
+  'pending-or-replaced':'Waiting for a network update',
   OWNER_REQUIRED:'Use the wallet that owns this studio NFT.',
   INSUFFICIENT_CHOG_BALANCE:'Your wallet needs more CHOG.',
   INSUFFICIENT_BALANCE:'Your wallet needs more tokens for this trade.',

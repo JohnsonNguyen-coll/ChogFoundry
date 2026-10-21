@@ -1,15 +1,15 @@
+import useTrackedTransaction from '../hooks/useTrackedTransaction.js';
+import {Spinner} from './Loading.jsx';
+import {statusLabel} from '../lib/status-label.mjs';
 import React, { useEffect, useRef, useState } from "react";
 import { useSelectedWallet } from "../WalletProvider.jsx";
 import { communityRequest } from "../lib/community.mjs";
 import { reviewedRaffle } from "../raffle-wallet.mjs";
 import {
   submitReviewedTransaction,
-  inspectTransaction,
 } from "../wallet-transaction.mjs";
 import {
   pendingFor,
-  subscribe,
-  updateTransaction,
 } from "../transaction-journal.mjs";
 import { units } from "../market-format.mjs";
 export default function RaffleWalletReview({
@@ -24,17 +24,15 @@ export default function RaffleWalletReview({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [state, setState] = useState(null),
-    [, rerender] = useState(0),
-    life = useRef(null),
-    pending = useRef(null);
+    life = useRef(null);
+  const tracking=useTrackedTransaction(onFinalized),display=tracking.transaction||state;
   useEffect(() => {
     const c = new AbortController();
     life.current = c;
     return () => c.abort();
   }, []);
-  useEffect(() => subscribe(() => rerender((n) => n + 1)), []);
   async function sign() {
-    if (busy || pending.current) return;
+    if (busy || tracking.pending) return;
     const signal = life.current.signal;
     setBusy(true);
     setError("");
@@ -61,7 +59,7 @@ export default function RaffleWalletReview({
           signal,
         ),
         freshReview = reviewedRaffle(fresh, auth.wallet);
-      pending.current = await submitReviewedTransaction(
+      tracking.track(await submitReviewedTransaction(
         provider,
         review,
         freshReview,
@@ -72,30 +70,7 @@ export default function RaffleWalletReview({
             if (!signal.aborted) setState(value);
           },
         },
-      );
-    } catch (e) {
-      if (!signal.aborted) setError(e.message);
-    } finally {
-      if (!signal.aborted) setBusy(false);
-    }
-  }
-  async function check() {
-    if (!pending.current || busy) return;
-    const signal = life.current.signal;
-    setBusy(true);
-    setError("");
-    try {
-      const result = await inspectTransaction(
-        provider,
-        pending.current.hash,
-        pending.current.transaction,
-      );
-      updateTransaction(pending.current.hash, result);
-      if (!signal.aborted) setState(result);
-      if (["finalized", "reverted"].includes(result.status)) {
-        pending.current = null;
-        if (result.status === "finalized" && !signal.aborted) onFinalized?.();
-      }
+      ));
     } catch (e) {
       if (!signal.aborted) setError(e.message);
     } finally {
@@ -124,27 +99,23 @@ export default function RaffleWalletReview({
           !enabled ||
           !auth.matches ||
           busy ||
-          !!pending.current ||
+          tracking.pending ||
           pendingFor(auth.wallet)
         }
         onClick={sign}
       >
         {busy ? "Checking..." : "Confirm reviewed action in wallet"}
       </button>
-      {pending.current && (
-        <button disabled={busy} onClick={check}>
-          Check confirmation
-        </button>
-      )}
-      {state && (
+      {tracking.pending&&<Spinner label="Waiting for confirmation…"/>}
+      {display && (
         <p role="status">
-          {state.status}
-          {state.hash && (
+          {statusLabel(display.status)}
+          {display.hash && (
             <>
               {" "}
               /{" "}
               <a
-                href={`https://monadscan.com/tx/${state.hash}`}
+                href={`https://monadscan.com/tx/${display.hash}`}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -154,7 +125,7 @@ export default function RaffleWalletReview({
           )}
         </p>
       )}
-      {error && <p className="message error">{error}</p>}
+      {display?.trackingError&&<p className="message error">{display.trackingError}</p>}{error && <p className="message error">{error}</p>}
     </div>
   );
 }

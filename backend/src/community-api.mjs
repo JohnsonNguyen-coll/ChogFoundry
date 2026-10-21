@@ -139,10 +139,13 @@ export function communityApi({
         if (before != null) postIdentifier(before);
         await liveRoom(id, selected);
         const studio = await reader.studio(id);
+        const state=await store.club(studioKey, selected, session?.wallet, before);
+        const ownerAccess=!!session&&session.wallet.toLowerCase()===studio.nft.owner.toLowerCase();
         return finish({
           studio,
           room: selected,
-          ...(await store.club(studioKey, selected, session?.wallet, before)),
+          ...state,
+          membership:{...state.membership,role:ownerAccess?'owner':state.membership?.following?'member':'visitor',canPost:ownerAccess||!!state.membership?.following},
           policy:
             "Public wallet-authenticated chat. No token purchase required. Polling replaces the current 100-post window; proposals never execute contracts. Moderation is owner-only with fresh Transfer-based authorization.",
         });
@@ -164,10 +167,10 @@ export function communityApi({
           input.room === "announcements"
             ? await reader.ownerProof(id, session)
             : null;
-        if (!proof) await reader.studio(id);
+        const owner=proof?.owner??(await reader.studio(id)).nft.owner;
         auth.session(req, true);
         return finish(
-          await store.post(studioKey, session.wallet, input, proof),
+          await store.post(studioKey, session.wallet, input, proof,owner),
         );
       }
       if (write && op === "votes") {
@@ -175,9 +178,10 @@ export function communityApi({
         const post = postIdentifier(input.postId);
         if (typeof input.active !== "boolean")
           fail(400, "INVALID_VOTE", "Choose an explicit vote state.");
+        const owner=(await reader.studio(id)).nft.owner;
         auth.session(req, true);
         return finish(
-          await store.vote(studioKey, post, session.wallet, input.active),
+          await store.vote(studioKey, post, session.wallet, input.active,owner),
         );
       }
       if (write && op === "moderation") {

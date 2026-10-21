@@ -19,6 +19,7 @@ export default function LaunchWizard({
     [budget, setBudget] = useState("0"),
     [data, setData] = useState(null),
     [reviewOpen, setReviewOpen] = useState(false),
+    [approvalNotice,setApprovalNotice] = useState(''),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     pending = useRef(null);
@@ -79,6 +80,11 @@ export default function LaunchWizard({
     } finally {
       if (!controller.signal.aborted) setBusy(false);
     }
+  }
+  function actionConfirmed(result){
+    if(result.changedApproval)setApprovalNotice(`Your wallet approved ${units(result.changedApproval.approvedAmountRaw)} CHOG. The reviewed limit was ${units(result.changedApproval.reviewedAmountRaw)} CHOG.`);
+    if(data.approval)void inspect(null,data.approval.steps[0]?.kind==='reset');
+    else setData(null);
   }
   return (
     <section id="launch" className="launch-workspace">
@@ -192,6 +198,7 @@ export default function LaunchWizard({
         <div className="launch-review">
           {busy?<div className="section-loading"><Spinner label="Checking your launch…"/></div>:<>
           {error&&<p className="message error" role="alert">{error}</p>}
+          {approvalNotice&&<p className="message" role="status">{approvalNotice}</p>}
           {data.approval && (
             <>
               <p>
@@ -291,7 +298,7 @@ export default function LaunchWizard({
                   : `Approve ${units(data.approval.requiredRaw)} CHOG in wallet`
                 : "Launch token in wallet"
             }
-            onFinalized={() => data.approval?inspect(null,data.approval.steps[0]?.kind==='reset'):setData(null)}
+            onFinalized={actionConfirmed}
           />}
           </>}
         </div>

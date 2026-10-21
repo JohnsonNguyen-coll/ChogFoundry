@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import useApi from "../hooks/useApi.js";
 import usePollingApi from "../hooks/usePollingApi.js";
 import useWalletSession from "../hooks/useWalletSession.js";
 import useCommunityAction from "../hooks/useCommunityAction.js";
 import WalletSession from "../components/WalletSession.jsx";
+import ClubDirectory from '../components/ClubDirectory.jsx';
+import NftArtwork from '../components/NftArtwork.jsx';
 import { LoadState, Provenance } from "../components/Onchain.jsx";
 import { communityRequest, timestamp } from "../lib/community.mjs";
 import { short } from "../lib/api.mjs";
 export default function ClubsPage() {
   const { id } = useParams(),
-    navigate = useNavigate(),
     auth = useWalletSession(),
     [selectedRoom, setRoom] = useState("lounge"),
     [refresh, setRefresh] = useState(0),
@@ -33,6 +34,7 @@ export default function ClubsPage() {
     { data, error, loading } = usePollingApi(route, refresh);
   const tokens=useApi(valid?`/studios/${id}/tokens`:null);
   const isOwner=!!auth.wallet&&auth.wallet.toLowerCase()===data?.studio.nft.owner.toLowerCase();
+  const hasClubAccess=isOwner||!!data?.membership?.following;
   useEffect(() => {
     setRoom("lounge");
     setBefore(null);
@@ -57,42 +59,14 @@ export default function ClubsPage() {
     });
   };
   return (
-    <>
-      <section className="page-intro">
-        <span className="eyebrow">CHOG FOUNDRY / CLUBS</span>
-        <h1>{id ? `Studio #${id} club` : "Build the next idea together."}</h1>
-        <p>
-          Chat, share concepts and credit contributors. Everyone can
-          participate, including people who do not hold tokens.
-        </p>
-      </section>
-      <WalletSession auth={auth} />
+    <div className="clubs-page">
+      {id&&<><Link className="back-link" to="/app/clubs">← All clubs</Link><header className="club-detail-header"><div className="club-detail-identity">{data&&<NftArtwork id={id} collection={data.studio.nft.collection} collectionName={data.studio.nft.collectionName} tokenURI={data.studio.nft.tokenURI}/>}<div><span className="eyebrow">CHOG FOUNDRY / STUDIO COMMUNITY</span><h1>Studio #{id} club</h1><p>Good conversations. Shared ideas. Your next launch.</p></div></div><WalletSession auth={auth}/></header></>}
       <LoadState
-        loading={loading || directory.loading}
-        error={error || directory.error || action.error}
+        loading={!!id&&loading}
+        error={id?(error||action.error):null}
       />
       {action.notice && <p role="status">{action.notice}</p>}
-      {!id && (
-        <div className="studio-grid">
-          {directory.data?.studios.map((s) => (
-            <Link
-              className="studio-preview"
-              key={s.id}
-              to={`/app/clubs/${s.id}`}
-            >
-              <span className="caption">STUDIO #{s.id}</span>
-              <h3>{s.name}</h3>
-              <span>Enter club</span>
-            </Link>
-          ))}
-          {directory.data && !directory.data.studios.length && (
-            <p className="empty">
-              No studio profiles have been published yet. Open a studio to visit
-              its club.
-            </p>
-          )}
-        </div>
-      )}
+      {!id&&<ClubDirectory wallet={auth.wallet} directory={directory}/>}
       {id && !valid && <p className="message error">Invalid studio link.</p>}
       {valid && (
         <>
@@ -121,7 +95,7 @@ export default function ClubsPage() {
                   {tokens.data?.assets.map(a=><option key={a.token.address} value={`token:${a.token.address.toLowerCase()}`}>{a.token.name} ({a.token.symbol})</option>)}
                 </select>
               </label>
-              <p className="note">Each launched token gets its own discussion room. No token purchase is required.</p>
+              <p className="note">A dedicated room for each launched token.</p>
               {tokens.error&&<p role="alert">{tokens.error}</p>}
               {isOwner&&<Link to={`/app/launch?studio=${id}`}>Launch a token ↗</Link>}
             </div>
@@ -225,7 +199,7 @@ export default function ClubsPage() {
                     </article>
                   ))}
                   {!data.posts.length && (
-                    <p className="empty">No messages in this room yet.</p>
+                    <div className="club-room-empty"><span aria-hidden="true">{room==='ideas'?'✦':'#'}</span><h3>{room==='announcements'?'Studio updates live here.':room==='ideas'?'A wild idea belongs here.':'Make yourself at home.'}</h3><p>{room==='announcements'?'Announcements from the studio owner will appear here.':room==='ideas'?'Share a concept, a meme or a different point of view.':'Say hello and start the first conversation.'}</p></div>
                   )}
                 </div>
                 <div className="profile-actions">
@@ -247,7 +221,7 @@ export default function ClubsPage() {
                       : "Add to the conversation"}
                   </h3>
                   {!auth.matches&&<p className="message" role="status">Sign in with your wallet to send messages. Connecting your wallet alone does not sign you in.</p>}
-                  {auth.matches&&!data.membership?.following&&<p className="message" role="status">Join this club to post. Joining is free and does not require buying a token.</p>}
+                  {auth.matches&&!hasClubAccess&&<p className="message" role="status">Join this club to post. Joining is free and does not require buying a token.</p>}
                   {room==='announcements'&&!isOwner&&<p className="note">Only the current studio owner can publish announcements. Use Lounge to chat.</p>}
                   {room === "ideas" && (
                     <>
@@ -289,9 +263,11 @@ export default function ClubsPage() {
                   <label>
                     Message
                     <textarea
+                      id="club-message"
                       required
                       maxLength={2000}
                       rows={4}
+                      placeholder={room==='ideas'?'What should we make next?':room==='announcements'?'Share an update with your club…':'Say something to the club…'}
                       value={draft.content}
                       onChange={(e) =>
                         setDraft({ ...draft, content: e.target.value })
@@ -304,17 +280,17 @@ export default function ClubsPage() {
                   </p>
                   <button
                     className="primary"
-                    type={auth.matches&&data.membership?.following?'submit':'button'}
-                    onClick={!auth.matches?auth.signIn:!data.membership?.following?()=>action.run(s=>write(`/clubs/${id}/membership`,{following:true},s)):undefined}
+                    type={auth.matches&&hasClubAccess?'submit':'button'}
+                    onClick={!auth.matches?auth.signIn:!hasClubAccess?()=>action.run(s=>write(`/clubs/${id}/membership`,{following:true},s)):undefined}
                     disabled={!auth.wallet||auth.busy||action.busy||(room==='announcements'&&!isOwner)}
                   >
-                    {auth.busy||action.busy?'Please wait…':!auth.wallet?'Connect wallet to chat':!auth.matches?'Sign in to chat':!data.membership?.following?'Join club to chat':'Send message'}
+                    {auth.busy||action.busy?'Please wait…':!auth.wallet?'Connect wallet to chat':!auth.matches?'Sign in to chat':!hasClubAccess?'Join club to chat':'Send message'}
                   </button>
                 </form>
               </section>
               <aside className="club-members">
-                <h3>Your membership</h3>
-                <button
+                <h3>{isOwner?'Your studio club':'Your membership'}</h3>
+                {isOwner?<p className="club-owner-access">Studio owner · You already have access.</p>:<button
                   disabled={!auth.matches || action.busy}
                   onClick={() =>
                     action.run((s) =>
@@ -327,11 +303,12 @@ export default function ClubsPage() {
                   }
                 >
                   {data.membership?.following ? "Unfollow club" : "Join club"}
-                </button>
+                </button>}
                 <p className="note">
                   Membership does not grant studio administration.
                 </p>
                 <h3>Contributors</h3>
+                {!data.contributions.length&&<p className="note">People who contribute will appear here.</p>}
                 {data.contributions.map((c) => (
                   <p key={c.author}>
                     {short(c.author)} <span>{c.posts} posts</span>
@@ -344,6 +321,6 @@ export default function ClubsPage() {
           )}
         </>
       )}
-    </>
+    </div>
   );
 }

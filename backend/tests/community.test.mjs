@@ -144,6 +144,25 @@ test("real PostgreSQL community migration, membership, attributed posts, voting 
   }
 });
 
+test('owner participation is implicit, does not create a permanent follow and ends when ownership changes',async()=>{
+  const e=await engine();
+  try{
+    const store=new CommunityStore(e),oldOwner=Wallet.createRandom().address,newOwner=Wallet.createRandom().address,key='storage-owner-access-only';
+    // Storage permission inputs only; onchain owner reads remain the API boundary.
+    const input={room:'ideas',kind:'concept',title:'Storage test',content:'Storage permission test only',imageUrl:''};
+    const post=await store.post(key,oldOwner,input,null,oldOwner);
+    await store.vote(key,post.id,oldOwner,true,oldOwner);
+    assert.equal((await e.query('SELECT count(*)::int AS count FROM foundry.club_members')).rows[0].count,0);
+    await assert.rejects(store.post(key,oldOwner,input,null,newOwner),error=>error.code==='JOIN_CLUB_REQUIRED');
+    await assert.rejects(store.vote(key,post.id,oldOwner,true,newOwner),error=>error.code==='JOIN_CLUB_REQUIRED');
+    await store.post(key,newOwner,input,null,newOwner);
+    await store.vote(key,post.id,newOwner,true,newOwner);
+    await store.follow(key,oldOwner,true);
+    await store.post(key,oldOwner,input,null,newOwner);
+    assert.equal((await store.club(key,'ideas',newOwner)).posts.length,3);
+  }finally{await e.close();}
+});
+
 test("actual PostgreSQL transactions deduplicate point credits and serialize entry/refund accounting", async () => {
   const e = await engine();
   try {

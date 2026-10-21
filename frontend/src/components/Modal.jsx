@@ -1,6 +1,6 @@
 import React, {useEffect, useId, useRef} from 'react';
 
-export default function Modal({open,onClose,title,children,className=''}) {
+export default function Modal({open,onClose,title,children,className='',eyebrow='BEFORE YOU CONFIRM'}) {
   const dialog=useRef(null),heading=useId();
   useEffect(()=>{
     const element=dialog.current;
@@ -20,7 +20,7 @@ export default function Modal({open,onClose,title,children,className=''}) {
       const rect=dialog.current.getBoundingClientRect();
       if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)onClose();
     }}>
-    <header className="foundry-modal-header"><div><span className="eyebrow">BEFORE YOU CONFIRM</span><h2 id={heading}>{title}</h2></div><button type="button" onClick={onClose} aria-label="Close launch review">Close</button></header>
+    <header className="foundry-modal-header"><div><span className="eyebrow">{eyebrow}</span><h2 id={heading}>{title}</h2></div><button type="button" onClick={onClose} aria-label="Close dialog">Close</button></header>
     <div className="foundry-modal-content">{children}</div>
   </dialog>;
 }
