@@ -5,6 +5,7 @@ import StudioProfile from "../StudioProfile.jsx";
 import { useSelectedWallet } from "../WalletProvider.jsx";
 import { LoadState, ChainLink, Provenance } from "../components/Onchain.jsx";
 import { api } from "../lib/api.mjs";
+import NftArtwork from "../components/NftArtwork.jsx";
 export default function StudioPage() {
   const { id } = useParams(),
     { wallet } = useSelectedWallet(),
@@ -18,6 +19,7 @@ export default function StudioPage() {
     [actionError, setError] = useState(""),
     [transfers, setTransfers] = useState(null);
   const transferRequest = useRef(null);
+  const tokens=useApi(/^(0|[1-9][0-9]*)$/.test(id)?`/studios/${id}/tokens`:null,refresh);
   useEffect(() => {
     setTransfers(null);
     setError("");
@@ -55,14 +57,11 @@ export default function StudioPage() {
               {studio.profile?.description ||
                 "A new chapter starts with your studio NFT."}
             </p>
-            <Link
-              className="primary"
-              to={`/app/launch?studio=${studio.nft.tokenId}`}
-            >
-              Prepare a launch ↗
-            </Link>
           </section>
           <div className="studio-community-links">
+            <Link className="primary" to={`/app/launch?studio=${id}`}>
+              Launch token ↗
+            </Link>
             <Link className="secondary" to={`/app/clubs/${id}`}>
               Enter studio club
             </Link>
@@ -70,7 +69,14 @@ export default function StudioPage() {
               Ask Claude
             </Link>
           </div>
+          <section className="studio-token-list">
+            <div className="section-heading"><h2>Studio tokens</h2><Link className="primary" to={`/app/launch?studio=${id}`}>Launch token ↗</Link></div>
+            <LoadState loading={tokens.loading} error={tokens.error}/>
+            {tokens.data?.assets.map(a=><article key={a.token.address} className="studio-token-row"><div><strong>{a.token.name}</strong><span> {a.token.symbol}</span></div><div className="profile-actions"><Link to={`/app/markets/${a.token.address}`}>Trade & chart ↗</Link><Link to={`/app/clubs/${id}`}>Join discussion ↗</Link></div></article>)}
+            {tokens.data&&!tokens.data.assets.length&&<p className="note">No tokens launched from this studio yet. Launch your first token to open its market.</p>}
+          </section>
           <article className="nft-card">
+            <NftArtwork id={id} collection={studio.nft.collection} tokenURI={studio.nft.tokenURI} collectionName={studio.nft.collectionName}/>
             <dl>
               <dt>Current owner</dt>
               <dd>

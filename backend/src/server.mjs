@@ -122,9 +122,16 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
         return send(200, await reader.transfers(id, from, to));
       }
       if(route==='/api/market-index') return send(200,indexer?indexer.status():{configured:false,reason:'A verified factory address and exact deployment block are required.'});
+      const studioTokensRoute=route.match(/^\/api\/studios\/([^/]+)\/tokens$/);
+      if(studioTokensRoute){
+        const id=String(tokenId(studioTokensRoute[1]));
+        if(!indexer)throw new AppError(503,'FOUNDRY_INDEX_NOT_CONFIGURED','The token directory is not configured.');
+        await indexer.sync();
+        return send(200,{assets:(await indexer.store.assets()).filter(a=>String(a.launch.nftId)===id),index:indexer.status()});
+      }
       if(route==='/api/tokens') {
         if(!indexer) throw new AppError(503,'FOUNDRY_INDEX_NOT_CONFIGURED','The market index deployment is not configured.');
-        await indexer.sync();return send(200,{tokens:await indexer.store.tokens(),index:indexer.status()});
+        await indexer.sync();return send(200,{tokens:await indexer.store.tokens(),assets:await indexer.store.assets(),index:indexer.status()});
       }
       const walletHistoryRoute=route.match(/^\/api\/tokens\/([^/]+)\/wallet-history$/);
       if(walletHistoryRoute){

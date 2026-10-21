@@ -24,6 +24,12 @@ export class PostgresMarketStore {
   async head(){await this.initialize();return headRow((await this.database.query('SELECT * FROM foundry.market_chunks WHERE index_key=$1 ORDER BY end_block DESC LIMIT 1',[this.key])).rows[0]);}
   async checkpoints(){await this.initialize();return (await this.database.query('SELECT * FROM foundry.market_chunks WHERE index_key=$1 ORDER BY end_block DESC LIMIT 1001',[this.key])).rows.map(headRow);}
   async tokens(){await this.initialize();return (await this.database.query('SELECT DISTINCT token FROM foundry.market_windows WHERE index_key=$1 ORDER BY token',[this.key])).rows.map(r=>r.token);}
+  async assets(){
+    await this.initialize();
+    const rows=(await this.database.query("SELECT DISTINCT ON (token) data_json->'token' AS token,data_json->'launch' AS launch FROM foundry.market_windows WHERE index_key=$1 ORDER BY token,end_block LIMIT 201",[this.key])).rows;
+    if(rows.length>200)throw new AppError(503,'INDEX_TOKEN_LIMIT','Token directory exceeds its capacity.');
+    return rows.map(r=>({token:r.token,launch:r.launch}));
+  }
   async revision(){await this.initialize();return Number((await this.database.query('SELECT revision FROM foundry.market_indexes WHERE index_key=$1',[this.key])).rows[0].revision);}
   async commit(start,end,block,windows,{emptyHistory=false,checkpoints=[]}={}) {
     await this.initialize();

@@ -42,12 +42,6 @@ export default function DappLayout() {
           </div>
         </header>
         <main className="app-content">
-          {configuration.data?.collection.temporary && (
-            <p className="message" role="status">
-              Temporary collection: {configuration.data.collection.name}. This deployment uses real Monad Mainnet assets. Chog Genesis will use separate contracts; studios, tokens and fees do not migrate automatically.{" "}
-              <a href={configuration.data.collection.source} target="_blank" rel="noreferrer">View collection</a>
-            </p>
-          )}
           {error && (
             <p className="message error" role="alert">
               {error}

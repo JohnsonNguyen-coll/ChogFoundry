@@ -1,5 +1,6 @@
 import React, { useContext, createContext, useEffect, useState } from "react";
 import TradePanel from "./TradePanel.jsx";
+import {Link} from 'react-router-dom';
 import { units, candleGeometry } from "./market-format.mjs";
 
 const short = (value) => `${value.slice(0, 6)}…${value.slice(-4)}`;
@@ -132,17 +133,22 @@ export default function MarketView({
     [reset, setReset] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
+    let timer;
     setDirectory(null);
     setDirectoryError("");
-    request("/tokens", controller.signal)
+    const poll=()=>request("/tokens", controller.signal)
       .then((next) => {
         if (!controller.signal.aborted) setDirectory(next);
       })
       .catch((e) => {
-        if (!controller.signal.aborted) setDirectoryError(e.message);
-      });
-    return () => controller.abort();
+        if (!controller.signal.aborted){setDirectory(null);setDirectoryError(e.message);}
+      }).finally(()=>{if(!controller.signal.aborted)timer=setTimeout(poll,10000);});
+    poll();
+    return () => {controller.abort();clearTimeout(timer);};
   }, [refresh]);
+  useEffect(()=>{
+    if(!selectedToken&&!token&&directory?.tokens.length){setInput(directory.tokens[0]);setToken(directory.tokens[0]);onSelectToken?.(directory.tokens[0]);}
+  },[directory,selectedToken,token,onSelectToken]);
   useEffect(() => {
     setData(null);
     setError("");
@@ -253,8 +259,8 @@ export default function MarketView({
     <section id="markets" className="market-section">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">MARKETS / CANONICAL HISTORY</span>
-          <h2>Follow the next launch.</h2>
+          <span className="eyebrow">MARKETS / TRADE IN CHOG</span>
+          <h2>Trade Foundry tokens.</h2>
         </div>
         <button
           className="text-button"
@@ -264,8 +270,8 @@ export default function MarketView({
         </button>
       </div>
       <p className="note">
-        Foundry tokens only. Prices are in CHOG; this view reads canonical
-        indexed trades and does not submit transactions.
+        Discover tokens launched on Chog Foundry. Select a token for its chart,
+        live trades, holders and buy/sell panel. Prices are in CHOG.
       </p>
       {directoryError ? (
         <div className="message" role="status">
@@ -277,18 +283,18 @@ export default function MarketView({
         <div className="nft-picker">
           {directory.tokens.map((value) => (
             <button key={value} onClick={() => choose(value)} title={value}>
-              {short(value)}
+              {directory.assets?.find(a=>a.token.address.toLowerCase()===value.toLowerCase())?.token.symbol||short(value)}
             </button>
           ))}
         </div>
       ) : (
-        <p className="note">
-          No token launches have been indexed.{" "}
-          {directory.index.caughtUp
-            ? "The index is caught up."
-            : "Backfill is still in progress."}
-        </p>
+        <div className="empty market-empty">
+          <h3>{directory.index.caughtUp?'The first launch starts here.':'Loading launch history…'}</h3>
+          <p>{directory.index.caughtUp?'No tokens have been launched on this Foundry deployment yet. Charts and trade history appear after a real token launch and its first trade.':'The market index is catching up. Tokens will appear as their launches are verified.'}</p>
+          <div className="profile-actions"><Link className="primary" to="/app/launch">Launch a token ↗</Link><Link className="secondary" to="/app/studios">Your studios ↗</Link></div>
+        </div>
       )}
+      <details className="market-advanced"><summary>Open a market by contract address</summary>
       <form className="lookup market-lookup" onSubmit={lookup}>
         <label htmlFor="market-token">Foundry token address</label>
         <div>
@@ -305,7 +311,8 @@ export default function MarketView({
           </button>
         </div>
       </form>
-      <div className="market-controls">
+      </details>
+      {token&&<div className="market-controls">
         <label>
           Candle interval{" "}
           <select
@@ -327,7 +334,7 @@ export default function MarketView({
               ? "Select a token"
               : status}
         </span>
-      </div>
+      </div>}
       {error && (
         <div className="message error" role="alert">
           {error}

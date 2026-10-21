@@ -20,7 +20,6 @@ export default function ClubsPage() {
       content: "",
       imageUrl: "",
     }),
-    [tokenRoom, setTokenRoom] = useState(""),
     [before, setBefore] = useState(null),
     action = useCommunityAction(
       `${id}:${auth.wallet}:${auth.session?.expiresAt}`,
@@ -32,6 +31,8 @@ export default function ClubsPage() {
       ? `/clubs/${id}?room=${encodeURIComponent(room)}&wallet=${auth.session?.wallet || ""}${before ? "&before=" + before : ""}`
       : null,
     { data, error, loading } = usePollingApi(route, refresh);
+  const tokens=useApi(valid?`/studios/${id}/tokens`:null);
+  const isOwner=!!auth.wallet&&auth.wallet.toLowerCase()===data?.studio.nft.owner.toLowerCase();
   useEffect(() => {
     setRoom("lounge");
     setBefore(null);
@@ -79,7 +80,7 @@ export default function ClubsPage() {
               key={s.id}
               to={`/app/clubs/${s.id}`}
             >
-              <span className="caption">CHOG GENESIS #{s.id}</span>
+              <span className="caption">STUDIO #{s.id}</span>
               <h3>{s.name}</h3>
               <span>Enter club</span>
             </Link>
@@ -112,31 +113,24 @@ export default function ClubsPage() {
                 </button>
               ))}
             </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (/^0x[0-9a-fA-F]{40}$/.test(tokenRoom)) {
-                  setRoom("token:" + tokenRoom.toLowerCase());
-                  setBefore(null);
-                }
-              }}
-            >
-              <label>
-                Token room
-                <input
-                  placeholder="Foundry token address"
-                  value={tokenRoom}
-                  onChange={(e) => setTokenRoom(e.target.value)}
-                />
+            <div className="token-room-picker">
+              <label>Token discussions
+                <select value={room.startsWith('token:')?room:''} disabled={!tokens.data?.assets.length}
+                  onChange={e=>{if(e.target.value){setRoom(e.target.value);setBefore(null);}}}>
+                  <option value="">{tokens.data?.assets.length?'Choose a studio token':'No tokens launched yet'}</option>
+                  {tokens.data?.assets.map(a=><option key={a.token.address} value={`token:${a.token.address.toLowerCase()}`}>{a.token.name} ({a.token.symbol})</option>)}
+                </select>
               </label>
-              <button>Open room</button>
-            </form>
+              <p className="note">Each launched token gets its own discussion room. No token purchase is required.</p>
+              {tokens.error&&<p role="alert">{tokens.error}</p>}
+              {isOwner&&<Link to={`/app/launch?studio=${id}`}>Launch a token ↗</Link>}
+            </div>
           </div>
           {data && (
             <div className="club-layout">
               <section className="club-conversation">
                 <div className="section-heading">
-                  <h2>{room.startsWith("token:") ? "Token room" : room}</h2>
+                  <h2>{room.startsWith("token:") ? tokens.data?.assets.find(a=>`token:${a.token.address.toLowerCase()}`===room)?.token.name||"Token discussion" : room[0].toUpperCase()+room.slice(1)}</h2>
                   <span>{data.members} following</span>
                 </div>
                 <p className="note">
@@ -252,6 +246,9 @@ export default function ClubsPage() {
                       ? "Official announcement"
                       : "Add to the conversation"}
                   </h3>
+                  {!auth.matches&&<p className="message" role="status">Sign in with your wallet to send messages. Connecting your wallet alone does not sign you in.</p>}
+                  {auth.matches&&!data.membership?.following&&<p className="message" role="status">Join this club to post. Joining is free and does not require buying a token.</p>}
+                  {room==='announcements'&&!isOwner&&<p className="note">Only the current studio owner can publish announcements. Use Lounge to chat.</p>}
                   {room === "ideas" && (
                     <>
                       <label>
@@ -307,13 +304,11 @@ export default function ClubsPage() {
                   </p>
                   <button
                     className="primary"
-                    disabled={
-                      !auth.matches ||
-                      !data.membership?.following ||
-                      action.busy
-                    }
+                    type={auth.matches&&data.membership?.following?'submit':'button'}
+                    onClick={!auth.matches?auth.signIn:!data.membership?.following?()=>action.run(s=>write(`/clubs/${id}/membership`,{following:true},s)):undefined}
+                    disabled={!auth.wallet||auth.busy||action.busy||(room==='announcements'&&!isOwner)}
                   >
-                    Post to club
+                    {auth.busy||action.busy?'Please wait…':!auth.wallet?'Connect wallet to chat':!auth.matches?'Sign in to chat':!data.membership?.following?'Join club to chat':'Send message'}
                   </button>
                 </form>
               </section>

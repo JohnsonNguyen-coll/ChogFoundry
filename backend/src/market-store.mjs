@@ -29,6 +29,11 @@ export class MarketStore {
   head() { return this.db.prepare('SELECT * FROM market_chunks ORDER BY end_block DESC LIMIT 1').get()||null; }
   checkpoints() { return this.db.prepare('SELECT * FROM market_chunks ORDER BY end_block DESC LIMIT 1001').all(); }
   tokens() { return this.db.prepare('SELECT DISTINCT token FROM market_windows ORDER BY token').all().map(r=>r.token); }
+  assets() {
+    const rows=this.db.prepare('SELECT data_json FROM market_windows w WHERE end_block=(SELECT min(end_block) FROM market_windows WHERE token=w.token) ORDER BY token LIMIT 201').all();
+    if(rows.length>200)throw new AppError(503,'INDEX_TOKEN_LIMIT','Token directory exceeds its capacity.');
+    return rows.map(r=>{const {token,launch}=JSON.parse(r.data_json);return {token,launch};});
+  }
   revision() { return this.db.prepare('SELECT revision FROM index_config WHERE id=1').get().revision; }
   transaction(action) {
     this.db.exec('BEGIN IMMEDIATE');

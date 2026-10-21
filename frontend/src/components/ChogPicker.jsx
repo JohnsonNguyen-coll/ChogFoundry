@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import ChogArtwork from "./ChogArtwork.jsx";
+import NftArtwork from "./NftArtwork.jsx";
 import useWalletAssets from "../hooks/useWalletAssets.js";
 import { LoadState, Provenance } from "./Onchain.jsx";
 export default function ChogPicker({ launch = false }) {
@@ -44,20 +45,18 @@ export default function ChogPicker({ launch = false }) {
             (data.nfts.tokenIds.length ? (
               <div className="studio-grid">
                 {data.nfts.tokenIds.map((id) => (
-                  <Link
+                  <article
                     className="studio-preview chog-choice"
-                    to={
-                      launch ? `/app/launch?studio=${id}` : `/app/studios/${id}`
-                    }
                     key={id}
                   >
-                    <span className="studio-glyph">◇</span>
+                    <NftArtwork id={id} collection={data.nfts.collection} collectionName={data.nfts.collectionName}/>
                     <span className="caption">{data.nfts.collectionName}</span>
                     <h3>Studio #{id}</h3>
-                    <span className="text-link">
+                    <Link className="text-link" to={launch ? `/app/launch?studio=${id}` : `/app/studios/${id}`}>
                       {launch ? "Prepare launch" : "Open studio"} ↗
-                    </span>
-                  </Link>
+                    </Link>
+                    {!launch&&<Link className="primary" to={`/app/launch?studio=${id}`}>Launch token ↗</Link>}
+                  </article>
                 ))}
               </div>
             ) : (
