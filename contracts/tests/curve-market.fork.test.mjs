@@ -2,7 +2,7 @@ import { reviewedAction, submitReviewedTransaction, inspectTransaction } from '.
 import { readLaunchApproval } from '../../backend/src/launch-data.mjs';
 import { readApprovalPlan } from '../../backend/src/fee-actions.mjs';
 import { readLaunchReceipt } from '../../backend/src/launch-receipt.mjs';
-import { readLaunchPreflight } from '../../backend/src/launch-data.mjs';
+import { readLaunchPreflight,readLaunchQuote } from '../../backend/src/launch-data.mjs';
 import { readClaimPreflight } from '../../backend/src/fee-actions.mjs';
 import { readTradePreflight } from '../../backend/src/trade-preflight.mjs';
 import { readTradeState, readCurveQuote } from '../../backend/src/trade-data.mjs';
@@ -87,6 +87,11 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     await assert.rejects(readLaunchApproval(local,await launchConfig(),{...inspectLaunch,wallet:buyerAddress}),e=>e.code==='OWNER_REQUIRED');
     const initialState={count:await factory.launchCount(),liability:await vault.liability(),balance:await quote.balanceOf(owner)};
     const launchPreview=await readLaunchPreflight(local,await launchConfig(),inspectLaunch);
+    const initialQuote=await readLaunchQuote(local,await launchConfig(),inspectLaunch.initialQuoteIn);
+    const autoPreview=await readLaunchPreflight(local,await launchConfig(),{...inspectLaunch,minTokenOut:'auto'});
+    assert.equal(autoPreview.params.minTokenOut,initialQuote.firstBuy.tokenOutRaw);
+    assert.equal(autoPreview.firstBuy.spentRaw,initialQuote.firstBuy.spentRaw);
+    params.minTokenOut=BigInt(autoPreview.params.minTokenOut);
     assert.equal(launchPreview.preflight.status,'simulated');assert.ok(BigInt(launchPreview.preflight.gasEstimateRaw)>0n);assert.equal(launchPreview.preflight.initialQuoteSpentRaw,null);assert.equal(launchPreview.preflight.initialTokenOutRaw,null);assert.equal(launchPreview.preflight.executionEnabled,false);
     assert.deepEqual({count:await factory.launchCount(),liability:await vault.liability(),balance:await quote.balanceOf(owner)},initialState,'Launch simulation rolls back creation, buy and fee effects');
     const operatorNFT=new Contract(chain.collection,['function approve(address,uint256)','function getApproved(uint256) view returns(address)'],local);
@@ -108,6 +113,8 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
     const token = new Contract(launch.token, compiled['src/StudioToken.sol'].StudioToken.abi, local);
     assert.equal(await token.totalSupply(), parseEther('1000000000'));
     assert.equal(await token.balanceOf(owner), launch.initialTokenOut);
+    assert.equal(String(launch.initialTokenOut),initialQuote.firstBuy.tokenOutRaw);
+    assert.equal(String(launch.initialQuoteIn),initialQuote.firstBuy.spentRaw);
     assert.ok(launch.initialTokenOut > 0n);
     assert.equal(creatorBefore - await quote.balanceOf(owner), launch.initialQuoteIn);
     assert.ok(launch.initialQuoteIn <= params.initialQuoteIn);

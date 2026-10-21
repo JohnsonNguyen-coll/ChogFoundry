@@ -1,6 +1,6 @@
 import { readLaunchReceipt } from './launch-receipt.mjs';
 import { PooledReadProvider } from './rpc-pool.mjs';
-import { readLaunchPreflight, readLaunchApproval } from './launch-data.mjs';
+import { readLaunchPreflight, readLaunchApproval, readLaunchQuote } from './launch-data.mjs';
 import { readApprovalPlan, readClaimPreflight } from './fee-actions.mjs';
 import { Contract, formatUnits, getAddress } from 'ethers';
 import { chain, erc20Abi, nftAbi } from './config.mjs';
@@ -128,6 +128,11 @@ export class ChainReader {
       const config={chainId:chain.id,factoryAddress,tokenAddress,collection:chain.collection,quote:chain.quote,toBlock:block,v4QuoterAddress:process.env.FOUNDRY_V4_QUOTER_ADDRESS};
       return kind==='claim'?readClaimPreflight(this.provider,config,wallet):readApprovalPlan(this.provider,config,{...input,wallet});
     },'finalized');
+  }
+  launchQuote(budget){
+    const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
+    if(!factoryAddress)throw new AppError(503,'FOUNDRY_NOT_CONFIGURED','Launch pricing is not available yet.');
+    return this.snapshot(block=>readLaunchQuote(this.provider,{chainId:chain.id,factoryAddress,collection:chain.collection,quote:chain.quote,toBlock:block},budget),'finalized');
   }
   launchPreflight(input,approval=false){
     const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;

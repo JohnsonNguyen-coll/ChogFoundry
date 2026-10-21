@@ -91,6 +91,8 @@ test('launch metadata and optional first buy preserve byte and uint256 boundarie
   assert.equal(launchInput(input).initialQuoteIn,'0');
   assert.equal(launchInput({...input,name:'🚀'.repeat(16)}).name.length,32);
   for(const patch of [{name:'🚀'.repeat(17)},{name:' bad'},{symbol:'X'.repeat(13)},{symbol:'x\n'},{initialQuoteIn:'1'},{minTokenOut:'1'},{initialQuoteIn:String(2n**256n)},{deadline:'1e9'}])assert.throws(()=>launchInput({...input,...patch}));
+  assert.equal(launchInput({...input,initialQuoteIn:'100',minTokenOut:'auto'}).minTokenOut,'auto');
+  assert.equal(launchInput({...input,minTokenOut:'auto'}).minTokenOut,'0');
 });
 
 test('receipt hashes accept only exact 32-byte hex input',()=>{

@@ -1,4 +1,5 @@
 import { communityApi } from './community-api.mjs';
+import {nftArtworkReader} from './nft-artwork.mjs';
 import { PUBLIC_WS_RPCS, sharedRpcPool } from './rpc-pool.mjs';
 import { createFrontendHost } from './frontend-host.mjs';
 import { transactionHash } from './launch-receipt.mjs';
@@ -38,6 +39,7 @@ async function body(req) {
 export function createApi({ databasePath, marketDatabasePath, origin, frontendDirectory } = {}) {
   const frontend = frontendDirectory ? createFrontendHost(frontendDirectory) : null;
   const reader = new ChainReader();
+  const artwork=nftArtworkReader(chain.collection);
   // Explicit local database paths remain for legacy storage tests/import; runtime uses Supabase.
   const database=databasePath===undefined?new PostgresDatabase():null;
   const store=database?new PostgresStudioStore(database):new StudioStore(databasePath);
@@ -101,8 +103,17 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
       if (route === '/api/session') return send(200, { session: auth.public(auth.session(req)) });
       if (route === '/api/studios') return send(200, { profiles: await store.list(`${chain.id}:${chain.collection.toLowerCase()}:`), source: database?'Supabase PostgreSQL studio profiles; no onchain launches implied.':'Local persisted studio profiles; no onchain launches implied.' });
       if (route === '/api/overview') return send(200, await reader.overview());
+      const artworkRoute=route.match(/^\/api\/studios\/([^/]+)\/artwork$/);
+      if(artworkRoute){
+        if(url.searchParams.get('collection')?.toLowerCase()!==chain.collection.toLowerCase())throw new AppError(400,'COLLECTION_MISMATCH','This NFT is not from the active studio collection.');
+        const result=await artwork(artworkRoute[1]);
+        res.writeHead(200,{'Content-Type':result.mime,'Content-Length':result.bytes.length,'Cache-Control':'public, max-age=300','Cross-Origin-Resource-Policy':'same-origin'});
+        return res.end(result.bytes);
+      }
       const launchReceiptRoute=route.match(/^\/api\/studios\/([^/]+)\/launch-receipt$/);
       if(launchReceiptRoute)return send(200,await reader.launchReceipt(tokenId(launchReceiptRoute[1]),transactionHash(url.searchParams.get('transactionHash'))));
+      const launchQuoteRoute=route.match(/^\/api\/studios\/([^/]+)\/launch-quote$/);
+      if(launchQuoteRoute){tokenId(launchQuoteRoute[1]);return send(200,await reader.launchQuote(String(tokenId(url.searchParams.get('initialQuoteIn')))));}
       const launchRoute=route.match(/^\/api\/studios\/([^/]+)\/(launch-preflight|launch-approval)$/);
       if(launchRoute){
         const input=launchInput({nftId:launchRoute[1],wallet:url.searchParams.get('wallet'),name:url.searchParams.get('name'),symbol:url.searchParams.get('symbol'),initialQuoteIn:url.searchParams.get('initialQuoteIn'),minTokenOut:url.searchParams.get('minTokenOut'),deadline:url.searchParams.get('deadline')});

@@ -1,6 +1,9 @@
 import WalletAction from "./WalletAction.jsx";
 import LaunchReceipt from "./LaunchReceipt.jsx";
 import LaunchSummary from "./components/LaunchSummary.jsx";
+import Modal from './components/Modal.jsx';
+import useInitialBuyQuote from './hooks/useInitialBuyQuote.js';
+import {Spinner} from './components/Loading.jsx';
 import {statusLabel} from './lib/status-label.mjs';
 import React, { useEffect, useRef, useState } from "react";
 import { parseAmount, units } from "./market-format.mjs";
@@ -14,15 +17,16 @@ export default function LaunchWizard({
     [name, setName] = useState(""),
     [symbol, setSymbol] = useState(""),
     [budget, setBudget] = useState("0"),
-    [minimum, setMinimum] = useState(""),
     [data, setData] = useState(null),
+    [reviewOpen, setReviewOpen] = useState(false),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     pending = useRef(null);
   const creator = wallet || publicWallet.trim(),
-    paid = budget !== "0",
+    paid = !!budget && !/^0(?:\.0*)?$/.test(budget),
     nameTooLong = new TextEncoder().encode(name).length > 64,
     symbolTooLong = new TextEncoder().encode(symbol).length > 12;
+  const buyQuote=useInitialBuyQuote(id,budget);
   useEffect(() => {
     if (nftId != null) setId(nftId);
   }, [nftId]);
@@ -32,7 +36,7 @@ export default function LaunchWizard({
     setError("");
     setBusy(false);
     return () => pending.current?.abort();
-  }, [creator, id, name, symbol, budget, minimum]);
+  }, [creator, id, name, symbol, budget]);
   async function inspect(e, approval = false) {
     e.preventDefault();
     pending.current?.abort();
@@ -49,7 +53,7 @@ export default function LaunchWizard({
         name,
         symbol,
         initialQuoteIn: paid ? parseAmount(budget) : "0",
-        minTokenOut: paid ? parseAmount(minimum) : "0",
+        minTokenOut: paid ? "auto" : "0",
         deadline: String(Math.floor(Date.now() / 1000) + 20 * 60),
       });
       const requestPath = `/api/studios/${encodeURIComponent(id)}/${approval ? "launch-approval" : "launch-preflight"}?${input}`;
@@ -65,7 +69,7 @@ export default function LaunchWizard({
         throw new Error(
           body.error?.message || "Launch inspection unavailable.",
         );
-      if (!controller.signal.aborted) setData({ ...body, requestPath });
+      if (!controller.signal.aborted) {setData({ ...body, requestPath });setReviewOpen(true);}
     } catch (e) {
       if (!controller.signal.aborted) setError(e.message);
     } finally {
@@ -149,7 +153,7 @@ export default function LaunchWizard({
         <div className="launch-first-buy-heading"><div><h3>Be the first in</h3><p>Buy at launch with your own CHOG, or start without a purchase.</p></div><span>Optional</span></div>
         <div className="launch-fields launch-buy-fields">
         <label>
-          Maximum first-buy budget
+          CHOG to spend
           <div className="launch-amount-input">
           <input
             aria-label="Launch first buy budget"
@@ -161,21 +165,11 @@ export default function LaunchWizard({
           <span>CHOG</span></div>
           <small>Enter 0 to launch without buying. Unused CHOG is returned.</small>
         </label>
-        {paid && (
-          <label>
-            Minimum first-buy tokens
-            <input
-              aria-label="Launch minimum tokens"
-              value={minimum}
-              onChange={(e) => setMinimum(e.target.value)}
-              inputMode="decimal"
-              required
-            />
-            <small>The least tokens you accept for your first buy.</small>
-          </label>
-        )}
         </div>
-        <div className="launch-form-footer"><p>Review first. Sign when you’re ready.<br/><span>Only the current NFT owner can launch.</span></p><button className="primary" disabled={busy}>
+        {paid&&<div className="launch-buy-estimate" aria-live="polite">
+          {buyQuote.loading?<Spinner label="Checking launch price…"/>:buyQuote.error?<><p role="alert">{buyQuote.error}</p><button type="button" onClick={buyQuote.retry}>Try again</button></>:buyQuote.data?<><span>Estimated tokens received</span><strong>{units(buyQuote.data.firstBuy.tokenOutRaw)} {symbol||'tokens'}</strong><small>Trading fees included. The amount is checked again before you confirm.</small></>:<p>Enter a CHOG amount greater than zero.</p>}
+        </div>}
+        <div className="launch-form-footer"><p>Review first. Sign when you’re ready.<br/><span>Only the current NFT owner can launch.</span></p><button className="primary" disabled={busy||(paid&&!buyQuote.data)}>
           {busy ? "Checking contracts…" : "Review launch →"}
         </button></div>
         {paid&&<button className="launch-allowance-link" type="button" disabled={busy} onClick={(e) => inspect(e, true)}>
@@ -188,8 +182,10 @@ export default function LaunchWizard({
         </div>
       )}
       {data && (
+        <>
+        <button type="button" className="secondary launch-reopen-review" onClick={()=>setReviewOpen(true)}>Open launch review</button>
+        <Modal open={reviewOpen} onClose={()=>setReviewOpen(false)} title="Review your launch" className="launch-review-modal">
         <div className="launch-review">
-          <h3>Review your launch</h3>
           {data.approval && (
             <>
               <p>
@@ -247,6 +243,7 @@ export default function LaunchWizard({
             <dd>
               Your wallet will show the fee before you confirm.
             </dd>
+            {paid&&data.firstBuy&&<><dt>Estimated tokens received</dt><dd>{units(data.firstBuy.tokenOutRaw)} {symbol}</dd><dt>Estimated CHOG spent</dt><dd>{units(data.firstBuy.spentRaw)} CHOG</dd></>}
             <dt>Actual first-buy spend / output</dt>
             <dd>
               Shown after launch; transaction confirmation is
@@ -291,6 +288,8 @@ export default function LaunchWizard({
             onFinalized={() => setData(null)}
           />
         </div>
+        </Modal>
+        </>
       )}
       <details className="launch-receipt-panel"><summary>Already launched? Verify your transaction ↗</summary><LaunchReceipt nftId={id} wallet={creator} /></details>
       </div>
