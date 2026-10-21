@@ -1,5 +1,6 @@
 import { AbiCoder, Contract, Interface, ZeroAddress, ZeroHash, formatUnits, getAddress, keccak256 } from 'ethers';
 import { AppError } from './validation.mjs';
+import {curveSpotPrice,poolSpotPrice} from './market-valuation.mjs';
 
 const identity = ['function collection() view returns(address)', 'function quote() view returns(address)'];
 const factoryAbi = [...identity, 'function market() view returns(address)', 'function feeVault() view returns(address)'];
@@ -44,6 +45,12 @@ export async function readMarketWindow(provider,{factoryAddress,tokenAddress,col
   if (!same(mf,factoryAddress)||!same(mc,collection)||!same(mq,quote)||!same(vr,factoryAddress)||!same(vc,collection)||!same(vq,quote)||launchId===ZeroHash||curve.launchId!==launchId||!same(curve.vault,vaultAddress)||decimals!==18n||supply!==1000000000n*10n**18n) fail();
   const launch=await vault.launches(launchId,at);
   if (!same(launch.token,tokenAddress)||!same(launch.curveRecorder,marketAddress)) fail();
+  let pricing=null;
+  if(!curve.graduated){
+    const parameters=new Contract(marketAddress,['function openingPrice() view returns(uint256)','function priceIncrease() view returns(uint256)','function saleSupply() view returns(uint256)'],provider);
+    const [opening,increase,saleSupply]=await Promise.all([parameters.openingPrice(at),parameters.priceIncrease(at),parameters.saleSupply(at)]);
+    pricing={spotPriceQuote:curveSpotPrice(opening,increase,curve.sold,saleSupply),source:'curve-marginal-price',blockNumber:toBlock};
+  }
   const [curveLogs,transfers]=await Promise.all([market.queryFilter(market.filters.Traded(tokenAddress),fromBlock,toBlock),token.queryFilter(token.filters.Transfer(),fromBlock,toBlock)]);
   const trades=curveLogs.map(l=>({stage:'curve',side:l.args.buySide?'buy':'sell',payer:l.args.payer,recipient:l.args.recipient,router:null,tokenAmountRaw:String(l.args.tokenAmount),quoteBaseRaw:String(l.args.baseQuote),protocolFeeRaw:String(l.args.totalFee),lpFeeUnits:null,blockNumber:l.blockNumber,blockHash:l.blockHash,transactionHash:l.transactionHash,transactionIndex:l.transactionIndex,logIndex:l.index}));
   let pool=null,settlementLogs=[];
@@ -59,6 +66,14 @@ export async function readMarketWindow(provider,{factoryAddress,tokenAddress,col
     const [logs,lockLogs]=await Promise.all([provider.getLogs({address:manager,topics:[swapInterface.getEvent('Swap').topicHash,poolId],fromBlock,toBlock}),lock.queryFilter(lock.filters.PoolTrade(tokenAddress),fromBlock,toBlock)]);
     settlementLogs=lockLogs;
     const quoteIs0=same(key.currency0,quote);
+    // Uniswap v4 StateLibrary: pools mapping is slot 6; Slot0's low 160 bits
+    // hold the current sqrtPriceX96 (the seed price in positions() is not current).
+    try{
+      const stateSlot=keccak256(AbiCoder.defaultAbiCoder().encode(['bytes32','uint256'],[poolId,6]));
+      const managerView=new Contract(manager,['function extsload(bytes32) view returns(bytes32)'],provider);
+      const sqrt=BigInt(await managerView.extsload(stateSlot,at))&((1n<<160n)-1n);
+      pricing={spotPriceQuote:poolSpotPrice(sqrt,quoteIs0),source:'uniswap-v4-slot0',blockNumber:toBlock};
+    }catch{pricing=null;}
     for (const l of logs) {
       const a=swapInterface.parseLog(l).args, q=quoteIs0?a.amount0:a.amount1, t=quoteIs0?a.amount1:a.amount0;
       if (q===0n||t===0n) continue;
@@ -125,5 +140,5 @@ export async function readMarketWindow(provider,{factoryAddress,tokenAddress,col
   }
   if ((await provider.getBlock(toBlock))?.hash!==endBlock.hash) throw new AppError(503,'CHAIN_REORG','Market snapshot changed during this read.');
   const transferData=includeTransfers?{transfers:transfers.map(l=>({id:`${l.blockHash}:${l.transactionHash}:${l.index}`,from:l.args.from,to:l.args.to,valueRaw:String(l.args.value),blockNumber:l.blockNumber,blockHash:l.blockHash,transactionHash:l.transactionHash,transactionIndex:l.transactionIndex,logIndex:l.index}))}:{};
-  return {...transferData,snapshot:{blockNumber:toBlock,blockHash:endBlock.hash,blockTime:new Date(endBlock.timestamp*1000).toISOString()},token:{address:tokenAddress,name,symbol,decimals:Number(decimals),supplyRaw:String(supply)},launch:{id:launchId,nftId:String(launch.nftId),creator:launch.creator,factory:factoryAddress,market:marketAddress,vault:vaultAddress,graduated:curve.graduated},pool,range:{fromBlock,toBlock,completeHistory:false},priceUnit:'CHOG per token; execution notional excludes protocol hook fees; v4 LP fees are embedded in pool deltas',intervalSeconds,candles:buildCandles(trades,intervalSeconds),trades,holders,holderStatus};
+  return {...transferData,pricing,snapshot:{blockNumber:toBlock,blockHash:endBlock.hash,blockTime:new Date(endBlock.timestamp*1000).toISOString()},token:{address:tokenAddress,name,symbol,decimals:Number(decimals),supplyRaw:String(supply)},launch:{id:launchId,nftId:String(launch.nftId),creator:launch.creator,factory:factoryAddress,market:marketAddress,vault:vaultAddress,graduated:curve.graduated},pool,range:{fromBlock,toBlock,completeHistory:false},priceUnit:'CHOG per token; execution notional excludes protocol hook fees; v4 LP fees are embedded in pool deltas',intervalSeconds,candles:buildCandles(trades,intervalSeconds),trades,holders,holderStatus};
 }

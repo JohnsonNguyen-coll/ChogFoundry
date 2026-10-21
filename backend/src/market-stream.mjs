@@ -27,7 +27,7 @@ export async function openMarketStream(req,res,indexer,token,interval,streams) {
     const current=++generation;
     if(closed) return;
     try {
-      const data=indexer.decorate(await indexer.store.market(token,interval));
+      const data=await indexer.decorate(await indexer.store.market(token,interval));
       if(closed||current!==generation)return;
       if(data.cursor===lastCursor) return;
       lastCursor=data.cursor;emit(status.reorganized?'reset':'snapshot',data,data.cursor);

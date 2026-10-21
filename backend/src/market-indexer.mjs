@@ -4,6 +4,7 @@ import { MarketStore } from './market-store.mjs';
 import { readMarketWindow } from './market-data.mjs';
 import { AppError } from './validation.mjs';
 import { RpcHeadStream } from './rpc-head-stream.mjs';
+import {marketValuation,quoteUsdReader} from './market-valuation.mjs';
 
 const factoryAbi=['function collection() view returns(address)','function quote() view returns(address)','event TokenLaunched(bytes32 indexed launchId,uint256 indexed nftId,address indexed token,address creator,uint256 supply,uint256 initialQuoteIn,uint256 initialTokenOut)'];
 export class MarketIndexer extends EventEmitter {
@@ -20,6 +21,7 @@ export class MarketIndexer extends EventEmitter {
     this.provider=provider;this.store=storeFactory?storeFactory(this.config):new MarketStore(this.config,databasePath);this.factory=new Contract(this.config.factoryAddress,factoryAbi,provider);
     this.chunkSize=chunkSize;this.pending=null;this.timer=null;this.stopped=false;this.target=null;this.lastError=null;this.cachedHead=null;this.cachedRevision=0;
     this.headStream=wsUrl?new RpcHeadStream(wsUrl,config.chainId,()=>this.wake?.()):null;
+    this.quoteUsd=quoteUsdReader(this.config.quote,{chainId:this.config.chainId});
   }
   async sync(maxChunks=3) {
     if(this.stopped) throw new AppError(503,'INDEX_STOPPED','The market indexer is stopped.');
@@ -122,9 +124,10 @@ export class MarketIndexer extends EventEmitter {
     if((await this.provider.getBlock(data.snapshot.blockNumber))?.hash!==data.snapshot.blockHash)throw new AppError(503,'CHAIN_REORG','Portfolio checkpoint is no longer canonical.');
     return this.decorate(data);
   }
-  decorate(data) {
+  async decorate(data) {
+    const valuation=data.token?marketValuation(data.token,data.pricing,await this.quoteUsd()):null;
     const status={...this.status(),indexedThrough:data.snapshot.blockNumber,indexedHash:data.snapshot.blockHash,revision:Number(data.cursor.split(':')[0]),caughtUp:!this.lastError&&data.snapshot.blockNumber===this.target?.number};
-    return {...data,index:status,provenance:{chainId:this.config.chainId,blockNumber:data.snapshot.blockNumber,blockHash:data.snapshot.blockHash,blockTime:data.snapshot.blockTime,fetchedAt:new Date().toISOString(),rpcOrigin:this.rpcOrigin,...(this.provider.pool?{rpcSources:this.provider.pool.sources()}:{}),source:this.store.source||'Canonical RPC event index in local SQLite',finality:this.config.finality}};
+    return {...data,...(valuation?{valuation}:{}),index:status,provenance:{chainId:this.config.chainId,blockNumber:data.snapshot.blockNumber,blockHash:data.snapshot.blockHash,blockTime:data.snapshot.blockTime,fetchedAt:new Date().toISOString(),rpcOrigin:this.rpcOrigin,...(this.provider.pool?{rpcSources:this.provider.pool.sources()}:{}),source:this.store.source||'Canonical RPC event index in local SQLite',finality:this.config.finality}};
   }
   start() {
     if(this.wake||this.stopped) return;

@@ -7,7 +7,7 @@ export default function NftArtwork({id,tokenURI,collection,collectionName='NFT'}
   const [state,setState]=useState(null),[attempt,setAttempt]=useState(0),[imageIndex,setImageIndex]=useState(0);
   const [loadedSource,setLoadedSource]=useState(null);
   const key=`${collection}:${id}:${tokenURI??''}:${attempt}`;
-  const preview=/^0x[0-9a-f]{40}$/i.test(collection||'')&&/^[0-9]+$/.test(id)?`/api/studios/${id}/artwork?collection=${collection.toLowerCase()}`:null;
+  const preview=/^0x[0-9a-f]{40}$/i.test(collection||'')&&/^[0-9]+$/.test(id)?`/api/studios/${id}/artwork?v=2&collection=${collection.toLowerCase()}`:null;
   useEffect(()=>{
     const c=new AbortController();setState(null);setImageIndex(0);
     (async()=>{

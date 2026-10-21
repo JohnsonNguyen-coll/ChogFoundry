@@ -39,7 +39,7 @@ async function body(req) {
 export function createApi({ databasePath, marketDatabasePath, origin, frontendDirectory } = {}) {
   const frontend = frontendDirectory ? createFrontendHost(frontendDirectory) : null;
   const reader = new ChainReader();
-  const artwork=nftArtworkReader(chain.collection);
+  const artwork=nftArtworkReader(chain.collection,{readTokenURI:async id=>(await reader.snapshot(async block=>({uri:await reader.nft.tokenURI(id,{blockTag:block})}))).uri});
   // Explicit local database paths remain for legacy storage tests/import; runtime uses Supabase.
   const database=databasePath===undefined?new PostgresDatabase():null;
   const store=database?new PostgresStudioStore(database):new StudioStore(databasePath);

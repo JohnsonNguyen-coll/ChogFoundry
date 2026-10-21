@@ -4,8 +4,8 @@ import WalletActivity from "./WalletActivity.jsx";
 import FeeActionReview from "./FeeActionReview.jsx";
 import {Spinner} from './components/Loading.jsx';
 import {Link} from 'react-router-dom';
-import {chartPriceUnit,displayChartPrice} from "./market-chart.mjs";
-import { units } from "./market-format.mjs";
+import { units,decimal } from "./market-format.mjs";
+import TokenAvatar from './components/TokenAvatar.jsx';
 
 const MarketChart=lazy(()=>import('./components/MarketChart.jsx'));
 
@@ -53,6 +53,7 @@ function Transaction({ value }) {
   );
 }
 export default function MarketView({
+  collection,
   onOpenStudio,
   wallet,
   selectedToken,
@@ -84,9 +85,6 @@ export default function MarketView({
     poll();
     return () => {controller.abort();clearTimeout(timer);};
   }, [refresh]);
-  useEffect(()=>{
-    if(!selectedToken&&!token&&directory?.tokens.length){setInput(directory.tokens[0]);setToken(directory.tokens[0]);onSelectToken?.(directory.tokens[0]);}
-  },[directory,selectedToken,token,onSelectToken]);
   useEffect(() => {
     setData(null);
     setError("");
@@ -236,8 +234,8 @@ export default function MarketView({
     {data&&(!selectedToken||data.token.address.toLowerCase()===selectedToken.address.toLowerCase())&&<MarketChain.Provider value={data.provenance.chainId}>
       <div className="terminal-market" data-cursor={data.cursor} data-block-hash={data.snapshot.blockHash}>
         <header className="terminal-token-header">
-          <div className="terminal-token-identity"><div className="token-monogram" aria-hidden="true">{data.token.symbol.slice(0,2).toUpperCase()}</div><div><h3>{data.token.name}<span>{data.token.symbol} / CHOG</span></h3><div className="terminal-token-links"><Address value={data.token.address}/><button className="text-button" onClick={()=>onOpenStudio(data.launch.nftId)}>Studio #{data.launch.nftId} ↗</button></div></div></div>
-          <dl className="terminal-stats"><div><dt>Last trade price</dt><dd>{data.candles.length?displayChartPrice(data.candles.at(-1).close,chartPriceUnit(data.candles).factor):"—"}<small> {chartPriceUnit(data.candles).factor===1?"CHOG":"CHOG / 1M"}</small></dd></div><div><dt>Trades</dt><dd>{data.tradeCount.toLocaleString('en-US')}</dd></div><div><dt>Holders</dt><dd>{data.holders?.count?.toLocaleString('en-US')??'—'}</dd></div><div><dt>Market</dt><dd className="market-stage">{data.launch.graduated?'Liquidity pool':'Bonding curve'}</dd></div></dl>
+          <div className="terminal-token-identity"><TokenAvatar collection={collection} nftId={data.launch.nftId} name={data.token.name}/><div><h3>{data.token.name}<span>{data.token.symbol} / CHOG</span></h3><div className="terminal-token-links"><Address value={data.token.address}/><button className="text-button" onClick={()=>onOpenStudio(data.launch.nftId)}>Studio #{data.launch.nftId} ↗</button></div></div></div>
+          <dl className="terminal-stats"><div><dt title="Current curve or pool price × total token supply. USD uses the latest available CHOG market rate.">Market cap</dt><dd>{data.valuation?.marketCapUsd!=null?`$${decimal(data.valuation.marketCapUsd)}`:"—"}<small className="market-cap-quote">{data.valuation?.marketCapQuote!=null?`${decimal(data.valuation.marketCapQuote)} CHOG`:"Price unavailable"}</small></dd></div><div><dt>Trades</dt><dd>{data.tradeCount.toLocaleString('en-US')}</dd></div><div><dt>Holders</dt><dd>{data.holders?.count?.toLocaleString('en-US')??'—'}</dd></div><div><dt>Market</dt><dd className="market-stage">{data.launch.graduated?'Liquidity pool':'Bonding curve'}</dd></div></dl>
         </header>
         <div className="terminal-grid">
           <div className="terminal-main">
@@ -254,7 +252,7 @@ export default function MarketView({
                 {tab==='holders'&&<>{data.holders?<><div className="table-scroll"><table><thead><tr><th>#</th><th>Wallet</th><th>Balance</th><th>Supply share</th><th>Type</th></tr></thead><tbody>{data.holders.top.map((h,i)=><tr key={h.wallet}><td>{i+1}</td><td><Address value={h.wallet}/></td><td>{units(h.balanceRaw,data.token.decimals)}</td><td><span className="holder-share">{units(h.shareBps,2)}%<span className="holder-share-track"><i style={{width:`${Math.min(100,Number(h.shareBps)/100)}%`}}/></span></span></td><td>{h.role}</td></tr>)}</tbody></table></div><p className="terminal-table-note">Top {data.holders.top.length} addresses, including market and liquidity contracts.</p></>:<div className="terminal-empty">Holder data is currently unavailable.</div>}</>}
                 {tab==='activity'&&(wallet?<WalletActivity token={data.token} wallet={wallet} signingWallet={wallet} cursor={data.cursor}/>:<div className="terminal-empty">Connect your wallet to see your activity for this token.</div>)}
                 <div hidden={tab!=='fees'}>{wallet?<FeeActionReview token={data.token} wallet={wallet} signingWallet={wallet} cursor={data.cursor}/>:<div className="terminal-empty">Connect your wallet to view and claim your fees.</div>}</div>
-                {tab==='info'&&<div className="terminal-info"><h3>Token details</h3><dl><dt>Token contract</dt><dd><Address value={data.token.address}/></dd><dt>Original creator</dt><dd><Address value={data.launch.creator}/></dd><dt>Fee vault</dt><dd><Address value={data.launch.vault}/></dd><dt>Total supply</dt><dd>{data.token.supplyRaw?`${units(data.token.supplyRaw,data.token.decimals)} ${data.token.symbol}`:"Unavailable"}</dd><dt>History status</dt><dd>{data.index.caughtUp?'Up to date':'Syncing'}</dd></dl><details><summary>Data sources and trade attribution</summary><p>Trades and candles come from confirmed onchain transactions. Empty time intervals are not filled with made-up prices. Holders include protocol contracts.</p><p>{data.priceUnit}</p><p>{data.attributionSummary?.policy}</p><p>Holder status: {data.holderStatus}</p><p>Some routes do not identify the sending or receiving wallet. Unresolved v4 trades: {data.attributionSummary?.unresolvedV4??'Unavailable'}.</p><p>{data.provenance.source} · {data.provenance.finality} · chain {data.provenance.chainId}</p><p>Block {data.provenance.blockNumber} · {data.provenance.blockTime}</p><code>{data.provenance.blockHash}</code><p>Read at {data.provenance.fetchedAt}</p><p>Indexed blocks {data.range.fromBlock}–{data.range.toBlock}</p><p>{data.candlesTruncated?'Latest 500 populated candle intervals.':'All recorded candles.'}</p></details></div>}
+                {tab==='info'&&<div className="terminal-info"><h3>Token details</h3><dl><dt>Token contract</dt><dd><Address value={data.token.address}/></dd><dt>Original creator</dt><dd><Address value={data.launch.creator}/></dd><dt>Fee vault</dt><dd><Address value={data.launch.vault}/></dd><dt>Total supply</dt><dd>{data.token.supplyRaw?`${units(data.token.supplyRaw,data.token.decimals)} ${data.token.symbol}`:"Unavailable"}</dd><dt>Circulating supply</dt><dd>{data.token.circulatingSupplyRaw!=null?`${units(data.token.circulatingSupplyRaw,data.token.decimals)} ${data.token.symbol}`:"Unavailable"}</dd><dt>History status</dt><dd>{data.index.caughtUp?'Up to date':'Syncing'}</dd></dl><details><summary>Data sources and trade attribution</summary><p>Trades and candles come from confirmed onchain transactions. Empty time intervals are not filled with made-up prices. Holders include protocol contracts.</p><p>{data.priceUnit}</p><p>Market cap uses the current curve or pool price and total supply, including tokens in the market and liquidity reserves.</p><p>Price source: {data.valuation?.priceSource??"Unavailable"}. USD conversion: {data.valuation?.quoteUsd?.status==="available"?`${data.valuation.quoteUsd.source}, CHOG/USD ${decimal(data.valuation.quoteUsd.priceUsd)}, read ${data.valuation.quoteUsd.fetchedAt}`:"Unavailable; no USD value is assumed."}</p><p>{data.attributionSummary?.policy}</p><p>Holder status: {data.holderStatus}</p><p>Some routes do not identify the sending or receiving wallet. Unresolved v4 trades: {data.attributionSummary?.unresolvedV4??'Unavailable'}.</p><p>{data.provenance.source} · {data.provenance.finality} · chain {data.provenance.chainId}</p><p>Block {data.provenance.blockNumber} · {data.provenance.blockTime}</p><code>{data.provenance.blockHash}</code><p>Read at {data.provenance.fetchedAt}</p><p>Indexed blocks {data.range.fromBlock}–{data.range.toBlock}</p><p>{data.candlesTruncated?'Latest 500 populated candle intervals.':'All recorded candles.'}</p></details></div>}
               </div>
             </section>
           </div>

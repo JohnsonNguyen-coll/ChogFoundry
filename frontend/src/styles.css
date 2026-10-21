@@ -2172,3 +2172,64 @@ td small {
 .terminal .market-chart-canvas td {padding:0;border:0;max-width:none;overflow:visible;text-overflow:clip;white-space:normal}
 .terminal .market-chart-canvas tr:hover {background:transparent}
 .terminal .market-chart-canvas {min-width:0;overflow:hidden}
+/* Market discovery and studio-backed token identity */
+.token-avatar {width:46px;height:46px;flex:0 0 46px;display:block;overflow:hidden;border:1px solid #a28ad94d;border-radius:12px;background:#241b38}
+.token-avatar img {display:block;width:100%;height:100%;object-fit:cover}
+.token-avatar-placeholder {display:block;width:100%;height:100%;background:linear-gradient(140deg,#39294f,#211a31)}
+.market-back-link {margin-bottom:18px;font-size:12px;color:var(--muted)}
+.market-back-link a:hover {color:#d5c7ff}
+.market-directory-hero {display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:12px 0 40px;border-bottom:1px solid var(--line)}
+.market-directory-hero .eyebrow {font-size:10px;letter-spacing:.18em}
+.market-directory-hero h1 {font-size:clamp(32px,4vw,49px);font-weight:500;line-height:1.13;letter-spacing:-1.9px;margin:18px 0}
+.market-directory-hero p {color:var(--muted);font-size:13px;line-height:1.8;max-width:510px;margin:0}
+.market-directory-hero>.primary {flex-shrink:0;margin-bottom:4px;white-space:nowrap}
+.market-directory-heading {display:flex;align-items:center;justify-content:space-between;gap:20px;margin:34px 0 22px}
+.market-directory-heading>div {display:flex;align-items:baseline;gap:15px}
+.market-directory-heading h2 {font-size:23px;letter-spacing:-.5px;margin:0}
+.market-directory-heading span {font-size:11px;color:var(--muted)}
+.market-directory-toolbar {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
+.market-directory-filters {display:flex;gap:5px;padding:4px;border:1px solid var(--line);border-radius:8px;background:#141020}
+.market-directory-filters button {background:none;border:1px solid transparent;padding:9px 13px;color:var(--muted);font-size:11px;border-radius:5px;white-space:nowrap}
+.market-directory-filters button.active {color:#d0c2ff;background:#836ef91c;border-color:#836ef931}
+.market-directory-toolbar input {width:310px;max-width:100%;font-size:11px;padding:13px 15px;border-color:var(--line)}
+.market-directory-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.market-token-card {border:1px solid var(--line);border-radius:13px;background:linear-gradient(135deg,#1c162c,#141020);padding:22px 22px 0;min-width:0;transition:border-color .15s,transform .15s}
+.market-token-card:hover {border-color:#78629d;transform:translateY(-2px)}
+.market-token-main {display:flex;align-items:center;gap:14px;min-width:0}
+.market-token-main .token-avatar {width:58px;height:58px;flex-basis:58px;border-radius:14px}
+.market-token-main>div {min-width:0;flex:1}
+.market-token-main h3 {font-size:20px;letter-spacing:-.5px;margin:0 0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.market-token-main>div>span {font-size:11px;color:var(--muted)}
+.market-token-arrow {color:#9e85d8;font-size:17px;flex-shrink:0}
+.market-token-meta {margin-top:23px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:10px}
+.market-token-meta a {color:#c4b4ed}
+.token-stage {font-size:9px;border-radius:4px;padding:5px 7px;white-space:nowrap}
+.token-stage.curve {color:#baa8f1;background:#a181ff12;border:1px solid #a181ff30}
+.token-stage.pool {color:var(--buy);background:#83d6ba0c;border:1px solid #83d6ba30}
+.market-token-card dl {display:grid;grid-template-columns:1fr auto;margin:22px 0;padding:18px 0 0;border-top:1px solid #332d4680;gap:10px;font-size:11px}
+.market-token-card dl dt {border:0;padding:0;margin-bottom:7px;color:var(--muted);font-size:10px}
+.market-token-card dl dd {border:0;padding:0;margin:0;font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}
+.market-token-card dl>div:last-child {text-align:right}
+.market-token-open {display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-top:1px solid #332d4680;font-size:11px;color:#cebefb}
+.market-token-open:hover {color:#fff}
+.market-directory-loading {min-height:260px;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px}
+.market-directory-empty {padding:55px 25px;text-align:center;border:1px dashed var(--line);border-radius:12px;background:#161125}
+.market-directory-empty h3 {margin:0 0 12px;font-size:22px}
+.market-directory-empty p {color:var(--muted);font-size:12px;margin-bottom:25px;line-height:1.8}
+.directory-address-lookup {margin-top:30px;font-size:11px;color:var(--muted)}
+.directory-address-lookup form {margin-top:16px;display:flex;gap:10px;max-width:650px}
+.directory-address-lookup input {min-width:0;flex:1;font-size:11px}
+.directory-address-lookup p {color:var(--sell)}
+@media(max-width:1100px) {.market-directory-grid {grid-template-columns:repeat(2,minmax(0,1fr))}.market-directory-toolbar input {width:260px}}
+@media(max-width:700px) {.market-directory-hero {align-items:flex-start;flex-direction:column;padding-bottom:30px}.market-directory-toolbar {align-items:stretch;flex-direction:column}.market-directory-toolbar input {width:100%}.market-directory-filters {align-self:flex-start}.market-directory-grid {grid-template-columns:minmax(0,1fr)}.market-directory-hero h1 {font-size:36px}.market-directory-heading>div {align-items:start;flex-direction:column;gap:7px}.market-token-main .token-avatar {width:58px;height:58px}.directory-address-lookup form {flex-direction:column}}
+.order-estimate {padding:15px 0 4px;display:grid;gap:8px;font-size:10px;color:var(--muted)}
+.order-estimate strong {font-size:16px;color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.order-estimate small {font-size:9px;line-height:1.7}
+.order-estimate .loading-inline {font-size:10px}
+.order-settings {border-top:1px solid var(--line);padding-top:13px;margin-top:4px;font-size:10px;color:var(--muted)}
+.order-settings summary {cursor:pointer}
+.order-settings summary span {float:right;color:#c7b5ff}
+.order-settings label {display:grid;gap:8px;padding-top:14px}
+.order-settings input {font:12px 'DM Sans',sans-serif;padding:10px}
+.order-transaction {font-size:10px;color:#c9b7f4;margin:14px 0;line-height:1.8}
+.terminal-stats dd .market-cap-quote {display:block;color:var(--muted);font-size:9px;margin-top:6px}
