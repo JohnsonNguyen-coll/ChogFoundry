@@ -1,9 +1,8 @@
-import {loadingFetch} from './lib/loading.mjs';
 import { useSelectedWallet } from './WalletProvider.jsx';
 import React, { useEffect, useState } from 'react';
 
 async function request(route, method = 'GET', data) {
-  const response = await loadingFetch('/api' + route, {
+  const response = await fetch('/api' + route, {
     method, credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(30000),
     headers: data ? { 'Content-Type': 'application/json' } : undefined,
     body: data ? JSON.stringify(data) : undefined
@@ -59,7 +58,7 @@ export default function StudioProfile({ studio, wallet, busy, run, onProfile }) 
     });
   }
   return <section className="profile-panel">
-    <div className="section-heading"><div><span className="caption">YOUR STUDIO / OFFCHAIN PROFILE</span><h3>{studio.profile?.name || 'Make this Chog your studio.'}</h3></div></div>
+    <div className="section-heading"><div><span className="caption">YOUR STUDIO / OFFCHAIN PROFILE</span><h3>{studio.profile?.name || 'Make this NFT your studio.'}</h3></div></div>
     {studio.profile && <div className="profile-details">
       {studio.profile.coverUrl && <img className="studio-cover" src={studio.profile.coverUrl} alt={studio.profile.name + " cover"} loading="lazy" referrerPolicy="no-referrer" onError={e => { e.currentTarget.style.display = "none"; }}/>}
       <p className="profile-description">{studio.profile.description}</p>
@@ -75,14 +74,14 @@ export default function StudioProfile({ studio, wallet, busy, run, onProfile }) 
       })}>Sign out</button>}
       {matches && owner && <button disabled={busy} onClick={() => run(checkAccess)}>Verify edit access ↗</button>}
     </div>
-    {session && <p className="note">Signed in as {session.wallet}. Expires {new Date(session.expiresAt).toLocaleTimeString('en-US')}. EOA signatures are supported; ERC-1271 contract-wallet sign-in is not implemented yet.</p>}
+    {session && <p className="note">Signed in as {session.wallet}. Expires {new Date(session.expiresAt).toLocaleTimeString('en-US')}. Smart contract wallets cannot sign in yet.</p>}
     {matches && !owner && <p className="note">Your connected wallet is not the owner at the displayed block.</p>}
     {access && matches && <form className="profile-form" onSubmit={save}>
       <label>Studio name<input required maxLength={80} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}/></label>
       <label>Description<textarea maxLength={2000} rows={4} value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })}/></label>
       <label>Website URL<input type="url" placeholder="https://" maxLength={2048} value={draft.website} onChange={e => setDraft({ ...draft, website: e.target.value })}/></label>
       <label>Cover image URL<input type="url" placeholder="https://" maxLength={2048} value={draft.coverUrl} onChange={e => setDraft({ ...draft, coverUrl: e.target.value })}/></label>
-      <p className="note">Every save rechecks ownerOf, the sign-in block and all NFT transfers since sign-in. A transfer, including a round trip, requires a new sign-in.</p>
+      <p className="note">We check NFT ownership each time you save. If the NFT has moved since you signed in, sign in again before editing.</p>
       <button className="primary" disabled={busy} type="submit">Save studio profile ↗</button>
     </form>}
     {saved && <p role="status">{saved}</p>}

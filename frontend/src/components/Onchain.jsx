@@ -17,7 +17,7 @@ export function Provenance({ data }) {
   return (
     <details className="provenance">
       <summary>
-        Onchain source · block {data.blockNumber} · {data.finality}
+        Blockchain record · block {data.blockNumber} · {data.finality}
       </summary>
       <p>
         {data.blockTime} · read {data.fetchedAt}

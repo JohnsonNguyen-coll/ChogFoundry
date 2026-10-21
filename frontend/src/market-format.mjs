@@ -23,9 +23,9 @@ export function candleGeometry(candles) {
 }
 
 export function parseAmount(value, decimals = 18) {
-  if(typeof value!=='string'||!new RegExp(`^(0|[1-9][0-9]*)(?:\\.[0-9]{1,${decimals}})?$`).test(value)||value.length>100)throw new Error(`Enter a positive decimal amount with at most ${decimals} fractional digits.`);
+  if(typeof value!=='string'||!new RegExp(`^(0|[1-9][0-9]*)(?:\\.[0-9]{1,${decimals}})?$`).test(value)||value.length>100)throw new Error(`Enter an amount greater than zero, using up to ${decimals} digits after the decimal point.`);
   const [whole,fraction='']=value.split('.');
   const raw=BigInt(whole)*10n**BigInt(decimals)+BigInt(fraction.padEnd(decimals,'0'));
-  if(raw<=0n||raw>=2n**256n)throw new Error('Amount is outside the positive uint256 range.');
+  if(raw<=0n||raw>=2n**256n)throw new Error('Enter an amount greater than zero and within the supported limit.');
   return String(raw);
 }

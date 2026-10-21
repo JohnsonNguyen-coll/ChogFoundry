@@ -7,7 +7,7 @@ export function launchInput(input){
   const nftId=String(tokenId(input.nftId)),wallet=actionWallet(input.wallet);
   for(const [key,max] of [['name',64],['symbol',12]]){
     const value=input[key];
-    if(typeof value!=='string'||value!==value.trim()||Buffer.byteLength(value,'utf8')<1||Buffer.byteLength(value,'utf8')>max||/[\u0000-\u001f\u007f]/.test(value))throw new AppError(400,'INVALID_METADATA',`Enter ${key} within ${max} UTF-8 bytes, without control characters or edge whitespace.`);
+    if(typeof value!=='string'||value!==value.trim()||Buffer.byteLength(value,'utf8')<1||Buffer.byteLength(value,'utf8')>max||/[\u0000-\u001f\u007f]/.test(value))throw new AppError(400,'INVALID_METADATA',key==='name'?'Enter a short token name. Remove extra spaces at the beginning or end, and avoid line breaks.':'Enter a short ticker, like CHOG. Remove extra spaces at the beginning or end, and avoid line breaks.');
   }
   const budget=tokenId(input.initialQuoteIn),minimum=tokenId(input.minTokenOut);
   if((budget===0n)!==(minimum===0n))throw new AppError(400,'INVALID_INITIAL_BUY','Zero first-buy budget requires zero minimum; a paid buy requires positive minimum output.');

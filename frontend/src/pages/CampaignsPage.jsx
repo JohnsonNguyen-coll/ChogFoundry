@@ -353,7 +353,7 @@ export default function CampaignsPage() {
               <summary>Raffle administration</summary>
               <p className="note">
                 Publishing requires the actual NFT escrow and matching onchain
-                rules. Prepare exact calldata, then review it separately before
+                rules. Prepare the transaction, then review it before
                 confirming in your wallet. Draft creation never sends a
                 transaction.
               </p>
@@ -404,7 +404,7 @@ export default function CampaignsPage() {
                               body: r,
                               request: { action: op, seed },
                             });
-                          return "Unsigned action simulated; inspect exact calldata and fee before any wallet action.";
+                          return "Transaction checked. Review its details and fee before confirming in your wallet.";
                         })
                       }
                     >

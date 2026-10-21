@@ -133,7 +133,7 @@ export default function RaffleWalletReview({
       </button>
       {pending.current && (
         <button disabled={busy} onClick={check}>
-          Check canonical finality
+          Check confirmation
         </button>
       )}
       {state && (

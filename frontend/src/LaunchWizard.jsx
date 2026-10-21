@@ -1,7 +1,7 @@
-import {loadingFetch} from './lib/loading.mjs';
 import WalletAction from "./WalletAction.jsx";
 import LaunchReceipt from "./LaunchReceipt.jsx";
 import LaunchSummary from "./components/LaunchSummary.jsx";
+import {statusLabel} from './lib/status-label.mjs';
 import React, { useEffect, useRef, useState } from "react";
 import { parseAmount, units } from "./market-format.mjs";
 export default function LaunchWizard({
@@ -20,7 +20,9 @@ export default function LaunchWizard({
     [busy, setBusy] = useState(false),
     pending = useRef(null);
   const creator = wallet || publicWallet.trim(),
-    paid = budget !== "0";
+    paid = budget !== "0",
+    nameTooLong = new TextEncoder().encode(name).length > 64,
+    symbolTooLong = new TextEncoder().encode(symbol).length > 12;
   useEffect(() => {
     if (nftId != null) setId(nftId);
   }, [nftId]);
@@ -40,6 +42,8 @@ export default function LaunchWizard({
     setError("");
     setBusy(true);
     try {
+      if(nameTooLong)throw new Error('This name is too long. Use fewer letters or symbols.');
+      if(symbolTooLong)throw new Error('This ticker is too long. Try a shorter one.');
       const input = new URLSearchParams({
         wallet: creator,
         name,
@@ -49,7 +53,7 @@ export default function LaunchWizard({
         deadline: String(Math.floor(Date.now() / 1000) + 20 * 60),
       });
       const requestPath = `/api/studios/${encodeURIComponent(id)}/${approval ? "launch-approval" : "launch-preflight"}?${input}`;
-      const response = await loadingFetch(requestPath, {
+      const response = await fetch(requestPath, {
           signal: AbortSignal.any([
             controller.signal,
             AbortSignal.timeout(25000),
@@ -121,11 +125,13 @@ export default function LaunchWizard({
             required
             placeholder="Give your token a name"
             autoComplete="off"
+            aria-invalid={nameTooLong}
+            aria-describedby="launch-name-help"
           />
-          <small>1–64 UTF-8 bytes</small>
+          <small id="launch-name-help">{nameTooLong?'This name is too long. Use fewer letters or symbols.':'Choose a short, memorable name.'}</small>
         </label>
         <label>
-          Symbol
+          Ticker
           <input
             aria-label="Launch token symbol"
             value={symbol}
@@ -134,8 +140,10 @@ export default function LaunchWizard({
             placeholder="e.g. CHOG"
             autoComplete="off"
             spellCheck="false"
+            aria-invalid={symbolTooLong}
+            aria-describedby="launch-symbol-help"
           />
-          <small>1–12 UTF-8 bytes</small>
+          <small id="launch-symbol-help">{symbolTooLong?'This ticker is too long. Try a shorter one.':'A short name used in trading, like CHOG.'}</small>
         </label>
         </div>
         <div className="launch-first-buy-heading"><div><h3>Be the first in</h3><p>Buy at launch with your own CHOG, or start without a purchase.</p></div><span>Optional</span></div>
@@ -181,11 +189,11 @@ export default function LaunchWizard({
       )}
       {data && (
         <div className="launch-review">
-          <h3>Onchain launch review</h3>
+          <h3>Review your launch</h3>
           {data.approval && (
             <>
               <p>
-                Factory allowance: {data.approval.status}. Required:{" "}
+                CHOG spending approval: {statusLabel(data.approval.status)}. Required:{" "}
                 {units(data.approval.requiredRaw)} CHOG. Spender:{" "}
                 {data.approval.spender}
               </p>
@@ -200,57 +208,55 @@ export default function LaunchWizard({
           )}
           <dl>
             <dt>Launch status</dt>
-            <dd>{data.preflight.status}</dd>
-            <dt>Blockers</dt>
+            <dd>{statusLabel(data.preflight.status)}</dd>
+            <dt>What needs attention</dt>
             <dd>
               {data.preflight.blockers.length
-                ? data.preflight.blockers.join(", ")
-                : "None at the recorded block"}
+                ? data.preflight.blockers.map(statusLabel).join(" ")
+                : "No issues found"}
             </dd>
-            <dt>Owner at snapshot</dt>
+            <dt>Current studio owner</dt>
             <dd>{data.ownership.ownerAtSnapshot}</dd>
-            <dt>Supply / creator allocation</dt>
+            <dt>Total supply / creator tokens</dt>
             <dd>
               {units(data.baseline.supplyRaw)} /{" "}
               {units(data.baseline.creatorAllocationRaw)}
             </dd>
-            <dt>Curve sales / graduation inventory</dt>
+            <dt>Tokens for launch sales / future liquidity</dt>
             <dd>
               {units(data.baseline.saleSupplyRaw)} /{" "}
               {units(data.baseline.graduationInventoryRaw)}
             </dd>
-            <dt>Curve fees: creator / studio / platform</dt>
+            <dt>Trading fees: creator / studio / platform</dt>
             <dd>
               {data.baseline.creatorBps / 100}% /{" "}
               {data.baseline.studioBps / 100}% /{" "}
               {data.baseline.platformBps / 100}%
             </dd>
-            <dt>Maximum funding / factory allowance</dt>
+            <dt>Maximum spend / approved spending limit</dt>
             <dd>
               {units(data.funding.requiredRaw)} /{" "}
               {units(data.funding.allowanceRaw)} CHOG
             </dd>
-            <dt>Simulated token address</dt>
+            <dt>Expected token address</dt>
             <dd>
               {data.preflight.simulatedTokenAddress ??
-                "Unavailable: launch blocked"}
+                "Available once launch checks pass"}
             </dd>
-            <dt>Launch gas estimate</dt>
+            <dt>Network fee</dt>
             <dd>
-              {data.preflight.gasEstimateRaw ?? "Unavailable: launch blocked"}
+              Your wallet will show the fee before you confirm.
             </dd>
             <dt>Actual first-buy spend / output</dt>
             <dd>
-              Unavailable from the factory call return; receipt evidence is
+              Shown after launch; transaction confirmation is
               required
             </dd>
           </dl>
-          <p className="note">
-            {data.ownership.policy} {data.baseline.policy}
-          </p>
-          <p className="note">{data.preflight.policy}</p>
           <details>
-            <summary>Unsigned launch calldata and source</summary>
+            <summary>Transaction details</summary>
+            <p>Estimated gas units: {data.preflight.gasEstimateRaw ?? "Not available"}</p>
+            <p className="note">{data.ownership.policy} {data.baseline.policy} {data.preflight.policy}</p>
             <p>
               From: {data.preflight.transaction.from} · To:{" "}
               {data.preflight.transaction.to} · Value: 0
@@ -278,7 +284,7 @@ export default function LaunchWizard({
             label={
               data.approval
                 ? data.approval.steps[0]?.kind === "reset"
-                  ? "Reset factory allowance in wallet"
+                  ? "Reset CHOG spending approval in wallet"
                   : "Approve exact launch budget in wallet"
                 : "Launch token in wallet"
             }

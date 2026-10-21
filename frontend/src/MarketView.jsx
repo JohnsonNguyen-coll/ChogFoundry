@@ -1,4 +1,3 @@
-import {loadingFetch} from './lib/loading.mjs';
 import React, { useContext, createContext, useEffect, useState } from "react";
 import TradePanel from "./TradePanel.jsx";
 import {Link} from 'react-router-dom';
@@ -27,7 +26,7 @@ function Address({ value }) {
   );
 }
 async function request(path, signal) {
-  const response = await loadingFetch("/api" + path, { signal, cache: "no-store" });
+  const response = await fetch("/api" + path, { signal, cache: "no-store" });
   const data = await response.json();
   if (!response.ok)
     throw new Error(data.error?.message || "Market data is unavailable.");
@@ -53,7 +52,7 @@ function Candles({ candles }) {
   if (!geometry)
     return (
       <div className="empty">
-        No executed trades in this indexed history. No candles are fabricated.
+        The chart will appear after the first recorded trade.
       </div>
     );
   const { values, x, y, width } = geometry;
@@ -183,7 +182,7 @@ export default function MarketView({
         setReset(reorganized);
       } catch {
         fail(
-          "The market stream returned an invalid snapshot. Refresh to reconnect.",
+          "Market updates could not be loaded. Refresh to reconnect.",
         );
         stream?.close();
       }
@@ -212,7 +211,7 @@ export default function MarketView({
             setData(null);
             setStatus("reconnecting");
             setError(
-              "Stream disconnected. Waiting for a fresh canonical snapshot.",
+              "Live updates disconnected. Reconnecting…",
             );
           }
         };
@@ -383,11 +382,11 @@ export default function MarketView({
                   </h3>
                 </article>
                 <article>
-                  <span className="caption">INDEXED TRADES</span>
+                  <span className="caption">RECORDED TRADES</span>
                   <h3>{data.tradeCount.toLocaleString("en-US")}</h3>
                 </article>
                 <article>
-                  <span className="caption">HOLDING ADDRESSES</span>
+                  <span className="caption">HOLDERS</span>
                   <h3>
                     {data.holders?.count?.toLocaleString("en-US") ??
                       "Unavailable"}
@@ -403,7 +402,7 @@ export default function MarketView({
               <p className="note">{data.priceUnit}</p>
               <Candles candles={data.candles} />
               {data.attributionSummary && (
-                <p className="note">
+                <details className="note"><summary>Trade data details</summary><p>
                   {data.attributionSummary.officialV4Matched} v4 trades matched
                   to official settlement events ·{" "}
                   {data.attributionSummary.unresolvedV4} unresolved routes.{" "}
@@ -411,7 +410,7 @@ export default function MarketView({
                     ? `${data.attributionSummary.legacyV4Rows} legacy rows need a reviewed history rescan to obtain new attribution.`
                     : ""}{" "}
                   {data.attributionSummary.policy}
-                </p>
+                </p></details>
               )}
               <div className="market-tables">
                 <div>
@@ -419,10 +418,8 @@ export default function MarketView({
                   <p className="note">
                     {data.tradesTruncated
                       ? "Latest 500 trades; older history is omitted."
-                      : "All trades returned in this indexed snapshot."}{" "}
-                    Curve payer/recipient come from market events. V4 identities
-                    require a matching official lock settlement; unsupported
-                    routes remain unknown.
+                      : "All recorded trades."}{" "}
+                    Some trades may not show the sending or receiving wallet when that information cannot be verified.
                   </p>
                   <div className="table-scroll">
                     <table>
@@ -431,7 +428,7 @@ export default function MarketView({
                           <th>Time (UTC)</th>
                           <th>Side</th>
                           <th>Tokens</th>
-                          <th>CHOG notional</th>
+                          <th>CHOG amount</th>
                           <th>Payer / router</th>
                           <th>Recipient</th>
                           <th>Transaction</th>
@@ -544,7 +541,7 @@ export default function MarketView({
                 </dd>
               </dl>
               <details className="note">
-                <summary>Source and canonical snapshot</summary>
+                <summary>Data & source details</summary>
                 <p>
                   {data.provenance.source} · {data.provenance.finality} · chain{" "}
                   {data.provenance.chainId}
@@ -561,7 +558,7 @@ export default function MarketView({
                 <p>
                   {data.candlesTruncated
                     ? "Candle history is truncated to the latest 500 populated intervals."
-                    : "Returned candle history is complete to the indexed checkpoint."}
+                    : "The chart includes all trades recorded so far."}
                 </p>
               </details>
             </div>

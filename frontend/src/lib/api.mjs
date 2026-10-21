@@ -1,6 +1,5 @@
-import {loadingFetch} from './loading.mjs';
 export async function api(route, signal) {
-  const response = await loadingFetch(`/api${route}`, {
+  const response = await fetch(`/api${route}`, {
       cache: "no-store",
       signal: signal
         ? AbortSignal.any([signal, AbortSignal.timeout(25000)])

@@ -1,4 +1,3 @@
-import {loadingFetch} from './lib/loading.mjs';
 import React, { useEffect, useState } from 'react';
 import { units } from './market-format.mjs';
 import {short} from './lib/api.mjs';
@@ -12,7 +11,7 @@ export default function WalletPortfolio({wallet,onOpenToken}){
     if(!selected)return()=>controller.abort();
     const poll=async()=>{
       try{
-        const response=await loadingFetch(`/api/wallets/${selected}/portfolio`,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(25000)]),cache:'no-store'}),body=await response.json();
+        const response=await fetch(`/api/wallets/${selected}/portfolio`,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(25000)]),cache:'no-store'}),body=await response.json();
         if(!response.ok)throw new Error(body.error?.message||'Portfolio unavailable.');
         if(!controller.signal.aborted){setData(body);setError('');}
       }catch(e){if(!controller.signal.aborted){setData(null);setError(e.message);}}

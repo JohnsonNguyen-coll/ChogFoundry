@@ -38,19 +38,19 @@ export default function TreasuryPage() {
             <article>
               <span className="caption">RECORDED COLLECTED PLATFORM FEES</span>
               <h3>{units(data.verifiedRecordedPlatformRaw)} CHOG</h3>
-              <small>Canonical attached claims only</small>
+              <small>Only verified fee payments</small>
             </article>
             <article>
-              <span className="caption">PENDING PLATFORM CREDIT</span>
+              <span className="caption">FEES WAITING TO BE CLAIMED</span>
               <h3>
                 {data.pendingPlatformRaw == null
                   ? "Unavailable"
                   : units(data.pendingPlatformRaw) + " CHOG"}
               </h3>
-              <small>Not collected or spendable revenue</small>
+              <small>Not yet received by the treasury</small>
             </article>
             <article>
-              <span className="caption">VERIFIED BUDGET CEILING</span>
+              <span className="caption">AVAILABLE BUDGET</span>
               <h3>{units(data.budgetCeilingRaw)} CHOG</h3>
             </article>
           </div>
@@ -87,8 +87,7 @@ export default function TreasuryPage() {
           <section>
             <h2>Studio NFT custody</h2>
             <p className="note">
-              Literal onchain holdings, not a statement that every NFT was
-              purchased using platform fees.
+              NFTs currently in the treasury wallet. Some may have come from sources other than platform fees.
             </p>
             <div className="inventory-list">
               {data.inventory.map((id) => (
@@ -98,7 +97,7 @@ export default function TreasuryPage() {
               ))}
             </div>
             {!data.inventory.length && (
-              <p>No studio collection NFTs held at the snapshot.</p>
+              <p>No studio NFTs held when last checked.</p>
             )}
           </section>
           <section>

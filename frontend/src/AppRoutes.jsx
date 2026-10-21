@@ -37,7 +37,7 @@ function Activity() {
       <TransactionCenter />
       <p className="note">
         Pending transactions remain in this tab when you change pages. Wallet
-        confirmation and canonical finality are checked separately.
+        approval and blockchain confirmation are checked separately.
       </p>
     </>
   );

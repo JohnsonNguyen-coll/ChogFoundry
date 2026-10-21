@@ -91,12 +91,11 @@ export default function StudioPage() {
             </dl>
             {studio.nft.ownerHasCode && (
               <p className="note">
-                The literal owner has contract code. No beneficial owner is
-                inferred.
+                This NFT is held by a smart wallet or contract. We cannot identify a person behind it.
               </p>
             )}
             <details>
-              <summary>NFT metadata and onchain source</summary>
+              <summary>NFT details & blockchain record</summary>
               <code>{studio.nft.tokenURI}</code>
               <Provenance data={studio.provenance} />
             </details>

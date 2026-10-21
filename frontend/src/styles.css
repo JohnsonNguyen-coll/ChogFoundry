@@ -1715,13 +1715,11 @@ td small {
 .loading-indicator { display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-size: 12px; color: #cfc2ed; }
 .loading-ring { display: inline-block; flex-shrink: 0; width: 20px; height: 20px; border: 2px solid #b79aff33; border-top-color: #b79aff; border-radius: 50%; animation: foundry-spin .75s linear infinite; }
 .section-loading { display: flex; align-items: center; justify-content: center; min-height: 110px; margin: 16px 0; border: 1px solid var(--line); border-radius: 14px; background: #18112380; }
-.route-loading { position: fixed; z-index: 100; right: 24px; bottom: 24px; padding: 15px 20px; border: 1px solid #665087; border-radius: 14px; background: #21182ff2; box-shadow: 0 8px 35px #00000045; pointer-events: none; }
 .nft-loading { position: absolute; inset: 0; display: grid; place-items: center; background: #1f1735; }
 .nft-loading .loading-indicator { flex-direction: column; gap: 12px; font-size: 11px; }
 .launch-studio-identity .nft-loading .loading-indicator > span:last-child { display: none; }
 @keyframes foundry-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .loading-ring { animation-duration: 2s; } }
-@media (max-width: 600px) { .route-loading { right: 16px; bottom: 16px; padding: 12px 16px; } }
 
 .launch-workspace { max-width: 1180px; margin: 32px auto 64px; }
 .launch-page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 36px; }

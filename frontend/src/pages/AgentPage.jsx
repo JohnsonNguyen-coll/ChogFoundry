@@ -67,7 +67,7 @@ export default function AgentPage() {
           </div>
           <p className="note">
             Claude has no wallet or execution tools. Your question, public
-            studio profile, current onchain studio snapshot and up to 100 lounge
+            studio profile, current studio information from the blockchain and up to 100 lounge
             posts are sent to Claude. Private assistant history is visible only
             to its signed-in wallet.
           </p>

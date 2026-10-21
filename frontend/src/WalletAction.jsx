@@ -1,9 +1,9 @@
-import {loadingFetch} from './lib/loading.mjs';
+import {statusLabel} from './lib/status-label.mjs';
 import { useSelectedWallet } from './WalletProvider.jsx';
 import { pendingFor, subscribe, updateTransaction } from './transaction-journal.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { reviewedAction, submitReviewedTransaction, inspectTransaction } from './wallet-transaction.mjs';
-async function get(path,signal){const response=await loadingFetch(path,{cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(25000)])}),body=await response.json();if(!response.ok)throw new Error(body.error?.message||'Fresh inspection unavailable.');return body;}
+async function get(path,signal){const response=await fetch(path,{cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(25000)])}),body=await response.json();if(!response.ok)throw new Error(body.error?.message||'Fresh inspection unavailable.');return body;}
 export default function WalletAction({wallet,body,kind,path,label,onFinalized}){
   const {provider}=useSelectedWallet();
   const [,refresh]=useState(0);useEffect(()=>subscribe(()=>refresh(n=>n+1)),[]);
@@ -31,12 +31,12 @@ export default function WalletAction({wallet,body,kind,path,label,onFinalized}){
       const reviewed=reviewedAction(body,kind),freshBody=await get(path,signal);
       if((freshBody.deployment?.factory??freshBody.launch?.factory)?.toLowerCase()!==permission.factory.toLowerCase())throw new Error('Deployment changed. Refresh the review.');
       const fresh=reviewedAction(freshBody,kind);
-      if(freshBody.provenance?.finality!=='finalized'||freshBody.provenance.chainId!==143)throw new Error('Finalized Mainnet inspection is required.');
+      if(freshBody.provenance?.finality!=='finalized'||freshBody.provenance.chainId!==143)throw new Error('We need confirmed Monad data before continuing. Refresh the review.');
       submitted.current=await submitReviewedTransaction(provider,reviewed,fresh,{wallet,signal,onState:show});
     }catch(e){if(!lifecycle.current.signal.aborted)setError(e.message);}
     finally{if(!lifecycle.current.signal.aborted)setBusy(false);}
   }
   let simulated=false;try{reviewedAction(body,kind);simulated=true;}catch{}
   const pending=!!submitted.current;
-  return <div className="wallet-action"><p className="note">Monad Mainnet · real assets. Your wallet confirms each transaction. {policy?.walletExecutionAvailable?'Fresh contract simulation is required before the wallet request.':`Deployment unavailable: ${policy?.blockers?.join(', ')||'checking configuration'}.`}</p><button className="primary" onClick={sign} disabled={!wallet||!simulated||busy||pending||pendingFor(wallet)||!policy?.walletExecutionAvailable}>{busy?'Checking wallet…':label}</button>{state&&<p role="status">Transaction: {state.status}{state.hash&&<> · <a target="_blank" rel="noreferrer" href={`https://monadscan.com/tx/${state.hash}`}>{state.hash} ↗</a></>}</p>}{pending&&<><button onClick={track} disabled={busy}>Check finality</button><p className="note">Do not resend while pending. If replaced or cancelled in your wallet, inspect the replacement there. This page never retries automatically.</p></>}{error&&<div className="message error" role="alert">{error}</div>}</div>;
+  return <div className="wallet-action"><p className="note">Monad Mainnet · real assets. Your wallet confirms each transaction. {policy?.walletExecutionAvailable?'We check the transaction again before opening your wallet.':`Deployment unavailable: ${policy?.blockers?.map(statusLabel).join(' ')||'checking configuration'}.`}</p><button className="primary" onClick={sign} disabled={!wallet||!simulated||busy||pending||pendingFor(wallet)||!policy?.walletExecutionAvailable}>{busy?'Checking wallet…':label}</button>{state&&<p role="status">Transaction: {statusLabel(state.status)}{state.hash&&<> · <a target="_blank" rel="noreferrer" href={`https://monadscan.com/tx/${state.hash}`}>{state.hash} ↗</a></>}</p>}{pending&&<><button onClick={track} disabled={busy}>Check confirmation</button><p className="note">Do not resend while pending. If replaced or cancelled in your wallet, inspect the replacement there. This page never retries automatically.</p></>}{error&&<div className="message error" role="alert">{error}</div>}</div>;
 }

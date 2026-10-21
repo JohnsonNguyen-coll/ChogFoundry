@@ -28,18 +28,18 @@ export async function submitReviewedTransaction(provider,review,fresh,{wallet,ch
     if(review.fingerprint!==fresh.fingerprint||BigInt(fresh.transaction.chainId)!==BigInt(chainId))throw new Error('Transaction details changed. Inspect and review again.');
     const tx=fresh.transaction;
     const anchor=await provider.request({method:'eth_getBlockByNumber',params:['0x'+fresh.snapshot.blockNumber.toString(16),false]});
-    if(!same(anchor?.hash,fresh.snapshot.blockHash))throw new Error('The reviewed block is no longer canonical.');
+    if(!same(anchor?.hash,fresh.snapshot.blockHash))throw new Error('The blockchain record changed. Refresh the transaction review.');
     const latest=await provider.request({method:'eth_getBlockByNumber',params:['latest',false]});check();
-    if(!latest?.hash)throw new Error('Wallet RPC head is unavailable.');
-    if(fresh.deadline&&Number(fresh.deadline)<=Math.max(Date.now()/1000,Number(BigInt(latest.timestamp))))throw new Error('Transaction deadline expired. Refresh the review.');
-    const code=await provider.request({method:'eth_getCode',params:[tx.to,latest.number]});if(!code||code==='0x')throw new Error('Transaction target has no contract code.');
+    if(!latest?.hash)throw new Error('Your wallet cannot reach the network. Try again shortly.');
+    if(fresh.deadline&&Number(fresh.deadline)<=Math.max(Date.now()/1000,Number(BigInt(latest.timestamp))))throw new Error('This transaction review has expired. Refresh it to continue.');
+    const code=await provider.request({method:'eth_getCode',params:[tx.to,latest.number]});if(!code||code==='0x')throw new Error('The transaction contract could not be found. Refresh before continuing.');
     const rpc={from:tx.from,to:tx.to,data:tx.data,value:tx.value??'0x0'};
     onState({status:'simulating-current-state'});
     const call=await provider.request({method:'eth_call',params:[rpc,latest.number]});
     // ERC-20 approve may return no bytes, but an explicit false must never proceed.
-    if(tx.data.slice(0,10).toLowerCase()==='0x095ea7b3'&&call!=='0x'&&BigInt(call)===0n)throw new Error('Token approval returned false.');
+    if(tx.data.slice(0,10).toLowerCase()==='0x095ea7b3'&&call!=='0x'&&BigInt(call)===0n)throw new Error('The token did not accept the spending approval.');
     const gas=await provider.request({method:'eth_estimateGas',params:[rpc,latest.number]});
-    if(BigInt(gas)<=0n||BigInt(gas)>BigInt(latest.gasLimit))throw new Error('Gas estimation is unavailable.');
+    if(BigInt(gas)<=0n||BigInt(gas)>BigInt(latest.gasLimit))throw new Error('The network fee could not be estimated. Try again shortly.');
     const canonical=await provider.request({method:'eth_getBlockByNumber',params:[latest.number,false]});
     if(!same(canonical?.hash,latest.hash))throw new Error('Chain changed during wallet simulation.');
     await identity();onState({status:'awaiting-wallet'});
@@ -58,7 +58,7 @@ export async function inspectTransaction(provider,hash,expected,chainId=143){
   if(BigInt(await provider.request({method:'eth_chainId'}))!==BigInt(chainId))throw new Error('Switch back to the transaction network to check its receipt.');
   const tx=await provider.request({method:'eth_getTransactionByHash',params:[hash]});
   if(!tx)return {status:'pending-or-replaced',hash};
-  if(!same(tx.hash,hash)||!same(tx.from,expected.from)||!same(tx.to,expected.to)||!same(tx.input??tx.data,expected.data)||BigInt(tx.value)!==BigInt(expected.value??'0x0')||BigInt(tx.chainId)!==BigInt(chainId))throw new Error('Wallet transaction differs from reviewed calldata. Inspect it in the explorer.');
+  if(!same(tx.hash,hash)||!same(tx.from,expected.from)||!same(tx.to,expected.to)||!same(tx.input??tx.data,expected.data)||BigInt(tx.value)!==BigInt(expected.value??'0x0')||BigInt(tx.chainId)!==BigInt(chainId))throw new Error('The wallet transaction differs from the one you reviewed. Check it in the block explorer.');
   const receipt=await provider.request({method:'eth_getTransactionReceipt',params:[hash]});
   if(!receipt)return {status:'pending',hash,nonceRaw:String(BigInt(tx.nonce))};
   if(!same(receipt.transactionHash,hash)||!same(receipt.from,tx.from)||!same(receipt.to,tx.to)||!same(receipt.blockHash,tx.blockHash)||BigInt(receipt.blockNumber)!==BigInt(tx.blockNumber))throw new Error('Receipt does not match the submitted transaction.');
@@ -77,14 +77,14 @@ export async function inspectReplacement(provider,entry,replacementHash){
   const original=await provider.request({method:'eth_getTransactionByHash',params:[entry.hash]});
   const replacement=await provider.request({method:'eth_getTransactionByHash',params:[replacementHash]});
   const nonce=original?.nonce??entry.nonceRaw;
-  if(nonce==null||!replacement||!same(replacement.hash,replacementHash)||!same(replacement.from,entry.transaction.from)||BigInt(replacement.nonce)!==BigInt(nonce)||BigInt(replacement.chainId)!==143n)throw new Error('Replacement must have the same sender, nonce and Mainnet chain. Original nonce evidence is required.');
+  if(nonce==null||!replacement||!same(replacement.hash,replacementHash)||!same(replacement.from,entry.transaction.from)||BigInt(replacement.nonce)!==BigInt(nonce)||BigInt(replacement.chainId)!==143n)throw new Error('We could not verify this replacement. Use the transaction that replaced the original in your Monad wallet.');
   // Replacements may be native-value cancellation transactions, so validate the actual receipt directly.
   const receipt=await provider.request({method:'eth_getTransactionReceipt',params:[replacementHash]});
   if(!receipt)throw new Error('Replacement has not been included yet.');
   if(!same(receipt.transactionHash,replacementHash)||!same(receipt.blockHash,replacement.blockHash)||BigInt(receipt.blockNumber)!==BigInt(replacement.blockNumber)||!same(receipt.from,replacement.from))throw new Error('Replacement receipt mismatch.');
   const head=await provider.request({method:'eth_getBlockByNumber',params:['finalized',false]});
   const block=await provider.request({method:'eth_getBlockByNumber',params:[receipt.blockNumber,false]});
-  if(!head||BigInt(head.number)<BigInt(receipt.blockNumber)||!same(block?.hash,receipt.blockHash))throw new Error('Replacement is not canonically finalized yet.');
+  if(!head||BigInt(head.number)<BigInt(receipt.blockNumber)||!same(block?.hash,receipt.blockHash))throw new Error('The replacement transaction is not confirmed yet.');
   if(BigInt(await provider.request({method:'eth_chainId'}))!==143n)throw new Error('Switch back to Monad Mainnet.');
   return {status:'replaced-finalized',replacementHash,replacementSucceeded:BigInt(receipt.status)===1n};
 }
