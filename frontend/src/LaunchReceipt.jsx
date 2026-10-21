@@ -1,3 +1,4 @@
+import {loadingFetch} from './lib/loading.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { units } from './market-format.mjs';
 export default function LaunchReceipt({nftId,wallet}){
@@ -7,7 +8,7 @@ export default function LaunchReceipt({nftId,wallet}){
     e.preventDefault();pending.current?.abort();const controller=new AbortController();pending.current=controller;setData(null);setError('');setBusy(true);
     try{
       const query=new URLSearchParams({transactionHash:hash.trim()});
-      const response=await fetch(`/api/studios/${encodeURIComponent(nftId)}/launch-receipt?${query}`,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(25000)]),cache:'no-store'}),body=await response.json();
+      const response=await loadingFetch(`/api/studios/${encodeURIComponent(nftId)}/launch-receipt?${query}`,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(25000)]),cache:'no-store'}),body=await response.json();
       if(!response.ok)throw new Error(body.error?.message||'Launch receipt unavailable.');
       if(!controller.signal.aborted)setData(body);
     }catch(e){if(!controller.signal.aborted)setError(e.message);}

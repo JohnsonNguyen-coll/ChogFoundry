@@ -1,8 +1,9 @@
+import {loadingFetch} from './lib/loading.mjs';
 import { useSelectedWallet } from './WalletProvider.jsx';
 import { pendingFor, subscribe, updateTransaction } from './transaction-journal.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { reviewedAction, submitReviewedTransaction, inspectTransaction } from './wallet-transaction.mjs';
-async function get(path,signal){const response=await fetch(path,{cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(25000)])}),body=await response.json();if(!response.ok)throw new Error(body.error?.message||'Fresh inspection unavailable.');return body;}
+async function get(path,signal){const response=await loadingFetch(path,{cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(25000)])}),body=await response.json();if(!response.ok)throw new Error(body.error?.message||'Fresh inspection unavailable.');return body;}
 export default function WalletAction({wallet,body,kind,path,label,onFinalized}){
   const {provider}=useSelectedWallet();
   const [,refresh]=useState(0);useEffect(()=>subscribe(()=>refresh(n=>n+1)),[]);

@@ -1,5 +1,6 @@
 import React from "react";
 import { short } from "../lib/api.mjs";
+import {Spinner} from './Loading.jsx';
 export function ChainLink({ address, children }) {
   return (
     <a
@@ -32,8 +33,6 @@ export function LoadState({ loading, error }) {
       {error}
     </div>
   ) : loading ? (
-    <p className="note" role="status">
-      Reading live data…
-    </p>
+    <div className="section-loading"><Spinner label="Loading live data…"/></div>
   ) : null;
 }

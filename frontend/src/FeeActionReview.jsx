@@ -1,3 +1,4 @@
+import {loadingFetch} from './lib/loading.mjs';
 import WalletAction from './WalletAction.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { units } from './market-format.mjs';
@@ -12,7 +13,7 @@ export default function FeeActionReview({token,wallet,signingWallet,cursor,quote
       const query=new URLSearchParams({wallet});
       if(approval){query.set('side',side);query.set('amountRaw',quote.quote.requestedInputRaw);}
       const requestPath=`/api/tokens/${token.address}/${approval?'approval':'claim-preflight'}?${query}`;
-      const response=await fetch(requestPath,{signal:controller.signal,cache:'no-store'}),result=await response.json();
+      const response=await loadingFetch(requestPath,{signal:controller.signal,cache:'no-store'}),result=await response.json();
       if(!response.ok)throw new Error(result.error?.message||'Action inspection unavailable.');
       if(!controller.signal.aborted)setData({...result,requestPath});
     }catch(e){if(!controller.signal.aborted)setError(e.message);}

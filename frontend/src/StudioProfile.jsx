@@ -1,8 +1,9 @@
+import {loadingFetch} from './lib/loading.mjs';
 import { useSelectedWallet } from './WalletProvider.jsx';
 import React, { useEffect, useState } from 'react';
 
 async function request(route, method = 'GET', data) {
-  const response = await fetch('/api' + route, {
+  const response = await loadingFetch('/api' + route, {
     method, credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(30000),
     headers: data ? { 'Content-Type': 'application/json' } : undefined,
     body: data ? JSON.stringify(data) : undefined

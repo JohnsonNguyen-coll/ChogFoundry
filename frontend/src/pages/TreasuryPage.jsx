@@ -140,7 +140,7 @@ export default function TreasuryPage() {
           <Provenance data={data.provenance} />
         </>
       )}
-      <WalletSession auth={auth} />
+      {data?.wallet&&auth.wallet?.toLowerCase()===data.wallet.toLowerCase()&&<details className="community-admin"><summary>Manage treasury</summary><WalletSession auth={auth}/></details>}
       {configuration.data?.admin && (
         <details className="community-admin">
           <summary>Treasury administration</summary>

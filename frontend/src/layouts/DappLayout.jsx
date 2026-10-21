@@ -7,15 +7,15 @@ import { walletConfigurationNote } from "../wallet-config.mjs";
 import useApi from "../hooks/useApi.js";
 const tabs = [
   ["explore", "Explore"],
+  ["markets", "Markets"],
   ["studios", "My studios"],
   ["launch", "Launch"],
-  ["markets", "Markets"],
+  ["agent", "Agent"],
+  ["clubs", "Clubs"],
+  ["campaigns", "Campaigns"],
   ["portfolio", "Portfolio"],
   ["activity", "Transactions"],
-  ["clubs", "Clubs"],
-  ["agent", "Agent"],
   ["treasury", "Treasury"],
-  ["campaigns", "Campaigns"],
   ["network", "Network"],
 ];
 export default function DappLayout() {

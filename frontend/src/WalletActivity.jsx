@@ -1,3 +1,4 @@
+import {loadingFetch} from './lib/loading.mjs';
 import React, { useEffect, useState } from 'react';
 import { units } from './market-format.mjs';
 export default function WalletActivity({token,wallet,cursor,refresh}){
@@ -6,7 +7,7 @@ export default function WalletActivity({token,wallet,cursor,refresh}){
     const controller=new AbortController();setData(null);setError('');
     (async()=>{
       try{
-        const response=await fetch(`/api/tokens/${token.address}/wallet-history?wallet=${encodeURIComponent(wallet)}`,{signal:controller.signal,cache:'no-store'}),body=await response.json();
+        const response=await loadingFetch(`/api/tokens/${token.address}/wallet-history?wallet=${encodeURIComponent(wallet)}`,{signal:controller.signal,cache:'no-store'}),body=await response.json();
         if(!response.ok)throw new Error(body.error?.message||'Indexed wallet activity unavailable.');
         if(!controller.signal.aborted)setData(body);
       }catch(e){if(!controller.signal.aborted)setError(e.message);}

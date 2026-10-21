@@ -6,12 +6,14 @@ export default function useWalletSession() {
     [session, setSession] = useState(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [checking, setChecking] = useState(true),
     [tick, setTick] = useState(0),
     life = useRef(null);
   useEffect(() => {
     const c = new AbortController();
     life.current = c;
     setSession(null);
+    setChecking(true);
     setError("");
     setBusy(false);
     communityRequest("/session", undefined, c.signal)
@@ -20,7 +22,7 @@ export default function useWalletSession() {
       })
       .catch((e) => {
         if (!c.signal.aborted) setError(e.message);
-      });
+      }).finally(()=>{if(!c.signal.aborted)setChecking(false);});
     const timer = setInterval(() => setTick((n) => n + 1), 10000);
     return () => {
       c.abort();
@@ -32,7 +34,7 @@ export default function useWalletSession() {
     session?.wallet.toLowerCase() === wallet.toLowerCase() &&
     Date.parse(session.expiresAt) > Date.now();
   async function signIn() {
-    if (!wallet || !provider) return;
+    if (!wallet || !provider || busy || matches) return;
     const signal = life.current.signal;
     setBusy(true);
     setError("");
@@ -92,6 +94,7 @@ export default function useWalletSession() {
     session: matches ? session : null,
     matches,
     busy,
+    checking,
     error,
     signIn,
     signOut,

@@ -1,3 +1,4 @@
+import {loadingFetch} from './lib/loading.mjs';
 import React, { useContext, createContext, useEffect, useState } from "react";
 import TradePanel from "./TradePanel.jsx";
 import {Link} from 'react-router-dom';
@@ -26,7 +27,7 @@ function Address({ value }) {
   );
 }
 async function request(path, signal) {
-  const response = await fetch("/api" + path, { signal, cache: "no-store" });
+  const response = await loadingFetch("/api" + path, { signal, cache: "no-store" });
   const data = await response.json();
   if (!response.ok)
     throw new Error(data.error?.message || "Market data is unavailable.");

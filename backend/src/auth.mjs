@@ -1,7 +1,8 @@
 import { randomBytes, createHash } from 'node:crypto';
 import { verifyMessage } from 'ethers';
 import { address, AppError } from './validation.mjs';
-const ttl = 300000;
+const challengeTtl = 5 * 60 * 1000;
+const sessionTtl = 12 * 60 * 60 * 1000;
 const digest = value => createHash('sha256').update(value).digest('hex');
 export class AuthService {
   constructor(reader, origin = process.env.APP_ORIGIN || 'http://127.0.0.1:5173') {
@@ -19,12 +20,13 @@ export class AuthService {
     if (this.challenges.size >= 1000) throw new AppError(429, 'AUTH_BUSY', 'Too many pending sign-in requests.');
     const wallet = address(walletInput);
     const { provenance: anchor } = await this.reader.anchor();
-    const issued = Date.now(); const expires = issued + ttl;
+    const issued = Date.now(); const expires = issued + challengeTtl;
+    const sessionExpires = issued + sessionTtl;
     const challengeId = randomBytes(24).toString('hex');
     const nonce = randomBytes(16).toString('hex');
     const url = new URL(this.origin);
-    const message = `${url.host} wants you to sign in with your Ethereum account:\n${wallet}\n\nSign in to Chog Foundry. This does not authorize blockchain transactions.\n\nURI: ${this.origin}\nVersion: 1\nChain ID: 143\nNonce: ${nonce}\nIssued At: ${new Date(issued).toISOString()}\nExpiration Time: ${new Date(expires).toISOString()}`;
-    this.challenges.set(challengeId, { wallet, message, anchor, expires });
+    const message = `${url.host} wants you to sign in with your Ethereum account:\n${wallet}\n\nSign in to Chog Foundry. This does not authorize blockchain transactions.\n\nURI: ${this.origin}\nVersion: 1\nChain ID: 143\nNonce: ${nonce}\nIssued At: ${new Date(issued).toISOString()}\nExpiration Time: ${new Date(sessionExpires).toISOString()}`;
+    this.challenges.set(challengeId, { wallet, message, anchor, expires, sessionExpires });
     return { challengeId, message, expiresAt: new Date(expires).toISOString(), anchor };
   }
   verify(input) {
@@ -37,7 +39,7 @@ export class AuthService {
     if (signer?.toLowerCase() !== challenge.wallet.toLowerCase()) throw new AppError(401, 'INVALID_SIGNATURE', 'The signature does not match this wallet. Contract-wallet signatures are not supported yet.');
     if (this.sessions.size >= 1000) throw new AppError(429, 'AUTH_BUSY', 'Too many active sessions.');
     const token = randomBytes(32).toString('base64url');
-    const session = { wallet: challenge.wallet, anchor: challenge.anchor, expires: challenge.expires };
+    const session = { wallet: challenge.wallet, anchor: challenge.anchor, expires: challenge.sessionExpires };
     this.sessions.set(digest(token), session);
     return { token, session };
   }
@@ -48,6 +50,6 @@ export class AuthService {
     return session || null;
   }
   public(session) { return session ? { wallet: session.wallet, expiresAt: new Date(session.expires).toISOString() } : null; }
-  cookie(token, seconds = 300) { return `foundry_session=${token}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=${seconds}${this.origin.startsWith('https:') ? '; Secure' : ''}`; }
+  cookie(token, seconds = sessionTtl / 1000) { return `foundry_session=${token}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=${seconds}${this.origin.startsWith('https:') ? '; Secure' : ''}`; }
   logout(req) { const token = this.token(req); if (token) this.sessions.delete(digest(token)); }
 }

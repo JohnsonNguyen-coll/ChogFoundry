@@ -1,3 +1,4 @@
+import {loadingFetch} from './lib/loading.mjs';
 import WalletAction from './WalletAction.jsx';
 import WalletActivity from './WalletActivity.jsx';
 import FeeActionReview from './FeeActionReview.jsx';
@@ -5,7 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { parseAmount, units } from './market-format.mjs';
 
 async function read(path, signal) {
-  const response=await fetch('/api'+path,{signal,cache:'no-store'}),data=await response.json();
+  const response=await loadingFetch('/api'+path,{signal,cache:'no-store'}),data=await response.json();
   if(!response.ok)throw new Error(data.error?.message||'Trade data is unavailable.');
   return data;
 }

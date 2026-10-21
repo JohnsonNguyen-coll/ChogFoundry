@@ -1,5 +1,6 @@
+import {loadingFetch} from './loading.mjs';
 export async function communityRequest(route, data, signal) {
-  const response = await fetch("/api" + route, {
+  const response = await loadingFetch("/api" + route, {
     method: data === undefined ? "GET" : "POST",
     credentials: "same-origin",
     cache: "no-store",

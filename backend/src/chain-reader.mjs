@@ -8,17 +8,17 @@ import { AppError } from './validation.mjs';
 import { readTradePreflight } from './trade-preflight.mjs';
 import { readTradeState, readTradeQuote } from './trade-data.mjs';
 import { readMarketWindow } from './market-data.mjs';
+import {ReadQueue} from './read-queue.mjs';
 
 export class ChainReader {
   constructor() {
     this.provider = new PooledReadProvider();
     this.quote = new Contract(chain.quote, erc20Abi, this.provider);
     this.nft = new Contract(chain.collection, nftAbi, this.provider);
-    this.busy = false;
+    this.readQueue = new ReadQueue();
   }
   async snapshot(read, tag = 'latest') {
-    if (this.busy) throw new AppError(429, 'READER_BUSY', 'The chain reader is busy. Please try again shortly.');
-    this.busy = true;
+    const release = await this.readQueue.acquire();
     try {
       if (BigInt(await this.provider.send('eth_chainId', [])) !== BigInt(chain.id)) throw new AppError(503, 'CHAIN_MISMATCH', 'The RPC endpoint is not on Monad Mainnet.');
       const block = await this.provider.getBlock(tag);
@@ -34,7 +34,7 @@ export class ChainReader {
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError(502, 'RPC_READ_FAILED', 'Unable to read onchain data. No fallback data is available.');
-    } finally { this.busy = false; }
+    } finally { release(); }
   }
   async assertContracts(blockTag) {
     const [quoteCode, nftCode, supports721] = await Promise.all([
@@ -166,6 +166,6 @@ export class ChainReader {
       return { owner, checkedSinceBlock: session.anchor.blockNumber };
     }, 'latest');
   }
-  close() { this.provider.destroy(); }
+  close() { this.readQueue.close(); this.provider.destroy(); }
 }
 
