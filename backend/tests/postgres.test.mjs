@@ -7,6 +7,27 @@ import { PostgresDatabase,postgresOptions } from '../src/postgres.mjs';
 import { createApi } from '../src/server.mjs';
 import { PostgresMarketStore } from '../src/postgres-market-store.mjs';
 
+test('quiet market checkpoints preserve all tokens, reject hidden events and roll back atomically',async()=>{
+  const engine=new PGlite();
+  try{
+    await engine.exec(await readFile(new URL('../supabase/migrations/001_foundry.sql',import.meta.url),'utf8'));
+    const store=new PostgresMarketStore({chainId:143,factoryAddress:'storage-only-quiet',finality:'storage-only',deploymentBlock:100},engine);
+    const block={number:100,hash:'initial',timestamp:1};
+    await store.commit(100,100,block,[{token:{address:'storage-only-token'},launch:{graduated:false},pool:null}]);
+    const end={number:6500,hash:'quiet-end',timestamp:2};
+    const window={token:{address:'storage-only-token'},launch:{graduated:true},pool:{manager:'storage-manager'},snapshot:{blockHash:end.hash},range:{fromBlock:101,toBlock:6500},trades:[],transfers:[]};
+    const checkpoints=Array.from({length:64},(_,i)=>({start:101+i*100,end:200+i*100,block:{...end,number:200+i*100}}));
+    await assert.rejects(store.commit(101,6500,end,[{...window,trades:[{}]}],{quietHistory:true}),e=>e.code==='INDEX_GAP');
+    await assert.rejects(store.commit(101,6500,end,[{...window,token:{address:'unknown-token'}}],{quietHistory:true,checkpoints}),e=>e.code==='INDEX_GAP');
+    assert.equal((await store.head()).end_block,100);
+    await store.commit(101,6500,end,[window],{quietHistory:true,checkpoints});
+    assert.equal((await store.head()).end_block,6500);
+    assert.equal((await store.assets())[0].launch.graduated,true,'Directory uses the latest stage and pool bindings');
+    await store.rollback(100);
+    assert.equal((await store.assets())[0].launch.graduated,false);
+  }finally{await engine.close();}
+});
+
 test('empty history checkpoints remain bounded, contiguous, atomic and reversible in PostgreSQL',async()=>{
   const engine=new PGlite();
   try {

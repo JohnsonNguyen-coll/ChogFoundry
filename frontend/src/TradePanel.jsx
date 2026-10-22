@@ -7,7 +7,7 @@ import {pendingFor,terminalTransaction} from './transaction-journal.mjs';
 import {actionRead,sendWalletAction} from './wallet-action.mjs';
 import {prepareDirectTrade} from './direct-trade.mjs';
 
-export default function TradePanel({token,wallet}){
+export default function TradePanel({token,wallet,marketVersion,onConfirmed}){
   const {provider}=useSelectedWallet();
   const [side,setSide]=useState('buy'),[amount,setAmount]=useState(''),[slippage,setSlippage]=useState('0.5');
   const [quote,setQuote]=useState(null),[quoting,setQuoting]=useState(false),[quoteError,setQuoteError]=useState('');
@@ -20,9 +20,14 @@ export default function TradePanel({token,wallet}){
     if(!current||current.hash!==confirmed.hash||!sameContext(current))return;
     setAccountRefresh(n=>n+1);
     if(current.kind==='approval'){void execute(current);}
-    else{intent.current=null;setPhase('idle');setCompletedHash(confirmed.hash);setQuote(null);}
+    else{intent.current=null;setPhase('idle');setCompletedHash(confirmed.hash);setQuote(null);onConfirmed?.(confirmed);}
   });
   function sameContext(current){return current.wallet===identity.current.wallet&&current.provider===identity.current.provider&&current.token===identity.current.token;}
+  // Coalesce busy-market events instead of aborting requests on every new block.
+  const marketRefresh=useRef({});
+  useEffect(()=>{
+    marketRefresh.current.account?.();marketRefresh.current.quote?.();
+  },[marketVersion]);
   useEffect(()=>{
     const controller=new AbortController();lifecycle.current=controller;intent.current=null;running.current=false;
     setPhase('idle');setError('');setCompletedHash(null);
@@ -35,25 +40,32 @@ export default function TradePanel({token,wallet}){
     }
   },[tracking.transaction]);
   useEffect(()=>{
-    const controller=new AbortController();let timer,failures=0;setAccount(null);setAccountError(false);
+    const controller=new AbortController();let timer,failures=0,inFlight=false,again=false;setAccount(null);setAccountError(false);
     const poll=async()=>{
+      inFlight=true;
       try{const data=await actionRead(`/api/tokens/${token.address}/account?wallet=${encodeURIComponent(wallet)}`,controller.signal);if(!controller.signal.aborted){failures=0;setAccount(data);setAccountError(false);}}
       catch{if(!controller.signal.aborted){failures++;setAccount(null);setAccountError(true);}}
-      finally{if(!controller.signal.aborted)timer=setTimeout(poll,failures?Math.min(15000,3000*failures):15000);}
+      finally{inFlight=false;if(!controller.signal.aborted){timer=setTimeout(poll,again?0:failures?Math.min(15000,3000*failures):5000);again=false;}}
     };
-    if(wallet)void poll();return()=>{controller.abort();clearTimeout(timer);};
+    const refresh=()=>{if(!wallet)return;if(inFlight)again=true;else{clearTimeout(timer);void poll();}};
+    marketRefresh.current.account=refresh;
+    if(wallet)void poll();return()=>{controller.abort();clearTimeout(timer);if(marketRefresh.current.account===refresh)delete marketRefresh.current.account;};
   },[token.address,wallet,accountRefresh]);
   useEffect(()=>{
-    const controller=new AbortController();let timer;setQuote(null);setQuoteError('');setQuoting(false);
+    const controller=new AbortController();let timer,inFlight=false,again=false;setQuote(null);setQuoteError('');setQuoting(false);
     try{parseAmount(amount);}catch{return()=>controller.abort();}
-    timer=setTimeout(async()=>{
+    const poll=async()=>{
+      inFlight=true;
       setQuoting(true);
       try{const query=new URLSearchParams({side,amountRaw:parseAmount(amount)});if(wallet)query.set('wallet',wallet);
-        const result=await actionRead(`/api/tokens/${token.address}/quote?${query}`,controller.signal);if(!controller.signal.aborted)setQuote(result);
-      }catch(e){if(!controller.signal.aborted)setQuoteError(e.message);}
-      finally{if(!controller.signal.aborted)setQuoting(false);}
-    },400);
-    return()=>{clearTimeout(timer);controller.abort();};
+        const result=await actionRead(`/api/tokens/${token.address}/quote?${query}`,controller.signal);if(!controller.signal.aborted){setQuote(result);setQuoteError('');}
+      }catch(e){if(!controller.signal.aborted){setQuote(null);setQuoteError(e.message);}}
+      finally{inFlight=false;if(!controller.signal.aborted){setQuoting(false);timer=setTimeout(poll,again?0:5000);again=false;}}
+    };
+    const refresh=()=>{if(inFlight)again=true;else{clearTimeout(timer);timer=setTimeout(poll,400);}};
+    marketRefresh.current.quote=refresh;
+    timer=setTimeout(poll,400);
+    return()=>{clearTimeout(timer);controller.abort();if(marketRefresh.current.quote===refresh)delete marketRefresh.current.quote;};
   },[token.address,wallet,side,amount,accountRefresh]);
   async function execute(current){
     if(running.current||!sameContext(current)||intent.current!==current)return;

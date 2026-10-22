@@ -1,4 +1,4 @@
-import React, { useContext, createContext, useEffect, useState, lazy, Suspense } from "react";
+import React, { useContext, createContext, useEffect, useState, useRef, lazy, Suspense } from "react";
 import TradePanel from "./TradePanel.jsx";
 import WalletActivity from "./WalletActivity.jsx";
 import FeeActionReview from "./FeeActionReview.jsx";
@@ -6,6 +6,7 @@ import {Spinner} from './components/Loading.jsx';
 import {Link} from 'react-router-dom';
 import { units,decimal } from "./market-format.mjs";
 import TokenAvatar from './components/TokenAvatar.jsx';
+import {marketConnectionLabel,marketTradeVersion} from './market-live.mjs';
 
 const MarketChart=lazy(()=>import('./components/MarketChart.jsx'));
 
@@ -60,6 +61,7 @@ export default function MarketView({
   onSelectToken,
 }) {
   const [tab,setTab]=useState("transactions");
+  const confirmationRefresh=useRef(null);
   const [directory, setDirectory] = useState(null),
     [directoryError, setDirectoryError] = useState("");
   const [input, setInput] = useState(""),
@@ -120,6 +122,7 @@ export default function MarketView({
       }finally{if(active&&fallback)pollTimer=setTimeout(poll,5000);}
     };
     const startPolling=()=>{if(!active||fallback)return;fallback=true;pollTimer=setTimeout(poll,500);};
+    confirmationRefresh.current=startPolling;
     const replace = (event, reorganized = false) => {
       if (!active) return;
       try {
@@ -145,6 +148,7 @@ export default function MarketView({
     request(`/tokens/${token}/history?interval=${interval}`, controller.signal)
       .then((initial) => {
         if (!active) return;
+        if(initial.token.address.toLowerCase()!==token.toLowerCase()||initial.intervalSeconds!==interval)throw new Error('Market response mismatch.');
         setData(initial);
         setStatus("connecting");
         stream = new EventSource(
@@ -180,6 +184,7 @@ export default function MarketView({
       });
     return () => {
       active = false;
+      confirmationRefresh.current=null;
       controller.abort();
       stream?.close();
       clearTimeout(retryTimer);
@@ -231,6 +236,7 @@ export default function MarketView({
     {error&&<div className="message error terminal-error" role="alert"><span>{error} Retrying automatically.</span><button className="text-button" onClick={()=>setRefresh(n=>n+1)}>Retry now</button></div>}
     {(!data&&token&&!error||!directory&&!token&&!directoryError)&&<div className="terminal-loading"><Spinner label="Loading market…"/></div>}
     {reset&&<div className="message" role="status">Trade history was updated after a network change.</div>}
+    {data?.index?.caughtUp===false&&<div className="message" role="status">Catching up on trading history. The chart, trades and market cap show the last processed block and will update automatically.</div>}
     {data&&(!selectedToken||data.token.address.toLowerCase()===selectedToken.address.toLowerCase())&&<MarketChain.Provider value={data.provenance.chainId}>
       <div className="terminal-market" data-cursor={data.cursor} data-block-hash={data.snapshot.blockHash}>
         <header className="terminal-token-header">
@@ -240,7 +246,7 @@ export default function MarketView({
         <div className="terminal-grid">
           <div className="terminal-main">
             <section className="terminal-chart-panel" aria-label="Price chart">
-              <div className="terminal-chart-toolbar"><div className="chart-intervals" role="group" aria-label="Candle interval">{[[60,'1m'],[300,'5m'],[900,'15m'],[3600,'1h']].map(([value,label])=><button key={value} aria-pressed={interval===value} className={interval===value?'active':''} onClick={()=>setIntervalValue(value)}>{label}</button>)}</div><span className={`market-live ${status==='connected'?'connected':''}`} role="status"><i/>{status==='connected'?(data.provenance.chainId===143?'Live':'Local fork'):status==='polling'?'HTTP updates':status==='connecting'?'Connecting…':'Reconnecting…'}</span></div>
+              <div className="terminal-chart-toolbar"><div className="chart-intervals" role="group" aria-label="Candle interval">{[[60,'1m'],[300,'5m'],[900,'15m'],[3600,'1h']].map(([value,label])=><button key={value} aria-pressed={interval===value} className={interval===value?'active':''} onClick={()=>setIntervalValue(value)}>{label}</button>)}</div><span className={`market-live ${status==='connected'&&data.index.caughtUp?'connected':''}`} role="status"><i/>{marketConnectionLabel(data,status)}</span></div>
               <div className="chart-pair-label"><strong>{data.token.symbol} / CHOG</strong><span>Trade price · {interval<3600?`${interval/60} min`:'1 hour'}</span></div>
               <Suspense fallback={<div className="chart-module-loading"><Spinner label="Loading chart…"/></div>}><MarketChart candles={data.candles} marketKey={`${data.token.address}:${interval}`}/></Suspense>
               <footer className="chart-footnote"><span>Prices in CHOG · {data.candles.length} recorded candles</span><a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" title="TradingView Lightweight Charts™ — Copyright (c) 2025 TradingView, Inc.">Charts by TradingView ↗</a></footer>
@@ -256,7 +262,7 @@ export default function MarketView({
               </div>
             </section>
           </div>
-          <div className="terminal-sidebar"><TradePanel key={data.token.address} token={data.token} wallet={wallet} cursor={data.cursor}/><div className="terminal-sidebar-note"><span className="eyebrow">YOUR CHOG. YOUR NEXT LAUNCH.</span><p>Every trade supports this token’s creator and studio.</p><button className="text-button" onClick={()=>onOpenStudio(data.launch.nftId)}>Visit studio #{data.launch.nftId} ↗</button></div></div>
+          <div className="terminal-sidebar"><TradePanel key={data.token.address} token={data.token} wallet={wallet} marketVersion={marketTradeVersion(data)} onConfirmed={()=>confirmationRefresh.current?.()}/><div className="terminal-sidebar-note"><span className="eyebrow">YOUR CHOG. YOUR NEXT LAUNCH.</span><p>Every trade supports this token’s creator and studio.</p><button className="text-button" onClick={()=>onOpenStudio(data.launch.nftId)}>Visit studio #{data.launch.nftId} ↗</button></div></div>
         </div>
       </div>
     </MarketChain.Provider>}

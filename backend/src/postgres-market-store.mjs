@@ -26,15 +26,16 @@ export class PostgresMarketStore {
   async tokens(){await this.initialize();return (await this.database.query('SELECT DISTINCT token FROM foundry.market_windows WHERE index_key=$1 ORDER BY token',[this.key])).rows.map(r=>r.token);}
   async assets(){
     await this.initialize();
-    const rows=(await this.database.query("SELECT DISTINCT ON (token) data_json->'token' AS token,data_json->'launch' AS launch FROM foundry.market_windows WHERE index_key=$1 ORDER BY token,end_block LIMIT 201",[this.key])).rows;
+    const rows=(await this.database.query("SELECT DISTINCT ON (token) data_json->'token' AS token,data_json->'launch' AS launch,data_json->'pool' AS pool FROM foundry.market_windows WHERE index_key=$1 ORDER BY token,end_block DESC LIMIT 201",[this.key])).rows;
     if(rows.length>200)throw new AppError(503,'INDEX_TOKEN_LIMIT','Token directory exceeds its capacity.');
-    return rows.map(r=>({token:r.token,launch:r.launch}));
+    return rows.map(r=>({token:r.token,launch:r.launch,pool:r.pool}));
   }
   async revision(){await this.initialize();return Number((await this.database.query('SELECT revision FROM foundry.market_indexes WHERE index_key=$1',[this.key])).rows[0].revision);}
-  async commit(start,end,block,windows,{emptyHistory=false,checkpoints=[]}={}) {
+  async commit(start,end,block,windows,{emptyHistory=false,quietHistory=false,checkpoints=[]}={}) {
     await this.initialize();
-    if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||end<start||end-start>=(emptyHistory?6400:100)||block.number!==end||emptyHistory&&windows.length)throw new AppError(503,'INDEX_GAP','Invalid index chunk.');
-    if(emptyHistory){
+    if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||end<start||end-start>=((emptyHistory||quietHistory)?6400:100)||block.number!==end||emptyHistory&&(windows.length||quietHistory))throw new AppError(503,'INDEX_GAP','Invalid index chunk.');
+    if(quietHistory&&(!windows.length||windows.some(w=>w.trades?.length!==0||w.transfers?.length!==0||w.range?.fromBlock!==start||w.range?.toBlock!==end||w.snapshot?.blockHash!==block.hash)))throw new AppError(503,'INDEX_GAP','Invalid quiet market windows.');
+    if(emptyHistory||quietHistory){
       let next=start;
       if(!checkpoints.length||checkpoints.length>64)throw new AppError(503,'INDEX_GAP','Missing bounded empty checkpoints.');
       for(const part of checkpoints){
@@ -47,8 +48,12 @@ export class PostgresMarketStore {
       await client.query('SELECT index_key FROM foundry.market_indexes WHERE index_key=$1 FOR UPDATE',[this.key]);
       const head=headRow((await client.query('SELECT * FROM foundry.market_chunks WHERE index_key=$1 ORDER BY end_block DESC LIMIT 1',[this.key])).rows[0]);
       if(start!==(head?head.end_block+1:this.config.deploymentBlock))throw new AppError(503,'INDEX_GAP','Concurrent or noncontiguous index chunk. Resynchronize.');
+      if(quietHistory){
+        const tokens=(await client.query('SELECT DISTINCT token FROM foundry.market_windows WHERE index_key=$1 ORDER BY token',[this.key])).rows.map(r=>r.token);
+        if(tokens.join()!==windows.map(w=>w.token.address.toLowerCase()).sort().join())throw new AppError(503,'INDEX_GAP','Quiet range must preserve every known token.');
+      }
       if(emptyHistory&&(await client.query('SELECT 1 FROM foundry.market_windows WHERE index_key=$1 LIMIT 1',[this.key])).rows.length)throw new AppError(503,'INDEX_GAP','Empty history cannot skip existing token events.');
-      if(emptyHistory){
+      if(emptyHistory||quietHistory){
         const rows=checkpoints.map(p=>({start:p.start,end:p.end,hash:p.block.hash,time:new Date(p.block.timestamp*1000).toISOString()}));
         await client.query('INSERT INTO foundry.market_chunks(index_key,end_block,start_block,end_hash,block_time) SELECT $1,r."end",r.start,r.hash,r.time FROM jsonb_to_recordset($2::jsonb) AS r(start bigint,"end" bigint,hash text,time text)',[this.key,JSON.stringify(rows)]);
       }else await client.query('INSERT INTO foundry.market_chunks(index_key,end_block,start_block,end_hash,block_time) VALUES($1,$2,$3,$4,$5)',[this.key,end,start,block.hash,new Date(block.timestamp*1000).toISOString()]);

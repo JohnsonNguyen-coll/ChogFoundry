@@ -38,3 +38,16 @@ test('insufficient balance and cancelled preparations never advance to approval 
   const controller=new AbortController();controller.abort();
   await assert.rejects(prepareDirectTrade({...input,signal:controller.signal,read:async()=>({quote:{balanceSufficient:true}})}),e=>e.name==='AbortError');
 });
+
+test('sell prepares token approval and then a CHOG minimum with full precision',async()=>{
+  let approved=false;
+  const read=async path=>path.includes('/quote?')?{quote:{balanceSufficient:true,allowanceSufficient:approved,outputRaw:'987654321012345678'}}:{prepared:true};
+  const sell={...input,side:'sell',amount:'123.456789012345678901',read};
+  const approval=await prepareDirectTrade(sell);
+  assert.equal(approval.kind,'approval');
+  assert.equal(new URL('http://localhost'+approval.path).searchParams.get('side'),'sell');
+  approved=true;
+  const prepared=await prepareDirectTrade(sell),query=new URL('http://localhost'+prepared.path).searchParams;
+  assert.equal(prepared.kind,'preflight');assert.equal(query.get('amountRaw'),'123456789012345678901');
+  assert.equal(query.get('minOutputRaw'),String(987654321012345678n*9950n/10000n));
+});

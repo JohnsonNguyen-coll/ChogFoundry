@@ -47,7 +47,7 @@ export function buildIndexedMarket(windows,head,revision,intervalSeconds,wallet=
         policy:'Public inspection grants no authority. Payer and recipient roles are distinct; transfers and third-party payments cannot establish cost basis or profit.'};
     }
     const {transfers:ignored,...meta}=latest;
-    return {...meta,token:{...meta.token,circulatingSupplyRaw:String(circulating)},range:{fromBlock:windows[0].range.fromBlock,toBlock:head.end_block,completeHistory:true},intervalSeconds,
+    return {...meta,snapshot:{...meta.snapshot,blockNumber:head.end_block,blockHash:head.end_hash,blockTime:head.block_time??meta.snapshot?.blockTime},pricing:meta.pricing?{...meta.pricing,blockNumber:head.end_block}:null,token:{...meta.token,circulatingSupplyRaw:String(circulating)},range:{fromBlock:windows[0].range.fromBlock,toBlock:head.end_block,completeHistory:true},intervalSeconds,
       ...(walletActivity?{walletActivity}:{}),attributionSummary,trades:trades.slice(-500),tradeCount:trades.length,tradesTruncated:trades.length>500,candles:candles.slice(-500),candleCount:candles.length,candlesTruncated:candles.length>500,
       holders:{count:entries.length,includesProtocolContracts:true,top:entries.slice(0,50).map(([wallet,balance])=>({wallet,balanceRaw:String(balance),shareBps:String(balance*10000n/supply),role:role(wallet)}))},
       holderStatus:'complete canonical mint-to-checkpoint replay; balances derived from transfer logs',cursor:`${revision}:${head.end_hash}`};

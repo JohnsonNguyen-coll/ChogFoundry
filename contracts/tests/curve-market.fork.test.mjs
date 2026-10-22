@@ -25,7 +25,7 @@ import { openMarketStream } from '../../backend/src/market-stream.mjs';
 import { readMarketWindow } from '../../backend/src/market-data.mjs';
 import { withMonadFork } from './helpers/monad-fork.mjs';
 
-test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and old claims', { timeout: 180000 }, async () => {
+test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and old claims', { timeout: 300000 }, async () => {
   await withMonadFork(async ({ local, upstream, block }) => {
     const accounts = await local.send('eth_accounts', []);
     const [deployer, buyer, treasury] = await Promise.all(accounts.slice(0, 3).map(a => local.getSigner(a)));
@@ -334,6 +334,13 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
       const stableCursor=indexed.cursor;
       await indexer.sync(10);
       assert.equal((await indexer.market(launch.token)).cursor,stableCursor,'Repeated sync does not duplicate events or revise an unchanged checkpoint');
+      await local.send('anvil_mine',['0x190']);
+      await indexer.sync(10);
+      const quiet=await indexer.market(launch.token);
+      assert.equal(quiet.index.caughtUp,true,'Quiet catch-up verifies all ranges and reaches the actual head');
+      assert.equal(quiet.tradeCount,indexed.tradeCount);assert.deepEqual(quiet.candles,indexed.candles);
+      assert.equal(quiet.valuation.marketCapQuote,indexed.valuation.marketCapQuote);
+      console.log('Verified quiet catch-up against real fork blocks.');
       await indexer.close();indexer=new MarketIndexer(local,indexConfig,{databasePath:db,localFork:true});
       assert.equal(indexer.store.market(launch.token).tradeCount,data.trades.length,'Actual SQLite persists across restart');
       assert.throws(()=>new MarketIndexer(local,{...indexConfig,collection:chain.quote},{databasePath:db,localFork:true}),e=>e.code==='INDEX_CONFIG_CHANGED');
@@ -394,6 +401,7 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
         }
       }
       assert.equal((await event()).data.tradeCount,changed.tradeCount);
+      console.log('Verified initial SSE snapshot.');
       assert.equal(await local.send('evm_revert',[branch]),true);
       await indexer.sync(10);
       const reset=await event();assert.equal(reset.type,'reset');
@@ -404,6 +412,36 @@ test('actual CHOG/NFT: atomic first buy, curve swaps, fee ownership transfer and
       const portfolioReset=await indexer.portfolio(buyerAddress);assert.equal(portfolioReset.positions.find(p=>p.token.address===launch.token).activity.balanceRaw,String(await token.balanceOf(buyerAddress)));assert.equal(portfolioReset.snapshot.blockHash,reset.data.snapshot.blockHash);
       const walletReset=await indexer.walletHistory(launch.token,buyerAddress);assert.equal(walletReset.walletActivity.trades.some(t=>t.transactionHash===branchReceipt.hash),false);assert.equal(walletReset.walletActivity.balanceRaw,String(await token.balanceOf(buyerAddress)));
       if(browser)await browser.reset(reset.data,branchReceipt.hash);
+      // Verify real buy and sell receipts propagate through SSE to candles,
+      // holders and current-price valuation together, without a page reload.
+      const realtimeBranch=await local.send('evm_snapshot',[]);
+      const beforeRealtime=reset.data;
+      const buyAmount=parseEther('0.001');
+      if(await quote.allowance(buyerAddress,marketAddress)<buyAmount)await(await quote.connect(buyer).approve(marketAddress,buyAmount)).wait();
+      const liveBuyQuote=await market.getBuyQuote(launch.token,buyAmount);
+      const liveBuy=await(await market.connect(buyer).buy(launch.token,buyAmount,liveBuyQuote.tokenOut,buyerAddress,deadline)).wait();
+      await indexer.sync(10);
+      const bought=(await event()).data;
+      console.log('Verified buy SSE snapshot.');
+      assert.ok(bought.trades.some(t=>t.transactionHash===liveBuy.hash));
+      assert.equal(bought.tradeCount,beforeRealtime.tradeCount+1);
+      assert.ok(Number(bought.valuation.marketCapQuote)>Number(beforeRealtime.valuation.marketCapQuote));
+      assert.equal(bought.candles.reduce((n,c)=>n+c.tradeCount,0),bought.tradeCount);
+      const liveSellAmount=liveBuyQuote.tokenOut/2n;
+      await(await token.connect(buyer).approve(marketAddress,liveSellAmount)).wait();
+      const liveSellQuote=await market.getSellQuote(launch.token,liveSellAmount);
+      const liveSell=await(await market.connect(buyer).sell(launch.token,liveSellAmount,liveSellQuote.quoteOut,buyerAddress,deadline)).wait();
+      await indexer.sync(10);
+      const sold=(await event()).data;
+      console.log('Verified sell SSE snapshot.');
+      assert.ok(sold.trades.some(t=>t.transactionHash===liveSell.hash));
+      assert.equal(sold.tradeCount,bought.tradeCount+1);
+      assert.ok(Number(sold.valuation.marketCapQuote)<Number(bought.valuation.marketCapQuote));
+      assert.equal(sold.holders.top.find(h=>h.wallet===buyerAddress.toLowerCase()).balanceRaw,String(await token.balanceOf(buyerAddress)));
+      assert.equal(sold.pricing.blockNumber,sold.snapshot.blockNumber);
+      assert.equal(sold.candles.reduce((n,c)=>n+BigInt(c.quoteVolumeRaw),0n),sold.trades.reduce((n,t)=>n+BigInt(t.quoteBaseRaw),0n));
+      await local.send('evm_revert',[realtimeBranch]);await indexer.sync(10);
+      assert.equal((await event()).type,'reset');
       controller.abort();
       const replayController=new AbortController();
       try {

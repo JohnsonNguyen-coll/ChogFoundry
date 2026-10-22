@@ -30,9 +30,9 @@ export class MarketStore {
   checkpoints() { return this.db.prepare('SELECT * FROM market_chunks ORDER BY end_block DESC LIMIT 1001').all(); }
   tokens() { return this.db.prepare('SELECT DISTINCT token FROM market_windows ORDER BY token').all().map(r=>r.token); }
   assets() {
-    const rows=this.db.prepare('SELECT data_json FROM market_windows w WHERE end_block=(SELECT min(end_block) FROM market_windows WHERE token=w.token) ORDER BY token LIMIT 201').all();
+    const rows=this.db.prepare('SELECT data_json FROM market_windows w WHERE end_block=(SELECT max(end_block) FROM market_windows WHERE token=w.token) ORDER BY token LIMIT 201').all();
     if(rows.length>200)throw new AppError(503,'INDEX_TOKEN_LIMIT','Token directory exceeds its capacity.');
-    return rows.map(r=>{const {token,launch}=JSON.parse(r.data_json);return {token,launch};});
+    return rows.map(r=>{const {token,launch,pool}=JSON.parse(r.data_json);return {token,launch,pool};});
   }
   revision() { return this.db.prepare('SELECT revision FROM index_config WHERE id=1').get().revision; }
   transaction(action) {
@@ -40,9 +40,10 @@ export class MarketStore {
     try {action();this.db.prepare('UPDATE index_config SET revision=revision+1 WHERE id=1').run();this.db.exec('COMMIT');}
     catch(error){this.db.exec('ROLLBACK');throw error;}
   }
-  commit(start,end,block,windows) {
+  commit(start,end,block,windows,{quietHistory=false}={}) {
     const expected=this.head()?.end_block+1||this.config.deploymentBlock;
-    if(start!==expected||end<start||end-start>=100||block.number!==end) throw new AppError(503,'INDEX_GAP','Indexer chunks must be contiguous and bounded.');
+    if(start!==expected||end<start||end-start>=(quietHistory?6400:100)||block.number!==end) throw new AppError(503,'INDEX_GAP','Indexer chunks must be contiguous and bounded.');
+    if(quietHistory&&(!windows.length||windows.some(w=>w.trades?.length!==0||w.transfers?.length!==0||w.range?.fromBlock!==start||w.range?.toBlock!==end||w.snapshot?.blockHash!==block.hash)||this.tokens().join()!==windows.map(w=>w.token.address.toLowerCase()).sort().join()))throw new AppError(503,'INDEX_GAP','Invalid quiet market windows.');
     this.transaction(()=>{
       this.db.prepare('INSERT INTO market_chunks VALUES(?,?,?,?)').run(end,start,block.hash,new Date(block.timestamp*1000).toISOString());
       for(const data of windows) this.db.prepare('INSERT INTO market_windows VALUES(?,?,?)').run(data.token.address.toLowerCase(),end,JSON.stringify(data));

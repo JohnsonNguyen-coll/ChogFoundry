@@ -5,6 +5,7 @@ import { readMarketWindow } from './market-data.mjs';
 import { AppError } from './validation.mjs';
 import { RpcHeadStream } from './rpc-head-stream.mjs';
 import {marketValuation,quoteUsdReader} from './market-valuation.mjs';
+import {quietMarketEnd} from './quiet-market-range.mjs';
 
 const factoryAbi=['function collection() view returns(address)','function quote() view returns(address)','event TokenLaunched(bytes32 indexed launchId,uint256 indexed nftId,address indexed token,address creator,uint256 supply,uint256 initialQuoteIn,uint256 initialTokenOut)'];
 export class MarketIndexer extends EventEmitter {
@@ -59,6 +60,7 @@ export class MarketIndexer extends EventEmitter {
       }
     }
     // Before the first launch, only factory launch logs can introduce a token.
+    this.target=target;this.cachedHead=head;this.cachedRevision=await this.store.revision();
     // Scan every bounded range, concurrently, then atomically persist its empty prefix.
     const emptyStart=head?head.end_block+1:c.deploymentBlock;
     let emptyPass=false;
@@ -82,6 +84,29 @@ export class MarketIndexer extends EventEmitter {
         await this.store.commit(emptyStart,end,block,[],{emptyHistory:true,checkpoints});
         head=await this.store.head();
         emptyPass=firstLaunch<0;
+      }
+    }
+    // After downtime, quiet periods must not require a full contract-state read
+    // for every 100 blocks. Still inspect every log range; never jump to head.
+    const quietStart=head?head.end_block+1:c.deploymentBlock;
+    if(!emptyPass&&target.number-quietStart>=this.chunkSize*3){
+      const assets=await this.store.assets();
+      if(assets.length){
+        const addresses=[...new Set([c.factoryAddress,...assets.flatMap(a=>[a.token.address,a.launch.market,a.launch.vault,a.pool?.manager,a.pool?.liquidityLock].filter(Boolean))])];
+        const end=await quietMarketEnd(p,addresses,quietStart,target.number,this.chunkSize);
+        if(end>=quietStart){
+          const endBlock=await p.getBlock(end),windows=[];
+          const checkpoints=[];
+          for(let start=quietStart;start<=end;start+=this.chunkSize)checkpoints.push({start,end:Math.min(start+this.chunkSize-1,end)});
+          for(let i=0;i<checkpoints.length;i+=8)await Promise.all(checkpoints.slice(i,i+8).map(async part=>{part.block=await p.getBlock(part.end);}));
+          for(const asset of assets){
+            const data=await readMarketWindow(p,{...c,tokenAddress:asset.token.address,fromBlock:end,toBlock:end,includeTransfers:true});
+            if(data.trades.length||data.transfers.length)throw new AppError(503,'CHAIN_REORG','Market events changed during quiet range verification.');
+            windows.push({...data,range:{...data.range,fromBlock:quietStart}});
+          }
+          if((await p.getBlock(head.end_block))?.hash!==head.end_hash||(await p.getBlock(end))?.hash!==endBlock?.hash||(await p.getBlock(target.number))?.hash!==target.hash||await p.getCode(c.factoryAddress,end)!==code)throw new AppError(503,'CHAIN_REORG','Quiet history changed while scanning. No checkpoint was committed.');
+          await this.store.commit(quietStart,end,endBlock,windows,{quietHistory:true,checkpoints});head=await this.store.head();
+        }
       }
     }
     for(let i=0;!emptyPass&&i<maxChunks;i++) {
@@ -108,10 +133,16 @@ export class MarketIndexer extends EventEmitter {
     return {configured:true,deploymentBlock:this.config.deploymentBlock,indexedThrough:head?.end_block??null,indexedHash:head?.end_hash??null,observedHead:this.target?.number??null,finality:this.config.finality,caughtUp:!this.lastError&&!!head&&head.end_block===this.target?.number,revision:this.cachedRevision,error:this.lastError?.code??null,realtime:this.headStream?.status()??{transport:'http-polling'}};
   }
   async market(token,interval=60,wallet=null) {
-    await this.sync();
-    const data=await this.store.market(getAddress(token),interval,wallet),head=await this.store.head();
-    if((await this.provider.getBlock(head.end_block))?.hash!==head.end_hash) throw new AppError(503,'CHAIN_REORG','Indexed snapshot is no longer canonical. Resynchronize.');
+    await this.ensureReadable();
+    const data=await this.store.market(getAddress(token),interval,wallet);
+    if((await this.provider.getBlock(data.snapshot.blockNumber))?.hash!==data.snapshot.blockHash) throw new AppError(503,'CHAIN_REORG','Indexed snapshot is no longer canonical. Resynchronize.');
     return this.decorate(data);
+  }
+  async ensureReadable(){
+    // Background catch-up may outlive an HTTP request. Serve its last verified
+    // checkpoint with caughtUp=false rather than blocking every page on the scan.
+    if(!this.wake||!await this.store.head())await this.sync();
+    if(this.lastError)throw this.lastError;
   }
   async walletHistory(token,wallet){
     const data=await this.market(token,60,getAddress(wallet));
@@ -119,7 +150,7 @@ export class MarketIndexer extends EventEmitter {
     return {token:asset,launch,snapshot,range,walletActivity,index,provenance,cursor};
   }
   async portfolio(wallet){
-    await this.sync();
+    await this.ensureReadable();
     const data=await this.store.portfolio(getAddress(wallet));
     if((await this.provider.getBlock(data.snapshot.blockNumber))?.hash!==data.snapshot.blockHash)throw new AppError(503,'CHAIN_REORG','Portfolio checkpoint is no longer canonical.');
     return this.decorate(data);
