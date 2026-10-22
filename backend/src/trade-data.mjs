@@ -43,6 +43,9 @@ export async function readTradeState(provider, config, wallet = null) {
 export async function readCurveQuote(provider, config, input) {
   input=tradeInput(input.side,input.amountRaw,input.wallet);
   const state=await readTradeState(provider,config,input.wallet);
+  return curveQuoteFromState(provider,config,input,state);
+}
+async function curveQuoteFromState(provider,config,input,state){
   if(state.launch.graduated) throw new AppError(422,'POST_GRADUATION_QUOTE_UNAVAILABLE','This token graduated. A verified v4 quote path is required; curve quotes cannot be used.');
   const market=new Contract(state.launch.market,curveAbi,provider),at={blockTag:config.toBlock};
   let result;
@@ -63,7 +66,7 @@ export async function readCurveQuote(provider, config, input) {
 export async function readTradeQuote(provider, config, input) {
   input=tradeInput(input.side,input.amountRaw,input.wallet);
   const state=await readTradeState(provider,config,input.wallet);
-  if(!state.launch.graduated)return readCurveQuote(provider,config,input);
+  if(!state.launch.graduated)return curveQuoteFromState(provider,config,input,state);
   if(!config.v4QuoterAddress)throw new AppError(503,'V4_QUOTER_NOT_CONFIGURED','A verified Foundry v4 quoter is required for graduated quotes.');
   const quoterAddress=address(config.v4QuoterAddress),at={blockTag:config.toBlock},pool=state.pool;
   if(!pool||await provider.getCode(quoterAddress,config.toBlock)==='0x')throw new AppError(503,'V4_QUOTER_MISMATCH','The configured quoter or pool is unavailable.');

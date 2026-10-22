@@ -19,6 +19,11 @@ export function preflightInput(input) {
 export async function readTradePreflight(provider,config,input) {
   input=preflightInput(input);
   const state=await readTradeQuote(provider,config,input);
+  return preflightFromQuote(provider,config,input,state);
+}
+// Internal preparation path: state is the quote just read at config.toBlock.
+export async function preflightFromQuote(provider,config,input,state){
+  input=preflightInput(input);
   const block=await provider.getBlock(config.toBlock);
   if (block?.hash!==state.snapshot.blockHash) throw new AppError(503,'CHAIN_REORG','Preflight block changed.');
   const deadline=Number(input.deadline);

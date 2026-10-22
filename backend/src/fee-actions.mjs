@@ -41,7 +41,13 @@ async function canonical(provider,config,snapshot){
 
 export async function readApprovalPlan(provider,config,input){
   input=tradeInput(input.side,input.amountRaw,actionWallet(input.wallet));
-  const state=await readTradeQuote(provider,config,input),asset=state.quote.inputAsset,spender=state.quote.spender;
+  const state=await readTradeQuote(provider,config,input);
+  return approvalFromQuote(provider,config,input,state);
+}
+// Internal preparation path: reuse the same verified, same-block quote.
+export async function approvalFromQuote(provider,config,input,state){
+  input=tradeInput(input.side,input.amountRaw,actionWallet(input.wallet));
+  const asset=state.quote.inputAsset,spender=state.quote.spender;
   const token=new Contract(asset,tokenAbi,provider);
   const allowance=await token.allowance(input.wallet,spender,{blockTag:config.toBlock});
   const required=BigInt(state.quote.requiredInputRaw),steps=[];

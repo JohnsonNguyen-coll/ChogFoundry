@@ -9,16 +9,14 @@ export function minimumTradeOutput(outputRaw,slippage){
 }
 
 export async function prepareDirectTrade({token,wallet,side,amount,slippage,signal,read,now=Date.now}){
-  const raw=parseAmount(amount),base=`/api/tokens/${token}/`,query=new URLSearchParams({side,amountRaw:raw,wallet});
-  const quote=await read(`${base}quote?${query}`,signal);
   signal.throwIfAborted();
-  if(!quote.quote.balanceSufficient)throw new Error(`You do not have enough ${side==='buy'?'CHOG':'tokens'} for this trade.`);
-  const minimum=minimumTradeOutput(quote.quote.outputRaw,slippage);
-  if(!quote.quote.allowanceSufficient){
-    const path=`${base}approval?${query}`,body=await read(path,signal);
-    return {kind:'approval',path,body,quote};
-  }
-  query.set('minOutputRaw',minimum);query.set('deadline',String(Math.floor(now()/1000)+1200));
-  const path=`${base}preflight?${query}`,body=await read(path,signal);
-  return {kind:'preflight',path,body,quote};
+  const raw=parseAmount(amount),query=new URLSearchParams({side,amountRaw:raw,wallet});
+  // Applying protection to 10,000 units yields its exact basis-point value.
+  query.set('slippageBps',String(10000n-BigInt(minimumTradeOutput('10000',slippage))));
+  query.set('deadline',String(Math.floor(now()/1000)+1200));
+  const path=`/api/tokens/${token}/prepare?${query}`,body=await read(path,signal);
+  signal.throwIfAborted();
+  if(!body.quote?.balanceSufficient)throw new Error(`You do not have enough ${side==='buy'?'CHOG':'tokens'} for this trade.`);
+  if(!['approval','preflight'].includes(body.actionKind))throw new Error('The transaction could not be prepared. Please try again.');
+  return {kind:body.actionKind,path,body,quote:body};
 }

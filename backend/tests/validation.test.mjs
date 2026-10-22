@@ -3,6 +3,16 @@ import { launchInput } from '../src/launch-data.mjs';
 import { actionWallet } from '../src/fee-actions.mjs';
 import { preflightInput } from '../src/trade-preflight.mjs';
 import { tradeInput } from '../src/trade-data.mjs';
+import {preparationInput} from '../src/trade-preparation.mjs';
+
+test('direct preparation validates wallet, amount, protection and deadline before RPC reads',()=>{
+  const input={side:'buy',amountRaw:'1000000000000000000',wallet:'0x350035555E10d9AfAF1566AaebfCeD5BA6C27777',slippageBps:'50',deadline:'1790000000'};
+  assert.equal(preparationInput(input).slippageBps,'50');
+  for(const value of ['10000','-1','0.5','',null])assert.throws(()=>preparationInput({...input,slippageBps:value}));
+  assert.throws(()=>preparationInput({...input,wallet:null}));
+  assert.throws(()=>preparationInput({...input,amountRaw:'0'}));
+  assert.throws(()=>preparationInput({...input,deadline:'invalid'}));
+});
 import { parseAmount } from '../../frontend/src/market-format.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';

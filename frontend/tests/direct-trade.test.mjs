@@ -16,9 +16,8 @@ test('direct trade minimum output keeps integer precision and never permits a ze
 test('a single buy gesture prepares approval only when needed, then freshly quotes before preparing the trade',async()=>{
   const paths=[];let approved=false,quotes=0;
   const read=async path=>{
-    paths.push(path);
-    if(path.includes('/quote?')){quotes++;return {quote:{balanceSufficient:true,allowanceSufficient:approved,outputRaw:quotes===1?'100000000000000000000':'90000000000000000000'}};}
-    return {prepared:true};
+    paths.push(path);quotes++;
+    return {actionKind:approved?'preflight':'approval',quote:{balanceSufficient:true,allowanceSufficient:approved,outputRaw:quotes===1?'100000000000000000000':'90000000000000000000'}};
   };
   const approval=await prepareDirectTrade({...input,read});
   assert.equal(approval.kind,'approval');assert.ok(!paths.some(p=>p.includes('/preflight?')));
@@ -27,7 +26,8 @@ test('a single buy gesture prepares approval only when needed, then freshly quot
   assert.equal(trade.kind,'preflight');assert.equal(quotes,2);
   const query=new URL('http://localhost'+trade.path).searchParams;
   assert.equal(query.get('amountRaw'),'10000000000000000000');
-  assert.equal(query.get('minOutputRaw'),'89550000000000000000');
+  assert.equal(query.get('slippageBps'),'50');assert.equal(paths.length,2);
+  assert.ok(paths.every(path=>path.includes('/prepare?')),'One preparation request per gesture/confirmed approval');
   assert.equal(query.get('wallet'),input.wallet);assert.equal(query.get('deadline'),'2200');
 });
 
@@ -41,7 +41,7 @@ test('insufficient balance and cancelled preparations never advance to approval 
 
 test('sell prepares token approval and then a CHOG minimum with full precision',async()=>{
   let approved=false;
-  const read=async path=>path.includes('/quote?')?{quote:{balanceSufficient:true,allowanceSufficient:approved,outputRaw:'987654321012345678'}}:{prepared:true};
+  const read=async()=>({actionKind:approved?'preflight':'approval',quote:{balanceSufficient:true,allowanceSufficient:approved,outputRaw:'987654321012345678'}});
   const sell={...input,side:'sell',amount:'123.456789012345678901',read};
   const approval=await prepareDirectTrade(sell);
   assert.equal(approval.kind,'approval');
@@ -49,5 +49,5 @@ test('sell prepares token approval and then a CHOG minimum with full precision',
   approved=true;
   const prepared=await prepareDirectTrade(sell),query=new URL('http://localhost'+prepared.path).searchParams;
   assert.equal(prepared.kind,'preflight');assert.equal(query.get('amountRaw'),'123456789012345678901');
-  assert.equal(query.get('minOutputRaw'),String(987654321012345678n*9950n/10000n));
+  assert.equal(query.get('slippageBps'),'50');
 });

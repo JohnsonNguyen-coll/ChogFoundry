@@ -42,6 +42,7 @@ export default function TradePanel({token,wallet,marketVersion,onConfirmed}){
   useEffect(()=>{
     const controller=new AbortController();let timer,failures=0,inFlight=false,again=false;setAccount(null);setAccountError(false);
     const poll=async()=>{
+      if(intent.current){timer=setTimeout(poll,1000);return;}
       inFlight=true;
       try{const data=await actionRead(`/api/tokens/${token.address}/account?wallet=${encodeURIComponent(wallet)}`,controller.signal);if(!controller.signal.aborted){failures=0;setAccount(data);setAccountError(false);}}
       catch{if(!controller.signal.aborted){failures++;setAccount(null);setAccountError(true);}}
@@ -55,6 +56,7 @@ export default function TradePanel({token,wallet,marketVersion,onConfirmed}){
     const controller=new AbortController();let timer,inFlight=false,again=false;setQuote(null);setQuoteError('');setQuoting(false);
     try{parseAmount(amount);}catch{return()=>controller.abort();}
     const poll=async()=>{
+      if(intent.current){timer=setTimeout(poll,1000);return;}
       inFlight=true;
       setQuoting(true);
       try{const query=new URLSearchParams({side,amountRaw:parseAmount(amount)});if(wallet)query.set('wallet',wallet);
@@ -72,15 +74,17 @@ export default function TradePanel({token,wallet,marketVersion,onConfirmed}){
     running.current=true;setError('');setPhase('preparing');
     const signal=lifecycle.current.signal;
     try{
-      const prepared=await prepareDirectTrade({...current,signal,read:actionRead});
+      const [prepared,permission]=await Promise.all([
+        prepareDirectTrade({...current,signal,read:actionRead}),actionRead('/api/execution',signal)
+      ]);
       signal.throwIfAborted();if(intent.current!==current||!sameContext(current))return;
       setQuote(prepared.quote);
       if(prepared.kind==='approval'&&current.approvals>=3)throw new Error('Spending approval is still insufficient. Check your wallet’s approved amount before trying again.');
       current.kind=prepared.kind;
-      const result=await sendWalletAction({provider:current.provider,wallet:current.wallet,...prepared,signal,onState:state=>{
+      const result=await sendWalletAction({provider:current.provider,wallet:current.wallet,...prepared,permission,signal,onState:state=>{
         if(signal.aborted)return;
         if(state.status==='awaiting-wallet')setPhase(prepared.kind==='approval'?'approve-wallet':'trade-wallet');
-        else if(state.status==='simulating-current-state')setPhase('preparing');
+        else if(state.status==='simulating-current-state')setPhase('simulating');
       }});
       current.hash=result.hash;if(prepared.kind==='approval')current.approvals++;
       tracking.track(result);if(!signal.aborted)setPhase(prepared.kind==='approval'?'approval-pending':'trade-pending');
@@ -94,7 +98,7 @@ export default function TradePanel({token,wallet,marketVersion,onConfirmed}){
     intent.current=current;setCompletedHash(null);void execute(current);
   }
   const locked=phase!=='idle'||tracking.pending;
-  const labels={'preparing':'Preparing transaction…','approve-wallet':'Confirm approval in your wallet…','trade-wallet':'Confirm trade in your wallet…','approval-pending':'Waiting for approval…','trade-pending':'Waiting for confirmation…'};
+  const labels={'preparing':'Checking price and balance…','simulating':'Checking transaction…','approve-wallet':'Confirm approval in your wallet…','trade-wallet':'Confirm trade in your wallet…','approval-pending':'Waiting for approval…','trade-pending':'Waiting for confirmation…'};
   const tx=tracking.transaction,showTransaction=tx?.hash&&intent.current?.hash===tx.hash;
   return <aside className="trade-panel terminal-order">
     <div className="order-heading"><span className="eyebrow">PLACE A TRADE</span><span className="order-network">Monad</span></div>

@@ -20,6 +20,7 @@ import { PostgresDatabase } from './postgres.mjs';
 import { PostgresStudioStore } from './postgres-studio-store.mjs';
 import { PostgresMarketStore } from './postgres-market-store.mjs';
 import { tradeInput } from './trade-data.mjs';
+import {preparationInput} from './trade-preparation.mjs';
 import { openMarketStream } from './market-stream.mjs';
 
 async function body(req) {
@@ -159,10 +160,14 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
         if(indexedRoute[2]==='history') return send(200,await indexer.market(token,interval));
         return await openMarketStream(req,res,indexer,token,interval,streams);
       }
-      const tradeRoute=route.match(/^\/api\/tokens\/([^/]+)\/(quote|account|preflight|approval|claim-preflight)$/);
+      const tradeRoute=route.match(/^\/api\/tokens\/([^/]+)\/(quote|account|preflight|approval|claim-preflight|prepare)$/);
       if(tradeRoute){
         const token=address(tradeRoute[1]);
         const wallet=url.searchParams.has('wallet')?address(url.searchParams.get('wallet')):null;
+        if(tradeRoute[2]==='prepare'){
+          const input=preparationInput({side:url.searchParams.get('side'),amountRaw:url.searchParams.get('amountRaw'),wallet,slippageBps:url.searchParams.get('slippageBps'),deadline:url.searchParams.get('deadline')});
+          return send(200,await reader.prepareTrade(token,input));
+        }
         if(['approval','claim-preflight'].includes(tradeRoute[2])){
           actionWallet(wallet);
           const kind=tradeRoute[2]==='approval'?'approval':'claim';

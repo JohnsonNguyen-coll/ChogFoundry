@@ -25,25 +25,31 @@ export async function submitReviewedTransaction(provider,review,fresh,{wallet,ch
   provider.on?.('accountsChanged',invalidate);provider.on?.('chainChanged',invalidate);
   const check=()=>{signal?.throwIfAborted();if(changed)throw new Error('Wallet or network changed. Refresh the review.');};
   async function identity(){
-    check();const network=await provider.request({method:'eth_chainId'}),accounts=await provider.request({method:'eth_accounts'});check();
+    check();const [network,accounts]=await Promise.all([provider.request({method:'eth_chainId'}),provider.request({method:'eth_accounts'})]);check();
     if(BigInt(network)!==BigInt(chainId)||!same(accounts[0],wallet)||!same(wallet,review.transaction.from))throw new Error('Connected account or network does not match the review.');
   }
   try{
     await identity();
     if(review.fingerprint!==fresh.fingerprint||BigInt(fresh.transaction.chainId)!==BigInt(chainId))throw new Error('Transaction details changed. Inspect and review again.');
     const tx=fresh.transaction;
-    const anchor=await provider.request({method:'eth_getBlockByNumber',params:['0x'+fresh.snapshot.blockNumber.toString(16),false]});
+    const [anchor,latest]=await Promise.all([
+      provider.request({method:'eth_getBlockByNumber',params:['0x'+fresh.snapshot.blockNumber.toString(16),false]}),
+      provider.request({method:'eth_getBlockByNumber',params:['latest',false]})
+    ]);
     if(!same(anchor?.hash,fresh.snapshot.blockHash))throw new Error('The blockchain record changed. Refresh the transaction review.');
-    const latest=await provider.request({method:'eth_getBlockByNumber',params:['latest',false]});check();
+    check();
     if(!latest?.hash)throw new Error('Your wallet cannot reach the network. Try again shortly.');
     if(fresh.deadline&&Number(fresh.deadline)<=Math.max(Date.now()/1000,Number(BigInt(latest.timestamp))))throw new Error('This transaction review has expired. Refresh it to continue.');
-    const code=await provider.request({method:'eth_getCode',params:[tx.to,latest.number]});if(!code||code==='0x')throw new Error('The transaction contract could not be found. Refresh before continuing.');
     const rpc={from:tx.from,to:tx.to,data:tx.data,value:tx.value??'0x0'};
     onState({status:'simulating-current-state'});
-    const call=await provider.request({method:'eth_call',params:[rpc,latest.number]});
+    const [code,call,gas]=await Promise.all([
+      provider.request({method:'eth_getCode',params:[tx.to,latest.number]}),
+      provider.request({method:'eth_call',params:[rpc,latest.number]}),
+      provider.request({method:'eth_estimateGas',params:[rpc,latest.number]})
+    ]);
+    if(!code||code==='0x')throw new Error('The transaction contract could not be found. Refresh before continuing.');
     // ERC-20 approve may return no bytes, but an explicit false must never proceed.
     if(tx.data.slice(0,10).toLowerCase()==='0x095ea7b3'&&call!=='0x'&&BigInt(call)===0n)throw new Error('The token did not accept the spending approval.');
-    const gas=await provider.request({method:'eth_estimateGas',params:[rpc,latest.number]});
     if(BigInt(gas)<=0n||BigInt(gas)>BigInt(latest.gasLimit))throw new Error('The network fee could not be estimated. Try again shortly.');
     const canonical=await provider.request({method:'eth_getBlockByNumber',params:[latest.number,false]});
     if(!same(canonical?.hash,latest.hash))throw new Error('Chain changed during wallet simulation.');

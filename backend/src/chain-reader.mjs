@@ -9,6 +9,7 @@ import { readTradePreflight } from './trade-preflight.mjs';
 import { readTradeState, readTradeQuote } from './trade-data.mjs';
 import { readMarketWindow } from './market-data.mjs';
 import {ReadQueue} from './read-queue.mjs';
+import {readTradePreparation} from './trade-preparation.mjs';
 
 export class ChainReader {
   constructor() {
@@ -120,6 +121,11 @@ export class ChainReader {
       if(preflight)return readTradePreflight(this.provider,config,{...input,wallet});
       return input?readTradeQuote(this.provider,config,{...input,wallet}):readTradeState(this.provider,config,wallet);
     },'finalized');
+  }
+  prepareTrade(tokenAddress,input){
+    const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
+    if(!factoryAddress)throw new AppError(503,'FOUNDRY_NOT_CONFIGURED','Trade preparation is unavailable.');
+    return this.snapshot(block=>readTradePreparation(this.provider,{chainId:chain.id,factoryAddress,tokenAddress,collection:chain.collection,quote:chain.quote,toBlock:block,v4QuoterAddress:process.env.FOUNDRY_V4_QUOTER_ADDRESS},input),'finalized');
   }
   feeAction(tokenAddress,wallet,kind,input=null){
     const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
