@@ -6,6 +6,7 @@ import WalletSession from "../components/WalletSession.jsx";
 import { LoadState, ChainLink, Provenance } from "../components/Onchain.jsx";
 import { communityRequest, timestamp } from "../lib/community.mjs";
 import { units, parseAmount } from "../market-format.mjs";
+import PaginatedList from '../components/PaginatedList.jsx';
 export default function TreasuryPage() {
   const auth = useWalletSession(),
     [refresh, setRefresh] = useState(0),
@@ -89,20 +90,20 @@ export default function TreasuryPage() {
             <p className="note">
               NFTs currently in the treasury wallet. Some may have come from sources other than platform fees.
             </p>
-            <div className="inventory-list">
-              {data.inventory.map((id) => (
+            <PaginatedList items={data.inventory} pageSize={20} label="Treasury NFTs">{page=><div className="inventory-list">
+              {page.map((id) => (
                 <span className="inventory-item" key={id}>
                   NFT #{id}
                 </span>
               ))}
-            </div>
+            </div>}</PaginatedList>
             {!data.inventory.length && (
               <p>No studio NFTs held when last checked.</p>
             )}
           </section>
           <section>
             <h2>Verified receipt journal</h2>
-            {data.receipts.map((r) => (
+            <PaginatedList items={data.receipts} pageSize={10} label="Treasury receipts">{page=><>{page.map((r) => (
               <article className="receipt-row" key={r.transactionHash}>
                 <strong>{r.kind}</strong>
                 <a
@@ -123,7 +124,7 @@ export default function TreasuryPage() {
                   </p>
                 ))}
               </article>
-            ))}
+            ))}</>}</PaginatedList>
             {!data.receipts.length && (
               <p className="empty">
                 No verified receipts have been attached yet.

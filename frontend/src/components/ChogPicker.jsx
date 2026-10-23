@@ -5,6 +5,7 @@ import ChogArtwork from "./ChogArtwork.jsx";
 import NftArtwork from "./NftArtwork.jsx";
 import useWalletAssets from "../hooks/useWalletAssets.js";
 import { LoadState, Provenance } from "./Onchain.jsx";
+import PaginatedList from './PaginatedList.jsx';
 export default function ChogPicker({ launch = false }) {
   const { wallet, data, error, loading } = useWalletAssets();
   return (
@@ -43,8 +44,8 @@ export default function ChogPicker({ launch = false }) {
           <LoadState loading={loading} error={error} />
           {data &&
             (data.nfts.tokenIds.length ? (
-              <div className="studio-grid">
-                {data.nfts.tokenIds.map((id) => (
+              <PaginatedList items={data.nfts.tokenIds} resetKey={wallet} label="Your studios">{page=><div className="studio-grid">
+                {page.map((id) => (
                   <article
                     className="studio-preview chog-choice"
                     key={id}
@@ -60,7 +61,7 @@ export default function ChogPicker({ launch = false }) {
                     </div>
                   </article>
                 ))}
-              </div>
+              </div>}</PaginatedList>
             ) : (
               <div className="empty">
                 <h3>No {data.nfts.collectionName} NFT in this wallet.</h3>

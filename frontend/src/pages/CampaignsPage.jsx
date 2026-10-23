@@ -10,6 +10,7 @@ import { communityRequest, timestamp, postId } from "../lib/community.mjs";
 import {useConnectModal,useChainModal,useAccountModal} from '@rainbow-me/rainbowkit';
 import {useSelectedWallet} from '../WalletProvider.jsx';
 import {xLinkControl} from '../lib/x-link.mjs';
+import PaginatedList from '../components/PaginatedList.jsx';
 const date = (value) => new Date(value).toISOString();
 export default function CampaignsPage() {
   const { id } = useParams(),
@@ -157,8 +158,8 @@ export default function CampaignsPage() {
           <div><span className="eyebrow">SMALL ACTIONS, SHARED IDEAS</span><h2>Community tasks <span className="campaign-task-count">{tasks.data?.tasks.length??'—'}</span></h2><p>Choose a task, complete it on X, then verify it here.</p></div>
           <button className="secondary" disabled={tasks.loading} onClick={() => setRefresh((n) => n + 1)}>{tasks.loading?'Refreshing…':'Refresh tasks'}</button>
         </div>
-        <div className="engagement-grid">
-          {tasks.data?.tasks.map((t) => (
+        <PaginatedList items={tasks.data?.tasks} pageSize={6} label="Community tasks">{page=><div className="engagement-grid">
+          {page.map((t) => (
             <article className="engagement-task" key={t.id}>
               <div className="campaign-task-top"><span className="campaign-badge">{t.kind.charAt(0).toUpperCase()+t.kind.slice(1)}</span><strong className="task-points">+{t.points} <small>pts</small></strong></div>
               <h3>{t.title}</h3>
@@ -218,7 +219,7 @@ export default function CampaignsPage() {
               </button>
             </article>
           ))}
-        </div>
+        </div>}</PaginatedList>
         {tasks.data && !tasks.data.tasks.length && (
           <div className="campaign-empty"><span className="campaign-empty-symbol" aria-hidden="true">✦</span><h3>The next task starts here.</h3><p>No tasks have been published yet. Once the organizer adds one, you’ll find the action and points here.</p><a className="secondary" href="https://x.com/ChogNFT" target="_blank" rel="noreferrer">Visit @ChogNFT on X</a>{configuration.data?.admin&&<a className="text-link" href="#campaign-organizer">Publish your first task</a>}</div>
         )}
@@ -226,8 +227,8 @@ export default function CampaignsPage() {
       {!id && (
         <section className="campaign-raffles">
           <div className="section-heading"><div><span className="eyebrow">PUT YOUR POINTS TO WORK</span><h2>NFT raffles</h2></div><span className="campaign-badge">{configuration.data?.raffleConfigured&&configuration.data?.campaignsEnabled?'Community rewards':'Waiting for treasury NFT prizes'}</span></div>
-          <div className="studio-grid">
-            {campaigns.data?.campaigns.map((c) => (
+          <PaginatedList items={campaigns.data?.campaigns} pageSize={6} label="NFT raffles">{page=><div className="studio-grid">
+            {page.map((c) => (
               <Link
                 className="studio-preview"
                 to={`/app/campaigns/${c.id}`}
@@ -244,7 +245,7 @@ export default function CampaignsPage() {
                 <small>Closes {timestamp(c.ends_at)}</small>
               </Link>
             ))}
-          </div>
+          </div>}</PaginatedList>
           {campaigns.data && !campaigns.data.campaigns.length && (
             <p className="campaign-raffle-note">Raffles will open when eligible NFT prizes from the treasury are ready and the organizer publishes a draw. Prize details and entry requirements will appear here.</p>
           )}
@@ -436,11 +437,11 @@ export default function CampaignsPage() {
       {points.data && (
         <details>
           <summary>Your points ledger</summary>
-          {points.data.ledger.map((r) => (
+          <PaginatedList items={points.data.ledger} pageSize={10} resetKey={auth.wallet} label="Points history">{page=><>{page.map((r) => (
             <p key={r.id}>
               {r.delta} / {r.kind} / {timestamp(r.created_at)}
             </p>
-          ))}
+          ))}</>}</PaginatedList>
         </details>
       )}
       <details className="campaign-points-info"><summary>How points and verification work</summary><p className="note">Points are earned from verified X tasks. They cannot be bought, sold or transferred, and trading does not earn points. We only read your X activity; we never post for you. Each wallet can link one X account. Verification may be delayed if X is unavailable or the activity cannot be found.</p></details>

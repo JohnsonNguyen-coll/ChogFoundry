@@ -4,6 +4,7 @@ import PageIntro from "../components/PageIntro.jsx";
 import useApi from "../hooks/useApi.js";
 import { LoadState } from "../components/Onchain.jsx";
 import { short } from "../lib/api.mjs";
+import PaginatedList from '../components/PaginatedList.jsx';
 export default function ExplorePage() {
   const [refresh, setRefresh] = useState(0),
     { data, error, loading } = useApi("/studios", refresh);
@@ -29,8 +30,8 @@ export default function ExplorePage() {
         <LoadState loading={loading} error={error} />
         {data &&
           (data.profiles.length ? (
-            <div className="studio-grid">
-              {data.profiles.map((p) => (
+            <PaginatedList items={data.profiles} label="Studios">{page=><div className="studio-grid">
+              {page.map((p) => (
                 <Link
                   className="studio-preview"
                   to={`/app/studios/${p.tokenId}`}
@@ -43,7 +44,7 @@ export default function ExplorePage() {
                   <span className="text-link">Explore studio ↗</span>
                 </Link>
               ))}
-            </div>
+            </div>}</PaginatedList>
           ) : (
             <div className="empty">
               <span className="empty-orbit">◇</span>

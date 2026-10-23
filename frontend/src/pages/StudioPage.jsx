@@ -6,6 +6,7 @@ import { useSelectedWallet } from "../WalletProvider.jsx";
 import { LoadState, ChainLink, Provenance } from "../components/Onchain.jsx";
 import { api } from "../lib/api.mjs";
 import NftArtwork from "../components/NftArtwork.jsx";
+import PaginatedList from '../components/PaginatedList.jsx';
 export default function StudioPage() {
   const { id } = useParams(),
     { wallet } = useSelectedWallet(),
@@ -72,7 +73,7 @@ export default function StudioPage() {
           <section className="studio-token-list">
             <div className="section-heading"><h2>Studio tokens</h2><Link className="primary" to={`/app/launch?studio=${id}`}>Launch token ↗</Link></div>
             <LoadState loading={tokens.loading} error={tokens.error}/>
-            {tokens.data?.assets.map(a=><article key={a.token.address} className="studio-token-row"><div><strong>{a.token.name}</strong><span> {a.token.symbol}</span></div><div className="profile-actions"><Link to={`/app/markets/${a.token.address}`}>Trade & chart ↗</Link><Link to={`/app/clubs/${id}`}>Join discussion ↗</Link></div></article>)}
+            <PaginatedList items={tokens.data?.assets} pageSize={10} resetKey={id} label="Studio tokens">{page=><>{page.map(a=><article key={a.token.address} className="studio-token-row"><div><strong>{a.token.name}</strong><span> {a.token.symbol}</span></div><div className="profile-actions"><Link to={`/app/markets/${a.token.address}`}>Trade & chart ↗</Link><Link to={`/app/clubs/${id}`}>Join discussion ↗</Link></div></article>)}</>}</PaginatedList>
             {tokens.data&&!tokens.data.assets.length&&<p className="note">No tokens launched from this studio yet. Launch your first token to open its market.</p>}
           </section>
           <article className="nft-card">
@@ -131,12 +132,12 @@ export default function StudioPage() {
                   Bounded window, not complete ownership history.
                 </p>
                 {transfers.transfers.length ? (
-                  transfers.transfers.map((t) => (
+                  <PaginatedList items={transfers.transfers} pageSize={10} resetKey={id} label="Studio ownership transfers">{page=><>{page.map((t) => (
                     <p key={`${t.transactionHash}:${t.logIndex}`}>
                       <ChainLink address={t.from} /> →{" "}
                       <ChainLink address={t.to} />
                     </p>
-                  ))
+                  ))}</>}</PaginatedList>
                 ) : (
                   <p>No transfers in this window.</p>
                 )}

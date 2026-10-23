@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { units } from './market-format.mjs';
 import {short} from './lib/api.mjs';
 import {Spinner} from './components/Loading.jsx';
+import PaginatedList from './components/PaginatedList.jsx';
 export default function WalletPortfolio({wallet,onOpenToken}){
   const [input,setInput]=useState(''),[inspected,setInspected]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[refresh,setRefresh]=useState(0);
   const selected=wallet||inspected;
@@ -37,7 +38,7 @@ export default function WalletPortfolio({wallet,onOpenToken}){
         <div><span>Data status</span><strong className={data.index.caughtUp?'portfolio-synced':''}>{data.index.caughtUp?'Up to date':'Syncing…'}</strong></div>
       </div>
       {(data.unresolvedV4AcrossIndex>0||data.legacyV4AcrossIndex>0)&&<p className="note">Some trade history is incomplete. See data details below.</p>}
-      {data.positions.length?<div className="table-scroll"><table><thead><tr><th>Token</th><th>Holdings</th><th>Supply share</th><th>Buys / sells</th><th>Studio</th><th>Market</th></tr></thead><tbody>{data.positions.map(p=><tr key={p.token.address} data-portfolio-token={p.token.address}><td>{p.token.name} / {p.token.symbol}<small><code>{p.token.address}</code></small></td><td>{units(p.activity.balanceRaw,p.token.decimals)}</td><td>{units(p.activity.shareBps,2)}%</td><td>{p.activity.buyCount} / {p.activity.sellCount}</td><td>Studio #{p.launch.nftId}</td><td><button className="text-button" onClick={()=>onOpenToken(p.token.address)}>View market</button></td></tr>)}</tbody></table></div>:
+      {data.positions.length?<PaginatedList items={data.positions} pageSize={15} resetKey={selected} label="Portfolio tokens">{page=><div className="table-scroll"><table><thead><tr><th>Token</th><th>Holdings</th><th>Supply share</th><th>Buys / sells</th><th>Studio</th><th>Market</th></tr></thead><tbody>{page.map(p=><tr key={p.token.address} data-portfolio-token={p.token.address}><td>{p.token.name} / {p.token.symbol}<small><code>{p.token.address}</code></small></td><td>{units(p.activity.balanceRaw,p.token.decimals)}</td><td>{units(p.activity.shareBps,2)}%</td><td>{p.activity.buyCount} / {p.activity.sellCount}</td><td>Studio #{p.launch.nftId}</td><td><button className="text-button" onClick={()=>onOpenToken(p.token.address)}>View market</button></td></tr>)}</tbody></table></div>}</PaginatedList>:
       <div className="portfolio-empty"><span className="eyebrow">ROOM FOR YOUR NEXT FIND</span><h3>No tokens here yet</h3><p>{data.index.caughtUp?'Your Foundry holdings and trading activity will appear here.':'Your holdings will appear as launch history syncs.'}</p></div>}
       <details className="portfolio-details note"><summary>Data & source details</summary>
         <p>{data.indexedTokenCount} tokens scanned · {data.unresolvedV4AcrossIndex} unresolved v4 trades · {data.legacyV4AcrossIndex} legacy rows. Cost basis and PnL are unavailable.</p>

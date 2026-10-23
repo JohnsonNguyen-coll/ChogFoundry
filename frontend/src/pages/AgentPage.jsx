@@ -9,6 +9,7 @@ import {Spinner} from "../components/Loading.jsx";
 import NftArtwork from "../components/NftArtwork.jsx";
 import Modal from '../components/Modal.jsx';
 import AssistantTools,{assistantTasks} from "../components/AssistantTools.jsx";
+import PaginatedList from '../components/PaginatedList.jsx';
 import {communityRequest,timestamp} from "../lib/community.mjs";
 
 const assistantError=value=>/Claude|ANTHROPIC|CLAUDE_/i.test(value||'')?'The assistant is temporarily unavailable. Please try again later.':value;
@@ -55,15 +56,15 @@ export default function AgentPage() {
       <AssistantTools active={task} onSelect={chooseTask}/>
       <div className="section-heading assistant-section-heading"><div><span className="eyebrow">YOUR STUDIO, YOUR CONTEXT</span><h2>Choose a studio</h2></div><Link className="text-link" to="/app/studios">View my studios ↗</Link></div>
       <LoadState loading={directory.loading||owned.loading} error={directory.error||owned.error}/>
-      <div className="assistant-studio-grid">{studioList.map(studio=><article className="assistant-studio-choice" key={studio.id}>
+      <PaginatedList items={studioList} pageSize={8} resetKey={auth.wallet} label="Assistant studios">{page=><div className="assistant-studio-grid">{page.map(studio=><article className="assistant-studio-choice" key={studio.id}>
         {studio.mine&&owned.data?<NftArtwork id={studio.id} collection={owned.data.nfts.collection} collectionName={owned.data.nfts.collectionName}/>:<span className="assistant-studio-monogram">#{studio.id}</span>}
         <div className="assistant-studio-choice-body"><span className="caption">{studio.mine?'YOUR STUDIO':'COMMUNITY STUDIO'}</span><h3>{studio.name}</h3><Link className="primary assistant-open-button" to={`/app/agent/${studio.id}?task=${task}`} aria-label={`Open assistant for studio ${studio.id}`}>Open assistant</Link></div>
-      </article>)}</div>
+      </article>)}</div>}</PaginatedList>
       {!directory.loading&&!owned.loading&&!directory.error&&!owned.error&&!studioList.length&&<div className="assistant-directory-empty"><span className="assistant-empty-mark" aria-hidden="true">✦</span><div><h3>Every idea needs a home.</h3><p>{auth.wallet?'No studios found yet. Open My studios to check the NFTs in your wallet.':'Connect your wallet to find your NFT studios, or explore a community studio.'}</p><Link className="secondary" to={auth.wallet?'/app/studios':'/app/explore'}>{auth.wallet?'Find my studio':'Explore studios'} ↗</Link></div></div>}
       <Modal open={pickerOpen} onClose={()=>setPickerOpen(false)} title="Choose a studio" eyebrow="FOUNDRY ASSISTANT" className="assistant-studio-modal">
         <p className="note">{assistantTasks.find(item=>item.id===task)?.title} · Choose the studio for this conversation.</p>
         <LoadState loading={directory.loading||owned.loading} error={directory.error||owned.error}/>
-        <div className="assistant-studio-options">{studioList.map(studio=><Link key={studio.id} to={`/app/agent/${studio.id}?task=${task}`} onClick={()=>setPickerOpen(false)}><span><strong>{studio.name}</strong><small>{studio.mine?'Your studio':'Community studio'}</small></span><span>Open conversation →</span></Link>)}</div>
+        <PaginatedList items={studioList} pageSize={6} resetKey={`${auth.wallet}:${pickerOpen}`} label="Studio choices">{page=><div className="assistant-studio-options">{page.map(studio=><Link key={studio.id} to={`/app/agent/${studio.id}?task=${task}`} onClick={()=>setPickerOpen(false)}><span><strong>{studio.name}</strong><small>{studio.mine?'Your studio':'Community studio'}</small></span><span>Open conversation →</span></Link>)}</div>}</PaginatedList>
         {!directory.loading&&!owned.loading&&!studioList.length&&<><p className="note">{auth.wallet?'No studios found for this wallet yet.':'Connect your wallet to find your studio, or explore public studios.'}</p><Link className="secondary" to={auth.wallet?'/app/studios':'/app/explore'} onClick={()=>setPickerOpen(false)}>{auth.wallet?'Find my studio':'Explore studios'} ↗</Link></>}
       </Modal>
     </>:<>
