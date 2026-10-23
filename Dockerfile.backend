@@ -8,6 +8,7 @@ COPY contracts/package.json ./contracts/package.json
 RUN npm ci --omit=dev --workspace=@chog-foundry/backend --include-workspace-root=false
 
 COPY --chown=node:node backend ./backend
+RUN node --input-type=module -e "await import('./backend/src/server.mjs')"
 ENV NODE_ENV=production HOST=0.0.0.0 SERVE_FRONTEND=false
 ENV SUPABASE_DB_CA_PATH=/app/backend/certs/prod-ca-2021.crt
 USER node

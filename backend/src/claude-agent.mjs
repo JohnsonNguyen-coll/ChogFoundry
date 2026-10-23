@@ -1,5 +1,5 @@
 import { AppError } from "./validation.mjs";
-import { mainnetEconomics } from "../../contracts/mainnet-config.mjs";
+import { mainnetEconomics } from "./mainnet-economics.mjs";
 import { text } from "./community-validation.mjs";
 import {formatUnits} from 'ethers';
 export function agentConfiguration() {

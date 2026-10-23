@@ -3,6 +3,27 @@ import assert from 'node:assert/strict';
 import { productionRuntime } from '../src/runtime-config.mjs';
 import { vercelOutputConfig } from '../../scripts/vercel-config.mjs';
 import { createApi } from '../src/server.mjs';
+import { cp, mkdtemp, mkdir, rm, symlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
+
+test('backend imports successfully in an API image without contracts or frontend source', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'foundry-api-image-'));
+  try {
+    await mkdir(path.join(root, 'backend'));
+    await cp(new URL('../src/', import.meta.url), path.join(root, 'backend', 'src'), { recursive: true });
+    await symlink(fileURLToPath(new URL('../../node_modules/', import.meta.url)), path.join(root, 'node_modules'), 'junction');
+    const entry = pathToFileURL(path.join(root, 'backend', 'src', 'server.mjs')).href;
+    const env = { ...process.env };
+    delete env.PRIVATE_KEY;
+    delete env.NODE_OPTIONS;
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(entry)})`],
+      { env, encoding: 'utf8', timeout: 10000, windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
 
 test('Railway API mode uses the supplied port and frontend origin, preserving the combined-host default', () => {
   assert.deepEqual(productionRuntime({ APP_ORIGIN: 'https://foundry.example', HOST: '0.0.0.0', PORT: '8080', SERVE_FRONTEND: 'false' }),
