@@ -24,6 +24,7 @@ All frontend API, RPC and EventSource calls remain same-origin through Vercel. T
 ## 3. X and wallet configuration
 
 - In the X developer application, register the exact callback `https://YOUR-FRONTEND-DOMAIN/app/campaigns`. The application is a confidential Web App and uses the existing read-only OAuth permissions.
+- Set `X_BEARER_TOKEN` in Railway to the X application's app-only Bearer Token. Task publishing uses this backend credential to verify @ChogNFT post authorship; organizers only need their admin wallet session. Participants still link X to verify engagement. Keep this token out of Vercel and frontend code.
 - In the Reown dashboard, allow the final frontend origin if using WalletConnect.
 - Changing the frontend domain requires updating Railway `APP_ORIGIN`, the X callback and the Reown domain configuration. Changing the backend domain requires updating Vercel `FOUNDRY_API_ORIGIN` and rebuilding Vercel.
 

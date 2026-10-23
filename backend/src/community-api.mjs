@@ -309,7 +309,7 @@ export function communityApi({
       if (write) {
         admin(session);
         const input = taskInput(await body(req)),
-          target = await x.target(session.wallet, input.targetPostId);
+          target = await x.target(input.targetPostId);
         auth.session(req, true);
         return finish(await store.createTask(input, target, session.wallet));
       }

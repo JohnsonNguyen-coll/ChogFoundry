@@ -169,14 +169,16 @@ export class XEngagement {
       );
     return access;
   }
-  async target(wallet, postId = null) {
-    const access = this.token(wallet);
-    const user = await this.read("/users/by/username/ChogNFT", access.token);
+  async target(postId = null) {
+    const token = process.env.X_BEARER_TOKEN?.trim();
+    if (!token)
+      fail('X_APP_TOKEN_REQUIRED', 'Task publishing requires X_BEARER_TOKEN on the backend. The administrator does not need to link X.');
+    const user = await this.read("/users/by/username/ChogNFT", token);
     const id = xId(user.data?.id);
     if (postId) {
       const post = await this.read(
         "/tweets/" + xId(postId) + "?tweet.fields=author_id",
-        access.token,
+        token,
       );
       if (post.data?.author_id !== id)
         fail(
