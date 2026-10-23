@@ -1,5 +1,6 @@
 import {postId} from './community.mjs';
 export function bulkTasks(links, kinds, points, days, now=Date.now()) {
+  now=Math.floor(now/1000)*1000;
   const ids=[...new Set(links.split(/\s+/).filter(Boolean).map(postId))];
   if(!ids.length || ids.length>20)throw new Error('Enter between 1 and 20 post URLs.');
   if(!kinds.length || kinds.some(kind=>!['like','repost'].includes(kind)))throw new Error('Choose Like or Repost.');

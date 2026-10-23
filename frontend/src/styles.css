@@ -2259,10 +2259,10 @@ td small {
 
 .campaign-page { padding-top:12px; }
 .campaign-overview { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(290px,1fr); border:1px solid var(--line); border-radius:24px; overflow:hidden; background:radial-gradient(ellipse at 25% 0%,#37244f80,transparent 65%),#161021; }
-.campaign-hero { padding:40px; }
+.campaign-hero { display:grid; grid-template-columns:minmax(0,1fr) minmax(120px,170px); align-items:center; gap:24px; padding:40px; }
 .campaign-hero h1 { font-size:clamp(30px,3.5vw,48px); line-height:1.12; letter-spacing:-1.8px; margin:20px 0; }
 .campaign-hero h1 > span { color:#bcabff; }
-.campaign-hero > p { max-width:520px; color:var(--muted); line-height:1.8; font-size:14px; margin-bottom:24px; }
+.campaign-hero-copy > p { max-width:520px; color:var(--muted); line-height:1.8; font-size:14px; margin-bottom:24px; }
 .campaign-browse { display:inline-flex; align-items:center; justify-content:center; min-height:46px; padding:12px 22px; font-size:13px; border-radius:10px; }
 .campaign-hero-foot { display:flex; flex-wrap:wrap; gap:18px; margin-top:24px; font-size:11px; color:#a99dbd; }
 .campaign-hero-foot span::before { content:' '; display:inline-block; width:5px; height:5px; margin-right:8px; border-radius:50%; background:#b39aec; vertical-align:middle; }
@@ -2449,3 +2449,24 @@ td small {
   .docs-pagination { gap:10px; }
   .docs-pagination > a { padding:16px; }
 }
+
+/* Chog illustrations in the community page headers. */
+.chog-artwork.page-chog-portrait { width:100%; height:auto; aspect-ratio:1; object-fit:contain; border:1px solid #bda0ec55; border-radius:24px; background:#21182e; box-shadow:0 18px 40px #08041155; }
+.assistant-hero-art .page-chog-portrait { max-width:240px; transform:rotate(3deg); }
+.clubs-chog-art { display:flex; flex-direction:column; align-items:center; gap:18px; min-width:0; }
+.clubs-chog-art .page-chog-portrait { max-width:280px; transform:rotate(-3deg); }
+.clubs-chog-art > span { color:var(--muted); font-size:11px; line-height:1.7; text-align:center; }
+.campaign-chog-art { min-width:0; }
+.campaign-chog-art .page-chog-portrait { transform:rotate(5deg); border-radius:20px; }
+@media (max-width:740px) {
+  .assistant-hero-art { display:flex; padding:8px 0 0; }
+  .assistant-hero-art .page-chog-portrait,.clubs-chog-art .page-chog-portrait { max-width:180px; }
+  .campaign-hero { grid-template-columns:minmax(0,1fr); }
+  .campaign-chog-art { width:150px; justify-self:center; margin-top:6px; }
+}
+.campaign-bulk-form fieldset { display:grid; gap:18px; border:0; margin:0; padding:0; min-width:0; }
+.campaign-bulk-form textarea { width:100%; max-width:100%; }
+.campaign-bulk-actions { display:flex; flex-wrap:wrap; gap:24px; }
+.community-compose .campaign-bulk-actions label { display:flex; align-items:center; gap:8px; margin:0; }
+.campaign-bulk-actions input[type=checkbox] { width:18px; height:18px; margin:0; padding:0; accent-color:#896bff; }
+.campaign-bulk-form fieldset > button { justify-self:start; }

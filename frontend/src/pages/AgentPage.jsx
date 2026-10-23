@@ -7,6 +7,7 @@ import WalletSession from "../components/WalletSession.jsx";
 import {LoadState} from "../components/Onchain.jsx";
 import {Spinner} from "../components/Loading.jsx";
 import NftArtwork from "../components/NftArtwork.jsx";
+import ChogArtwork from "../components/ChogArtwork.jsx";
 import Modal from '../components/Modal.jsx';
 import AssistantTools,{assistantTasks} from "../components/AssistantTools.jsx";
 import PaginatedList from '../components/PaginatedList.jsx';
@@ -49,7 +50,7 @@ export default function AgentPage() {
   return <div className="assistant-page">
     {!id&&<header className="assistant-hero">
       <div><span className="eyebrow">CHOG FOUNDRY / YOUR CREATIVE PARTNER</span><h1>A spark today.<br/><span>Your next launch tomorrow.</span></h1><p>Meet Foundry Assistant. A little help to shape your ideas, understand your token and bring the club along.</p><div className="assistant-hero-tags"><span>Studio context</span><span>Community ideas</span><span>You make the call</span></div></div>
-      <div className="assistant-hero-art" aria-hidden="true"><div className="assistant-orbit"><span>✦</span></div><div className="assistant-orbit-label">IDEA → CONCEPT → LAUNCH</div><span className="assistant-orbit-caption">A little spark goes a long way.</span></div>
+      <div className="assistant-hero-art" aria-hidden="true"><ChogArtwork scene="guide" className="page-chog-portrait" eager/><div className="assistant-orbit-label">IDEA → CONCEPT → LAUNCH</div><span className="assistant-orbit-caption">A little spark goes a long way.</span></div>
     </header>}
     {!id?<>
       <div className="section-heading assistant-section-heading"><div><span className="eyebrow">A GOOD PLACE TO START</span><h2>What are we working on?</h2></div><p>Start with a task or choose a studio below.</p></div>

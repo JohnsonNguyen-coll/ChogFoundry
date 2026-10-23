@@ -12,6 +12,7 @@ import {useSelectedWallet} from '../WalletProvider.jsx';
 import {xLinkControl} from '../lib/x-link.mjs';
 import PaginatedList from '../components/PaginatedList.jsx';
 import BulkCampaignTasks from '../components/BulkCampaignTasks.jsx';
+import ChogArtwork from '../components/ChogArtwork.jsx';
 import {canManageCampaigns} from '../lib/campaign-access.mjs';
 const date = (value) => new Date(value).toISOString();
 export default function CampaignsPage() {
@@ -95,6 +96,7 @@ export default function CampaignsPage() {
     <div className="campaign-page">
       <div className="campaign-overview">
       <section className="campaign-hero">
+        <div className="campaign-hero-copy">
         <span className="eyebrow">CHOG FOUNDRY / CAMPAIGNS</span>
         <h1>A little action.<br/><span>A bigger community.</span></h1>
         <p>
@@ -106,6 +108,8 @@ export default function CampaignsPage() {
         </p>
         <a className="secondary campaign-browse" href="#engagement-tasks">Explore tasks</a>
         <div className="campaign-hero-foot"><span>No purchase needed</span><span>You choose what to share</span></div>
+        </div>
+        <div className="campaign-chog-art" aria-hidden="true"><ChogArtwork scene="activity" className="page-chog-portrait" eager/></div>
       </section>
       <section className="community-account campaign-account">
         <div>

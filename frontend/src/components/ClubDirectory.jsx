@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import {Link} from 'react-router-dom';
 import useApi from '../hooks/useApi.js';
 import NftArtwork from './NftArtwork.jsx';
+import ChogArtwork from './ChogArtwork.jsx';
 import {LoadState} from './Onchain.jsx';
 import PaginatedList from './PaginatedList.jsx';
 
@@ -21,7 +22,7 @@ export default function ClubDirectory({wallet,directory}) {
   return <>
     <header className="clubs-hub-hero">
       <div><span className="eyebrow">CHOG FOUNDRY / COMMUNITY</span><h1>Good ideas<br/><span>start with a club.</span></h1><p>A home for every studio’s next chapter. Meet the community, share a wild idea and help shape what launches next.</p><div className="clubs-hub-tags"><span>Open to everyone</span><span>No token needed</span></div></div>
-      <div className="clubs-channel-preview" aria-hidden="true"><span className="eyebrow">INSIDE EVERY CLUB</span><div><span>01</span><strong>Lounge</strong><small>A place to say hello.</small></div><div><span>02</span><strong>Concepts & memes</strong><small>Where the next idea takes shape.</small></div><div><span>03</span><strong>Announcements</strong><small>Updates from the studio owner.</small></div></div>
+      <div className="clubs-chog-art" aria-hidden="true"><ChogArtwork scene="community" className="page-chog-portrait" eager/><span>Lounge · Concepts & memes · Announcements</span></div>
     </header>
     <section className="clubs-directory-section">
       <div className="section-heading"><div><span className="eyebrow">FIND YOUR PEOPLE</span><h2>Studio clubs</h2></div><Link className="text-link" to="/app/studios">My studios ↗</Link></div>
