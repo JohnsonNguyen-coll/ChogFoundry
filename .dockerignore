@@ -1,0 +1,15 @@
+**/node_modules
+**/.env
+**/.env.*
+**/*.key
+**/dist
+.git
+.vercel
+.secrets
+keystores
+artifacts
+contracts/artifacts
+backend/data
+**/*.log
+test-results
+playwright-report

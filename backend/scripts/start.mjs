@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { productionRuntime } from '../src/runtime-config.mjs';
 
 try {
   process.loadEnvFile(fileURLToPath(new URL("../.env", import.meta.url)));
@@ -6,36 +7,13 @@ try {
   if (error.code !== "ENOENT") throw error;
 }
 
-let origin;
-try {
-  origin = new URL(process.env.APP_ORIGIN);
-} catch {
-  throw new Error("Configure APP_ORIGIN as the public application origin.");
-}
-const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname);
-if (
-  origin.username ||
-  origin.password ||
-  origin.pathname !== "/" ||
-  origin.search ||
-  origin.hash ||
-  !["https:", "http:"].includes(origin.protocol) ||
-  (!loopback && origin.protocol !== "https:")
-) {
-  throw new Error(
-    "APP_ORIGIN must be an HTTPS origin (HTTP allowed only for loopback).",
-  );
-}
-const port = Number(process.env.PORT || 3001);
-if (!Number.isInteger(port) || port < 1 || port > 65535)
-  throw new Error("PORT must be an integer from 1 to 65535.");
-const host = process.env.HOST || "127.0.0.1";
+const { origin, port, host, serveFrontend } = productionRuntime();
 const { createApi } = await import("../src/server.mjs");
 const { server } = createApi({
-  origin: origin.origin,
-  frontendDirectory: fileURLToPath(
+  origin,
+  frontendDirectory: serveFrontend ? fileURLToPath(
     new URL("../../frontend/dist", import.meta.url),
-  ),
+  ) : undefined,
 });
 server.listen(port, host, () =>
   console.log(`Chog Foundry production server listening on port ${port}.`),

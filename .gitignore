@@ -10,6 +10,7 @@ artifacts/
 /out/
 /cache/
 .next/
+.vercel/
 *.tsbuildinfo
 
 # Test reports and coverage

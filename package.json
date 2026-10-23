@@ -16,6 +16,7 @@
     "dev:backend": "npm run dev --workspace @chog-foundry/backend",
     "dev:frontend": "npm run dev --workspace @chog-foundry/frontend",
     "build": "npm run compile --workspace @chog-foundry/contracts && npm run build --workspace @chog-foundry/frontend",
+    "build:vercel": "node scripts/build-vercel.mjs",
     "compile": "npm run compile --workspace @chog-foundry/contracts",
     "test": "npm run test --workspace @chog-foundry/backend",
     "test:live": "npm run test:live --workspace @chog-foundry/backend",
