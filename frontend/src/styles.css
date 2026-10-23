@@ -1891,14 +1891,14 @@ td small {
 .assistant-tool strong { font-family: "Space Grotesk", sans-serif; font-size: 17px; font-weight: 500; letter-spacing: -.3px; margin-bottom: 9px; }
 .assistant-tool > span:not(.assistant-tool-number):not(.assistant-tool-action) { font-size: 11px; line-height: 1.8; color: #aaa0b8; }
 .assistant-tool-action { font-size: 10px; color: #c0a5e6; padding-top: 21px; margin-top: auto; }
-.assistant-studio-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
-.assistant-studio-choice { display: flex; flex-direction: column; gap: 22px; align-items: stretch; border: 1px solid var(--line); border-radius: 20px; padding: 20px; background: linear-gradient(145deg,#21192f,#151020); min-width: 0; }
+.assistant-studio-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(100%,240px),280px)); gap: 16px; }
+.assistant-studio-choice { display: flex; flex-direction: column; gap: 16px; align-items: stretch; border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: linear-gradient(145deg,#21192f,#151020); min-width: 0; }
 .assistant-studio-choice > .nft-artwork, .assistant-studio-monogram { width: 100%; height: auto; aspect-ratio: 1; flex-shrink: 0; margin: 0; border-radius: 14px; }
 .assistant-studio-monogram { display: grid; place-items: center; color: #cfb3ef; font-size: 14px; background: #2e2041; }
 .assistant-studio-choice .caption { font-size: 10px; letter-spacing: 1.5px; color: #b9a4cc; }
-.assistant-studio-choice h3 { margin: 10px 0 24px; font-size: 24px; letter-spacing: -.5px; overflow-wrap: anywhere; }
+.assistant-studio-choice h3 { margin: 8px 0 18px; font-size: 20px; letter-spacing: -.5px; overflow-wrap: anywhere; }
 .assistant-studio-choice-body { display:flex; flex-direction:column; flex:1; min-width:0; }
-.assistant-studio-choice .assistant-open-button { display:flex; align-items:center; justify-content:center; width:100%; min-height:52px; margin-top:auto; padding:14px 20px; font-size:15px; font-weight:700; border-radius:10px; text-align:center; }
+.assistant-studio-choice .assistant-open-button { display:flex; align-items:center; justify-content:center; width:100%; min-height:48px; margin-top:auto; padding:12px 16px; font-size:14px; font-weight:700; border-radius:10px; text-align:center; }
 .assistant-studio-choice .nft-loading .loading-indicator > span:last-child { display: none; }
 .assistant-directory-empty { display: flex; gap: 28px; padding: 32px; align-items: center; background: #1b1426; border: 1px dashed #5b426f; border-radius: 18px; }
 .assistant-empty-mark { font-size: 48px; color: #c5a6f1; }
@@ -1952,9 +1952,9 @@ td small {
 .assistant-composer-footer .note { font-size: 10px; }
 .assistant-privacy { margin-top: 18px; }
 .assistant-privacy summary, .assistant-privacy p { font-size: 10px; color: #8f7fa0; }
-@media (max-width: 1050px) { .assistant-tools { grid-template-columns: repeat(2,minmax(0,1fr)); } .assistant-studio-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .assistant-workspace-layout { grid-template-columns: 210px minmax(0,1fr); } .assistant-hero { padding: 30px; } }
+@media (max-width: 1050px) { .assistant-tools { grid-template-columns: repeat(2,minmax(0,1fr)); } .assistant-workspace-layout { grid-template-columns: 210px minmax(0,1fr); } .assistant-hero { padding: 30px; } }
 @media (max-width: 740px) { .assistant-hero { grid-template-columns: minmax(0,1fr); padding: 26px; } .assistant-hero-art { display: none; } .assistant-section-heading { align-items: flex-start; } .assistant-section-heading > p { display: none; } .assistant-workspace-layout { grid-template-columns: minmax(0,1fr); } .assistant-task-sidebar .assistant-tools { grid-template-columns: repeat(2,minmax(0,1fr)); } .assistant-task-sidebar > .note { display: none; } .assistant-conversation-history { padding: 20px; } .assistant-conversation-heading, .assistant-composer { padding: 20px; } }
-@media (max-width: 480px) { .assistant-studio-grid { grid-template-columns: minmax(0,1fr); } .assistant-tool { padding: 17px; } .assistant-tool strong { font-size: 15px; } .assistant-section-heading h2 { font-size: 23px; } .assistant-composer-footer { align-items: stretch; flex-direction: column; } .assistant-directory-empty { padding: 24px; gap: 18px; } .assistant-empty-mark { display: none; } }
+@media (max-width: 480px) { .assistant-tool { padding: 17px; } .assistant-tool strong { font-size: 15px; } .assistant-section-heading h2 { font-size: 23px; } .assistant-composer-footer { align-items: stretch; flex-direction: column; } .assistant-directory-empty { padding: 24px; gap: 18px; } .assistant-empty-mark { display: none; } }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .clubs-page { max-width: 1240px; margin: 12px auto 64px; }

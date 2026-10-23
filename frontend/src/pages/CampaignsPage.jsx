@@ -225,8 +225,7 @@ export default function CampaignsPage() {
       </section>
       {!id && (
         <section className="campaign-raffles">
-          <div className="section-heading"><div><span className="eyebrow">PUT YOUR POINTS TO WORK</span><h2>NFT raffles</h2></div><span className="campaign-badge">{configuration.data?.raffleConfigured&&configuration.data?.campaignsEnabled?'Community rewards':'Currently unavailable'}</span></div>
-          {configuration.data?.raffleEscrowSupported===false&&<p className="campaign-raffle-note">Raffles are paused for The Daks because this collection does not currently allow prize transfers into the raffle. X tasks and points are separate from raffles.</p>}
+          <div className="section-heading"><div><span className="eyebrow">PUT YOUR POINTS TO WORK</span><h2>NFT raffles</h2></div><span className="campaign-badge">{configuration.data?.raffleConfigured&&configuration.data?.campaignsEnabled?'Community rewards':'Waiting for treasury NFT prizes'}</span></div>
           <div className="studio-grid">
             {campaigns.data?.campaigns.map((c) => (
               <Link
@@ -247,7 +246,7 @@ export default function CampaignsPage() {
             ))}
           </div>
           {campaigns.data && !campaigns.data.campaigns.length && (
-            <p className="campaign-raffle-note">No raffles are open right now. Prize details and entry requirements will appear here when one is published.</p>
+            <p className="campaign-raffle-note">Raffles will open when eligible NFT prizes from the treasury are ready and the organizer publishes a draw. Prize details and entry requirements will appear here.</p>
           )}
         </section>
       )}
