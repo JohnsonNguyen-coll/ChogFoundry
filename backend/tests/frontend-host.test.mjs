@@ -60,6 +60,8 @@ test("production host serves deep links and HEAD without caching the application
     "/app/studios/1557",
     "/app/launch?studio=1557",
     "/app/unknown",
+    "/docs",
+    "/docs/getting-started",
   ]) {
     const res = await request(route);
     assert.equal(res.status, 200, route);

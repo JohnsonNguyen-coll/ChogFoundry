@@ -42,7 +42,7 @@ test('Vercel keeps API requests on the external proxy and only app routes use th
     assert.ok(route.dest.startsWith('https://api.example.com/api'));
     assert.equal(route.headers['Cache-Control'], 'no-store');
   }
-  for (const path of ['/', '/app', '/app/markets/0x123', '/app/campaigns']) assert.equal(match(path).dest, '/index.html');
+  for (const path of ['/', '/app', '/app/markets/0x123', '/app/campaigns', '/docs', '/docs/getting-started']) assert.equal(match(path).dest, '/index.html');
   assert.equal(match('/assets/missing.js').dest, undefined);
   assert.equal(match('/.env').status, 404);
   assert.equal(match('/package.json').status, 404);

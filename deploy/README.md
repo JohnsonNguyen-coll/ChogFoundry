@@ -16,7 +16,7 @@ The container includes the checked-in public Supabase CA certificate. Keep `SUPA
 
 1. Import the same repository. Root Directory: repository root. Framework Preset: **Other**. Node.js: **22.x**. Leave Output Directory unset. `vercel.json` sets install/build commands.
 2. Add `FOUNDRY_API_ORIGIN` with the Railway HTTPS origin, for example `https://your-api.up.railway.app` (no `/api`). Optionally add the public `VITE_WALLETCONNECT_PROJECT_ID`. Do not add backend secrets to Vercel.
-3. Deploy. `npm run build:vercel` creates `.vercel/output/static` and Build Output API routing configuration. `/api/*` proxies to Railway, static assets are served directly, and `/app/*` falls back to the SPA. Missing assets/API routes do not fall back to HTML.
+3. Deploy. `npm run build:vercel` creates `.vercel/output/static` and Build Output API routing configuration. `/api/*` proxies to Railway, static assets are served directly, and `/app/*` and `/docs/*` fall back to the SPA. Missing assets/API routes do not fall back to HTML.
 4. If the actual frontend domain differs from Railway's `APP_ORIGIN`, update that Railway variable and redeploy the backend before signing in.
 
 All frontend API, RPC and EventSource calls remain same-origin through Vercel. The HttpOnly Secure session cookie stays on the frontend domain; no cross-site cookie or wildcard CORS changes are needed. Live market/club streams reconnect automatically after proxy/network interruptions. Use the configured production frontend domain for authenticated features; arbitrary Vercel preview domains are deliberately not authorized.

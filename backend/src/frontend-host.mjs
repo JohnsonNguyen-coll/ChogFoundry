@@ -73,7 +73,7 @@ export function createFrontendHost(directory) {
       return fail(400, "Invalid path.");
     const clientRoute =
       pathname === "/" ||
-      ((pathname === "/app" || pathname.startsWith("/app/")) &&
+      ((pathname === "/app" || pathname.startsWith("/app/") || pathname === '/docs' || pathname.startsWith('/docs/')) &&
         !path.posix.extname(pathname));
     const requested = clientRoute ? index : path.resolve(root, `.${pathname}`);
     if (!contained(root, requested)) return fail(404, "Not found.");

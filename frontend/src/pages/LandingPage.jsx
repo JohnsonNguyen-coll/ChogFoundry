@@ -10,9 +10,10 @@ export default function LandingPage() {
         <nav aria-label="Main navigation">
           <a href="#the-foundry">The Foundry</a>
           <a href="#how-it-works">How it works</a>
+          <Link to="/docs">Docs</Link>
         </nav>
         <Link className="primary" to="/app">
-          Launch App <span>↗</span>
+          Launch App
         </Link>
       </header>
       <main className="landing-main">
@@ -37,7 +38,7 @@ export default function LandingPage() {
             </p>
             <div className="hero-actions">
               <Link className="primary" to="/app">
-                Launch App <span>↗</span>
+                Launch App
               </Link>
               <a className="quiet-link" href="#how-it-works">
                 Meet the Foundry <span>↓</span>
@@ -121,13 +122,15 @@ export default function LandingPage() {
           <span className="eyebrow">THE NEXT THING IS YOURS TO MAKE.</span>
           <h2>What will your Chog build?</h2>
           <Link className="primary" to="/app">
-            Enter the Foundry <span>↗</span>
+            Launch App
           </Link>
+          <Link className="landing-docs-link" to="/docs">Read the documentation</Link>
         </section>
       </main>
       <footer className="landing-footer">
         <Brand />
         <span>Your Chog. Your studio. Your next launch.</span>
+        <Link to="/docs">Documentation</Link>
         <a href="https://www.chog.xyz/" target="_blank" rel="noreferrer">
           Meet Chog ↗
         </a>

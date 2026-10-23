@@ -12,6 +12,7 @@ import {
   useParams,
 } from "react-router-dom";
 import LandingPage from "./pages/LandingPage.jsx";
+import DocsPage from './pages/DocsPage.jsx';
 import DappLayout from "./layouts/DappLayout.jsx";
 import ExplorePage from "./pages/ExplorePage.jsx";
 import ChogPicker from "./components/ChogPicker.jsx";
@@ -63,14 +64,13 @@ export default function AppRoutes() {
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title =
-      pathname === "/"
-        ? "Chog Foundry — Your next launch."
-        : `${pathname.split("/")[2] || "Explore"} · Chog Foundry`;
+    document.title = 'Chog Foundry';
   }, [pathname]);
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/docs" element={<DocsPage />} />
+      <Route path="/docs/:slug" element={<DocsPage />} />
       <Route path="/app" element={<DappLayout />}>
         <Route index element={<Navigate to="explore" replace />} />
         <Route path="explore" element={<ExplorePage />} />

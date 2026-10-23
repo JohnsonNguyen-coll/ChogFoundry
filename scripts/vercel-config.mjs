@@ -8,7 +8,7 @@ export function vercelOutputConfig(value) {
     { src: '/api', dest: `${url.origin}/api`, headers: { 'Cache-Control': 'no-store' } },
     { src: '/api/(.*)', dest: `${url.origin}/api/$1`, headers: { 'Cache-Control': 'no-store' } },
     { handle: 'filesystem' },
-    { src: '/(?:app(?:/.*)?)?', dest: '/index.html', headers: { 'Cache-Control': 'no-store' } },
+    { src: '/(?:(?:app|docs)(?:/.*)?)?', dest: '/index.html', headers: { 'Cache-Control': 'no-store' } },
     { src: '/.*', status: 404 },
   ] };
 }
