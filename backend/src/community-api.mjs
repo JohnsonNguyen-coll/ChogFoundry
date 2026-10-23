@@ -115,7 +115,7 @@ export function communityApi({
             process.env.FOUNDRY_DEPLOYER_ADDRESS.toLowerCase(),
         sessionWallet: session?.wallet || null,
         pointsPolicy:
-          "Free verified X engagement only. Points cannot be bought, transferred or earned from trade volume. One linked X account per wallet; this is not proof of one person.",
+          "Free self-reported task participation only. Points cannot be bought, transferred or earned from trade volume. One linked X account per wallet; this is not proof of one person.",
       });
     requireDb();
     const clubStream=route.match(/^\/api\/clubs\/([^/]+)\/stream$/);
@@ -309,7 +309,7 @@ export function communityApi({
       if (write) {
         admin(session);
         const input = taskInput(await body(req)),
-          target = await x.target(input.targetPostId);
+          target = 'ChogNFT';
         auth.session(req, true);
         return finish(await store.createTask(input, target, session.wallet));
       }
@@ -326,13 +326,8 @@ export function communityApi({
           "X_LINK_REQUIRED",
           "Link your X account before verifying engagement.",
         );
-      const evidence = await x.verify(session.wallet, taskRow, input.replyId);
-      if (evidence.xUserId !== link.x_user_id)
-        fail(
-          409,
-          "X_LINK_CHANGED",
-          "The verified X account differs from the wallet link.",
-        );
+      if(input.opened !== true)fail(400,'TASK_OPEN_REQUIRED','Open the task on X to claim participation points.');
+      const evidence = {method:'self-reported-open',engagementVerified:false,taskId:id};
       auth.session(req, true);
       return finish(
         await store.credit(session.wallet, id, link.x_user_id, evidence),

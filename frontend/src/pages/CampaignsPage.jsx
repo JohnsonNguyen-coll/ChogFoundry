@@ -21,7 +21,7 @@ export default function CampaignsPage() {
     location = useLocation(),
     navigate = useNavigate(),
     [refresh, setRefresh] = useState(0),
-    [replies, setReplies] = useState({}),
+    [openedTasks, setOpenedTasks] = useState({}),
     [prepared, setPrepared] = useState(null),
     action = useCommunityAction(
       `${auth.wallet}:${id}:${auth.session?.expiresAt}`,
@@ -63,6 +63,7 @@ export default function CampaignsPage() {
   const linkControl=xLinkControl({auth,connection,configured:configuration.data?.xConfigured,loading:configuration.loading,busy:action.busy,linked:!!points.data?.link});
   useEffect(() => {
     setPrepared(null);
+    setOpenedTasks({});
   }, [id, auth.wallet, auth.session?.expiresAt]);
   useEffect(() => {
     const q = new URLSearchParams(location.search);
@@ -124,9 +125,9 @@ export default function CampaignsPage() {
           <p>
             {points.data?.link
               ? "@" + points.data.link.username
-              : "Connect your X account to verify tasks and collect points."}
+              : "Connect your X account to collect participation points."}
           </p>
-          <span className="note">Earned through verified community tasks.</span>
+          <span className="note">Earned by opening community tasks.</span>
         </div>
         <button
           className={points.data?.link?"secondary":"primary"}
@@ -151,7 +152,7 @@ export default function CampaignsPage() {
       <div className="campaign-steps">
         <div><span>01</span><div><strong>Connect your X</strong><p>One account, linked to your wallet.</p></div></div>
         <div><span>02</span><div><strong>Pick a task</strong><p>Follow, like, reply or repost on X.</p></div></div>
-        <div><span>03</span><div><strong>Verify & earn</strong><p>Return here to collect your points.</p></div></div>
+        <div><span>03</span><div><strong>Open & earn</strong><p>Open the task, then claim your points.</p></div></div>
       </div>
       {auth.wallet&&!auth.matches&&!auth.checking&&<p className="note">Sign a wallet message to link X. This does not send a transaction or cost gas.</p>}
       {connection.error&&<p className="message error" role="alert">{connection.error} Reconnect your wallet using the account menu.</p>}
@@ -162,7 +163,7 @@ export default function CampaignsPage() {
       )}
       <section className="campaign-task-section" id="engagement-tasks">
         <div className="section-heading">
-          <div><span className="eyebrow">SMALL ACTIONS, SHARED IDEAS</span><h2>Community tasks <span className="campaign-task-count">{tasks.data?.tasks.length??'—'}</span></h2><p>Choose a task, complete it on X, then verify it here.</p></div>
+          <div><span className="eyebrow">SMALL ACTIONS, SHARED IDEAS</span><h2>Community tasks <span className="campaign-task-count">{tasks.data?.tasks.length??'—'}</span></h2><p>Open a task on X, then claim your points here. Likes and reposts are not verified.</p></div>
           <button className="secondary" disabled={tasks.loading} onClick={() => setRefresh((n) => n + 1)}>{tasks.loading?'Refreshing…':'Refresh tasks'}</button>
         </div>
         <PaginatedList items={tasks.data?.tasks} pageSize={6} label="Community tasks">{page=><div className="engagement-grid">
@@ -181,25 +182,16 @@ export default function CampaignsPage() {
                 }
                 target="_blank"
                 rel="noreferrer"
+                onClick={()=>setOpenedTasks(current=>({...current,[t.id]:true}))}
               >
                 Open task on X
               </a>
-              {t.kind === "reply" && (
-                <label>
-                  Your reply URL or post ID
-                  <input
-                    value={replies[t.id] || ""}
-                    onChange={(e) =>
-                      setReplies({ ...replies, [t.id]: e.target.value })
-                    }
-                  />
-                </label>
-              )}
               <button
                 className="primary"
                 disabled={
                   !auth.matches ||
                   !points.data?.link ||
+                  !openedTasks[t.id] ||
                   action.busy ||
                   Date.parse(t.starts_at) > Date.now() ||
                   Date.parse(t.ends_at) <= Date.now()
@@ -209,20 +201,17 @@ export default function CampaignsPage() {
                     const r = await save(
                       `/engagement/tasks/${t.id}/verify`,
                       {
-                        replyId:
-                          t.kind === "reply"
-                            ? postId(replies[t.id] || "")
-                            : undefined,
+                        opened: true,
                       },
                       signal,
                     );
                     return r.alreadyClaimed
-                      ? "Already verified; no duplicate points."
-                      : `${r.credited} verified engagement points earned.`;
+                      ? "Already claimed; no duplicate points."
+                      : `${r.credited} participation points earned.`;
                   })
                 }
               >
-                {Date.parse(t.ends_at)<=Date.now()?'Task ended':Date.parse(t.starts_at)>Date.now()?'Starts soon':!points.data?.link?'Connect X to verify':action.busy?'Verifying…':'Verify & earn points'}
+                {Date.parse(t.ends_at)<=Date.now()?'Task ended':Date.parse(t.starts_at)>Date.now()?'Starts soon':!points.data?.link?'Connect X to claim':!openedTasks[t.id]?'Open task first':action.busy?'Claiming…':'Claim points'}
               </button>
             </article>
           ))}
@@ -451,7 +440,7 @@ export default function CampaignsPage() {
           ))}</>}</PaginatedList>
         </details>
       )}
-      <details className="campaign-points-info"><summary>How points and verification work</summary><p className="note">Points are earned from verified X tasks. They cannot be bought, sold or transferred, and trading does not earn points. We only read your X activity; we never post for you. Each wallet can link one X account. Verification may be delayed if X is unavailable or the activity cannot be found.</p></details>
+      <details className="campaign-points-info"><summary>How points and verification work</summary><p className="note">Points reward opening tasks, based on your confirmation. Likes, reposts, follows and replies are not verified. Each task can be claimed once per linked X account. Points cannot be bought, sold or transferred; trading does not earn points.</p></details>
       {isOrganizer && (
         <details className="community-admin" id="campaign-organizer">
           <summary>Organizer configuration</summary>
@@ -480,7 +469,7 @@ export default function CampaignsPage() {
               });
             }}
           >
-            <h3>Publish a verified X task</h3>
+            <h3>Publish an X task</h3>
             <label>
               Action
               <select name="kind">
@@ -517,7 +506,7 @@ export default function CampaignsPage() {
               <input name="end" required type="datetime-local" />
             </label>
             <button disabled={action.busy}>
-              Verify target and publish task
+              Publish task
             </button>
           </form>
           <form

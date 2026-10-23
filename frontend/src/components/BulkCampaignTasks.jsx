@@ -42,7 +42,7 @@ export default function BulkCampaignTasks({action,onPublished}) {
       </div>
       <label>Points per task<input name="points" type="number" min="1" max="1000000" defaultValue="10" required/></label>
       <label>Duration in days<input name="days" type="number" min="1" max="90" defaultValue="14" required/></label>
-      <button disabled={action.busy}>{action.busy?'Publishing…':'Verify and publish tasks'}</button>
+      <button disabled={action.busy}>{action.busy?'Publishing…':'Publish tasks'}</button>
     </fieldset>
     <p role="status" aria-live="polite">{progress}</p>
     {action.error&&<p className="error" role="alert">{action.error}</p>}

@@ -140,11 +140,16 @@ export class XEngagement {
         "X verification is unavailable. No points were credited.",
       );
     }
-    if (!response.ok)
-      fail(
-        response.status === 429 ? "X_RATE_LIMITED" : "X_ACCESS_UNAVAILABLE",
-        "X API access or quota does not permit this verification. No points were credited.",
-      );
+    if (!response.ok) {
+      const errors = {
+        401: ['X_TOKEN_REJECTED', 'X API rejected the token (401). For task publishing, check X_BEARER_TOKEN in Railway; for engagement verification, reauthorize X.'],
+        402: ['X_PAYMENT_REQUIRED', 'X API requires payment or available credits (402). Check billing and credits in the X Developer Console.'],
+        403: ['X_ACCESS_FORBIDDEN', 'X API denied access (403). Check the X application permissions, endpoint access and account restrictions.'],
+        429: ['X_RATE_LIMITED', 'X API rate limit or quota reached (429). Check usage in the X Developer Console before retrying.'],
+      };
+      const [code, message] = errors[response.status] || ['X_ACCESS_UNAVAILABLE', `X API request failed (${response.status}). Try again later.`];
+      fail(code, message);
+    }
     const raw = await response.text();
     if (raw.length > 3000000)
       fail("X_RESPONSE_LIMIT", "X response exceeds the verification limit.");
