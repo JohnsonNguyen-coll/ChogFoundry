@@ -83,7 +83,7 @@ export default function AgentPage() {
         </div>
         <form className="assistant-composer" onSubmit={event=>{
           event.preventDefault();action.run(async signal=>{
-            await communityRequest(`/agent/${id}`,{prompt,tokenAddress:token||undefined},signal);
+            await communityRequest(`/agent/${id}`,{prompt,task,tokenAddress:token||undefined},signal);
             if(!signal.aborted){setPrompt('');setRefresh(value=>value+1);}
             return 'Reply saved.';
           });
@@ -91,6 +91,7 @@ export default function AgentPage() {
           <label htmlFor="assistant-prompt">Ask about this studio</label><textarea ref={promptInput} id="assistant-prompt" required rows={3} maxLength={4000} value={prompt} disabled={action.busy} onChange={event=>setPrompt(event.target.value)} placeholder="An idea, a question, a starting point…"/>
           <div className="assistant-composer-footer"><div>{tokens.data?.assets.length>0&&<label>Include a token<select value={token} disabled={action.busy} onChange={event=>setToken(event.target.value)}><option value="">Studio overview</option>{tokens.data.assets.map(asset=><option value={asset.token.address} key={asset.token.address}>{asset.token.name} ({asset.token.symbol})</option>)}</select></label>}{tokens.error&&<p className="note">Token details could not be loaded. You can still ask about the studio.</p>}<span className="note">You decide what happens next.</span></div><button className="primary" disabled={!auth.matches||!data?.configuration.configured||action.busy||!prompt.trim()}>{action.busy?'Thinking…':'Send message →'}</button></div>
           {!auth.wallet&&<p className="note">Connect your wallet to start a conversation.</p>}
+          {auth.wallet&&!auth.matches&&<p className="note" role="status">{auth.busy?'Confirm the sign-in message in your wallet to send messages. No gas fee is charged.':auth.checking?'Checking your sign-in…':'Sign-in is needed to send messages. Use the sign-in button above to try again.'}</p>}
           <details className="assistant-privacy"><summary>About your conversation</summary><p>Your question, public studio information and recent public club messages are processed by an AI service. Your saved conversation is visible only to your signed-in wallet. The assistant cannot sign, transfer funds or trade.</p></details>
         </form>
       </section></div>

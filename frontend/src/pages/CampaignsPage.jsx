@@ -7,6 +7,9 @@ import RaffleWalletReview from "../components/RaffleWalletReview.jsx";
 import WalletSession from "../components/WalletSession.jsx";
 import { LoadState } from "../components/Onchain.jsx";
 import { communityRequest, timestamp, postId } from "../lib/community.mjs";
+import {useConnectModal,useChainModal,useAccountModal} from '@rainbow-me/rainbowkit';
+import {useSelectedWallet} from '../WalletProvider.jsx';
+import {xLinkControl} from '../lib/x-link.mjs';
 const date = (value) => new Date(value).toISOString();
 export default function CampaignsPage() {
   const { id } = useParams(),
@@ -20,6 +23,8 @@ export default function CampaignsPage() {
       `${auth.wallet}:${id}:${auth.session?.expiresAt}`,
     ),
     oauthHandled = useRef(false);
+  const connection=useSelectedWallet(),{openConnectModal}=useConnectModal(),{openChainModal}=useChainModal(),{openAccountModal}=useAccountModal();
+  const [linkIntent,setLinkIntent]=useState(null);
   const configuration = useApi(
       "/community?wallet=" + (auth.session?.wallet || ""),
       refresh,
@@ -38,6 +43,19 @@ export default function CampaignsPage() {
       refresh,
     ),
     manifest = detail.data?.campaign.manifest_json;
+  function startXLink(){
+    action.run(async signal=>{
+      const result=await communityRequest('/x/start',{},signal);
+      if(!signal.aborted)window.location.assign(result.url);
+      return 'Opening X authorization.';
+    });
+  }
+  useEffect(()=>{
+    if(!linkIntent)return;
+    if(linkIntent!==auth.wallet||auth.error){setLinkIntent(null);return;}
+    if(auth.matches){setLinkIntent(null);startXLink();}
+  },[linkIntent,auth.wallet,auth.matches,auth.error]);
+  const linkControl=xLinkControl({auth,connection,configured:configuration.data?.xConfigured,loading:configuration.loading,busy:action.busy,linked:!!points.data?.link});
   useEffect(() => {
     setPrepared(null);
   }, [id, auth.wallet, auth.session?.expiresAt]);
@@ -124,19 +142,21 @@ export default function CampaignsPage() {
         <button
           className="secondary"
           disabled={
-            !auth.matches || !configuration.data?.xConfigured || action.busy
+            linkControl.disabled
           }
-          onClick={() =>
-            action.run(async (signal) => {
-              const r = await communityRequest("/x/start", {}, signal);
-              if (!signal.aborted) window.location.assign(r.url);
-              return "Opening X authorization.";
-            })
-          }
+          onClick={()=>{
+            if(linkControl.step==='network'){openChainModal?.();return;}
+            if(linkControl.step==='connect'){openConnectModal?.();return;}
+            if(linkControl.step==='reconnect'){openAccountModal?.();return;}
+            if(linkControl.step==='signin'){setLinkIntent(auth.wallet);void auth.signIn();return;}
+            startXLink();
+          }}
         >
-          Link / reauthorize X
+          {linkControl.label}
         </button>
       </section>
+      {auth.wallet&&!auth.matches&&!auth.checking&&<p className="note">Sign a wallet message to link X. This does not send a transaction or cost gas.</p>}
+      {connection.error&&<p className="message error" role="alert">{connection.error} Reconnect your wallet using the account menu.</p>}
       <p className="note">
         Points cannot be bought, sold or transferred. No trading-volume rewards.
         One linked X account per wallet is not proof of one person. X

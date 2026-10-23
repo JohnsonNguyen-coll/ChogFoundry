@@ -17,6 +17,7 @@ import {
   manifestDigest,
 } from "../src/raffle-manifest.mjs";
 import { agentPayload, askClaude } from "../src/claude-agent.mjs";
+import {agentTask,compactAgentContext} from '../src/agent-context.mjs';
 import { XEngagement } from "../src/x-engagement.mjs";
 
 async function engine() {
@@ -304,6 +305,34 @@ test("frozen manifests are deterministic, domain-bound and support odd leaf coun
   );
   assert.notEqual(rulesHash({ ...c, entry_points: 11 }), rulesHash(c));
   assert.throws(() => buildManifest(c, [entries[0], entries[0]], contract));
+});
+
+test('assistant sends only bounded context for the selected task, preserving source evidence',()=>{
+  const studio={nft:{tokenId:'548',collection:'collection',collectionName:'The Daks',owner:'wallet',tokenURI:'DO_NOT_SEND'},provenance:{chainId:143,blockNumber:100,blockHash:'hash',rpcOrigin:'DO_NOT_SEND'}};
+  const profile={name:'Studio',description:'x'.repeat(2000),coverUrl:'DO_NOT_SEND',ownershipEvidence:{secret:'DO_NOT_SEND'},revision:1,updatedAt:'time'};
+  const club={hasOlder:true,posts:Array.from({length:20},(_,i)=>({author:'author',content:`message-${i} `+'x'.repeat(500),createdAt:'time',ownershipEvidence:'DO_NOT_SEND'}))};
+  const input={studio,profile,club};
+  const concept=compactAgentContext({...input,task:'concept'});
+  assert.equal(concept.chat,undefined);assert.equal(concept.profile.description.length,500);assert.equal(concept.profile.descriptionTruncated,true);
+  assert.equal(concept.sources[0].blockHash,'hash');
+  assert.ok(!JSON.stringify(concept).includes('DO_NOT_SEND'));
+  const community=compactAgentContext({...input,task:'community'});
+  assert.equal(community.chat.length,5);assert.ok(community.chat[0].content.startsWith('message-15'));
+  assert.ok(community.chat.every(p=>p.content.length<=240));assert.equal(community.profile.description,undefined);
+  assert.equal(community.sources.find(s=>s.id==='club-lounge').truncated,true);
+  const payload=agentPayload('Summarize the club',community);
+  assert.equal(payload.max_tokens,512);assert.match(payload.system,/60–100 words/);
+  assert.equal(JSON.parse(payload.messages[0].content).approvedEconomics,undefined);
+  assert.ok(Buffer.byteLength(JSON.stringify(payload))<6000);
+  assert.ok(JSON.parse(agentPayload('Explain launch',compactAgentContext({...input,task:'launch'})).messages[0].content).approvedEconomics);
+  assert.equal(agentTask(),'general');assert.throws(()=>agentTask('all-database-rows'));
+});
+
+test('selected token context caps holder rows and does not leak full market or trade history',()=>{
+  const context=compactAgentContext({task:'token',studio:{nft:{tokenId:'548'},provenance:{}},market:{token:{address:'token',name:'Token',symbol:'TOK',decimals:18,supplyRaw:'1000'},launch:{creator:'creator',graduated:false,private:'DO_NOT_SEND'},holders:{count:50,includesProtocolContracts:true,top:Array.from({length:50},(_,i)=>({wallet:`wallet-${i}`,shareBps:'100',role:'unclassified',balanceRaw:'DO_NOT_SEND'}))},trades:['DO_NOT_SEND'],provenance:{blockNumber:100,blockHash:'hash'},snapshot:{blockNumber:100,blockHash:'hash'}}});
+  assert.equal(context.tokenInspection.holders.top.length,5);assert.equal(context.tokenInspection.holders.truncated,true);
+  assert.equal(context.sources.find(s=>s.id==='token-onchain').blockHash,'hash');
+  assert.ok(!JSON.stringify(context).includes('DO_NOT_SEND'));
 });
 
 test("Claude context is untrusted data with no execution tools and unconfigured providers fail explicitly", async () => {

@@ -14,6 +14,7 @@ import {
   postIdentifier,
 } from "./community-validation.mjs";
 import { agentConfiguration, askClaude } from "./claude-agent.mjs";
+import {agentTask,compactAgentContext} from './agent-context.mjs';
 import {
   readTreasury,
   treasuryAddress,
@@ -214,6 +215,7 @@ export function communityApi({
           );
         const input = await body(req),
           prompt = text(input.prompt, 4000),
+          task = agentTask(input.task),
           selectedToken = input.tokenAddress
             ? address(input.tokenAddress)
             : null,
@@ -243,51 +245,18 @@ export function communityApi({
             "INSERT INTO foundry.agent_requests(id,wallet) VALUES($1,$2)",
             [randomUUID(), wallet],
           );
-          const studio = await reader.studio(id),
-            profile = await profileStore.get(studioKey),
-            club = await store.club(studioKey, "lounge", wallet);
-          const context = {
-            sources: [
-              { id: "studio-onchain", ...studio.provenance },
-              {
-                id: "studio-profile",
-                revision: profile?.revision ?? null,
-                updatedAt: profile?.updatedAt ?? null,
-              },
-              {
-                id: "club-lounge",
-                readAt: new Date().toISOString(),
-                limit: 20,
-                truncated: club.hasOlder || club.posts.length > 20,
-              },
-            ],
-            studio,
-            profile,
-            chat: club.posts.slice(-20),
-          };
+          const [studio,profile,club]=await Promise.all([reader.studio(id),profileStore.get(studioKey),task==='community'?store.club(studioKey,"lounge",wallet):null]);
+          let market=null;
           if (selectedToken) {
-            const market = await reader.market(selectedToken);
+            market = await reader.market(selectedToken);
             if (String(market.launch.nftId) !== String(id))
               fail(
                 403,
                 "TOKEN_STUDIO_MISMATCH",
                 "The selected token belongs to another studio.",
               );
-            context.sources.push({
-              id: "token-onchain",
-              ...market.provenance,
-              ...market.snapshot,
-              range: market.range,
-            });
-            context.tokenInspection = {
-              token: market.token,
-              launch: market.launch,
-              pool: market.pool,
-              holders: market.holders,
-              holderStatus: market.holderStatus,
-              scope: market.range,
-            };
           }
+          const context=compactAgentContext({task,studio,profile,club,market});
           const result = await askClaude(prompt, context);
           auth.session(req, true);
           await store.agentRun(studioKey, wallet, prompt, result);

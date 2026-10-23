@@ -1,5 +1,6 @@
 import { useSelectedWallet } from './WalletProvider.jsx';
 import React, { useEffect, useState } from 'react';
+import useWalletSession from './hooks/useWalletSession.js';
 
 async function request(route, method = 'GET', data) {
   const response = await fetch('/api' + route, {
@@ -14,32 +15,20 @@ async function request(route, method = 'GET', data) {
 const empty = { name: '', description: '', website: '', coverUrl: '' };
 export default function StudioProfile({ studio, wallet, busy, run, onProfile }) {
   const {provider}=useSelectedWallet();
-  const [session, setSession] = useState(null);
+  const auth=useWalletSession(),{session,matches}=auth;
   const [access, setAccess] = useState(false);
   const [draft, setDraft] = useState(empty);
   const [saved, setSaved] = useState('');
   useEffect(() => {
     let alive = true; setAccess(false); setSaved('');
     setDraft({ ...empty, ...studio.profile });
-    request('/session').then(data => { if (alive) setSession(data.session); }).catch(() => { if (alive) setSession(null); });
     return () => { alive = false; };
   }, [studio.nft.tokenId, studio.profile]);
-  useEffect(() => { setAccess(false); }, [wallet, session, provider]);
-  const matches = wallet && session?.wallet.toLowerCase() === wallet.toLowerCase();
+  useEffect(() => { setAccess(false); }, [wallet, session?.wallet,session?.expiresAt, provider]);
   const owner = wallet && studio.nft.owner.toLowerCase() === wallet.toLowerCase();
   async function signIn() {
     setAccess(false); setSaved('');
-    if(!provider||!wallet)throw new Error('Connect your wallet on Monad Mainnet before signing in.');
-    const currentAccounts=await provider.request({method:'eth_accounts'}),currentChain=await provider.request({method:'eth_chainId'});
-    if(currentAccounts[0]?.toLowerCase()!==wallet.toLowerCase()||BigInt(currentChain)!==143n)throw new Error('Connected account/network does not match sign-in.');
-    const { challengeId, message } = await request('/auth/challenge', 'POST', { wallet });
-    const hex = '0x' + Array.from(new TextEncoder().encode(message), byte => byte.toString(16).padStart(2, '0')).join('');
-    const signature = await provider.request({ method: 'personal_sign', params: [hex, wallet] });
-    const accounts = await provider.request({ method: 'eth_accounts' });
-    const chainId = await provider.request({ method: 'eth_chainId' });
-    if (accounts[0]?.toLowerCase() !== wallet.toLowerCase() || BigInt(chainId) !== 143n) throw new Error('Wallet or network changed during sign-in.');
-    const result = await request('/auth/verify', 'POST', { challengeId, message, signature });
-    setSession(result.session);
+    await auth.signIn();
   }
   async function checkAccess() {
     setAccess(false);
@@ -68,12 +57,13 @@ export default function StudioProfile({ studio, wallet, busy, run, onProfile }) 
     <p className="note">The current NFT owner can edit this profile. Original author attribution remains attached to saved revisions. This does not deploy a token or move funds.</p>
     <div className="profile-actions">
       {!wallet && <p>Connect your wallet to sign in.</p>}
-      {wallet && <button disabled={busy} className="primary" onClick={() => run(signIn)}>{matches ? 'Sign in again' : 'Sign in with wallet'} ↗</button>}
-      {session && <button disabled={busy} className="text-button" onClick={() => run(async () => {
-        await request('/auth/logout', 'POST'); setSession(null); setAccess(false);
+      {wallet&&!matches && <button disabled={busy||auth.busy||auth.checking} className="primary" onClick={() => run(signIn)}>{auth.busy?'Waiting for wallet…':'Sign in with wallet'} ↗</button>}
+      {session && <button disabled={busy||auth.busy} className="text-button" onClick={() => run(async () => {
+        await auth.signOut();setAccess(false);
       })}>Sign out</button>}
       {matches && owner && <button disabled={busy} onClick={() => run(checkAccess)}>Verify edit access ↗</button>}
     </div>
+    {auth.error&&<p className="message error" role="alert">{auth.error}</p>}
     {session && <p className="note">Signed in as {session.wallet}. Expires {new Date(session.expiresAt).toLocaleTimeString('en-US')}. Smart contract wallets cannot sign in yet.</p>}
     {matches && !owner && <p className="note">Your connected wallet is not the owner at the displayed block.</p>}
     {access && matches && <form className="profile-form" onSubmit={save}>

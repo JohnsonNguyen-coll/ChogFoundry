@@ -4,12 +4,15 @@ import { BrowserRouter } from "react-router-dom";
 import WalletProvider from "./WalletProvider.jsx";
 import AppRoutes from "./AppRoutes.jsx";
 import TransactionMonitor from './components/TransactionMonitor.jsx';
+import WalletSessionProvider from './WalletSessionProvider.jsx';
 import "./styles.css";
 createRoot(document.getElementById("root")).render(
   <WalletProvider>
+    <WalletSessionProvider>
     <TransactionMonitor/>
     <BrowserRouter>
       <AppRoutes />
     </BrowserRouter>
+    </WalletSessionProvider>
   </WalletProvider>,
 );
