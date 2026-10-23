@@ -52,10 +52,12 @@ export default function ChogPicker({ launch = false }) {
                     <NftArtwork id={id} collection={data.nfts.collection} collectionName={data.nfts.collectionName}/>
                     <span className="caption">{data.nfts.collectionName}</span>
                     <h3>Studio #{id}</h3>
-                    <Link className="text-link" to={launch ? `/app/launch?studio=${id}` : `/app/studios/${id}`}>
-                      {launch ? "Prepare launch" : "Open studio"} ↗
+                    <div className="studio-choice-actions">
+                    <Link className="primary studio-open-button" aria-label={launch?`Prepare launch from studio ${id}`:`Open studio ${id}`} to={launch ? `/app/launch?studio=${id}` : `/app/studios/${id}`}>
+                      <span>{launch ? "Prepare launch" : "Open studio"}</span><span aria-hidden="true">→</span>
                     </Link>
-                    {!launch&&<Link className="primary" to={`/app/launch?studio=${id}`}>Launch token ↗</Link>}
+                    {!launch&&<Link className="secondary" to={`/app/launch?studio=${id}`}>Launch token ↗</Link>}
+                    </div>
                   </article>
                 ))}
               </div>

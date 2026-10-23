@@ -10,6 +10,7 @@ import NftArtwork from '../components/NftArtwork.jsx';
 import { LoadState, Provenance } from "../components/Onchain.jsx";
 import { communityRequest, timestamp } from "../lib/community.mjs";
 import { short } from "../lib/api.mjs";
+import {mergeClubPost} from '../club-live.mjs';
 export default function ClubsPage() {
   const { id } = useParams(),
     auth = useWalletSession(),
@@ -23,7 +24,7 @@ export default function ClubsPage() {
     }),
     [before, setBefore] = useState(null),
     action = useCommunityAction(
-      `${id}:${auth.wallet}:${auth.session?.expiresAt}`,
+      `${id}:${selectedRoom}:${before}:${auth.wallet}:${auth.session?.expiresAt}`,
     );
   const directory = useApi(!id ? "/clubs" : null),
     valid = id && /^(0|[1-9][0-9]*)$/.test(id),
@@ -31,7 +32,23 @@ export default function ClubsPage() {
     route = valid
       ? `/clubs/${id}?room=${encodeURIComponent(room)}&wallet=${auth.session?.wallet || ""}${before ? "&before=" + before : ""}`
       : null,
-    { data, error, loading } = usePollingApi(route, refresh);
+    { data, error, loading,update } = usePollingApi(route, refresh);
+  const [liveStatus,setLiveStatus]=useState('connecting');
+  useEffect(()=>{
+    if(!valid||before)return;
+    setLiveStatus('connecting');
+    const stream=new EventSource(`/api/clubs/${id}/stream?room=${encodeURIComponent(room)}`);
+    stream.addEventListener('ready',()=>{setLiveStatus('connected');setRefresh(n=>n+1);});
+    stream.addEventListener('change',event=>{
+      try{
+        const next=JSON.parse(event.data);if(next.room!==room)return;
+        if(next.post)update(previous=>mergeClubPost(previous,next.post));
+        else setRefresh(n=>n+1);
+      }catch{setRefresh(n=>n+1);}
+    });
+    stream.onerror=()=>setLiveStatus('polling');
+    return()=>stream.close();
+  },[valid,id,room,before,update]);
   const tokens=useApi(valid?`/studios/${id}/tokens`:null);
   const isOwner=!!auth.wallet&&auth.wallet.toLowerCase()===data?.studio.nft.owner.toLowerCase();
   const hasClubAccess=isOwner||!!data?.membership?.following;
@@ -46,7 +63,10 @@ export default function ClubsPage() {
   }, [room]);
   const write = async (path, input, signal) => {
     const r = await communityRequest(path, input, signal);
-    if (!signal.aborted) setRefresh((n) => n + 1);
+    if(!signal.aborted){
+      if(r.post&&!before)update(previous=>mergeClubPost(previous,r.post));
+      else{if(r.post)setBefore(null);setRefresh(n=>n+1);}
+    }
     return r;
   };
   const post = async (e) => {
@@ -65,7 +85,7 @@ export default function ClubsPage() {
         loading={!!id&&loading}
         error={id?(error||action.error):null}
       />
-      {action.notice && <p role="status">{action.notice}</p>}
+      {action.notice&&action.notice!=='Posted publicly to the club.'&&<p role="status">{action.notice}</p>}
       {!id&&<ClubDirectory wallet={auth.wallet} directory={directory}/>}
       {id && !valid && <p className="message error">Invalid studio link.</p>}
       {valid && (
@@ -105,7 +125,7 @@ export default function ClubsPage() {
               <section className="club-conversation">
                 <div className="section-heading">
                   <h2>{room.startsWith("token:") ? tokens.data?.assets.find(a=>`token:${a.token.address.toLowerCase()}`===room)?.token.name||"Token discussion" : room[0].toUpperCase()+room.slice(1)}</h2>
-                  <span>{data.members} following</span>
+                  <span>{data.members} following · {before?'Earlier messages':liveStatus==='connected'?'Live':liveStatus==='polling'?'Reconnecting…':'Connecting…'}</span>
                 </div>
                 <p className="note">
                   Current owner: {short(data.studio.nft.owner)}. New owners

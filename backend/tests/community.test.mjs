@@ -106,6 +106,8 @@ test("real PostgreSQL community migration, membership, attributed posts, voting 
     );
     await store.follow(key, wallet, true);
     const created = await store.post(key, wallet, post, null);
+    assert.equal(created.post.id,created.id);assert.equal(created.post.content,post.content);
+    assert.equal(created.post.author,wallet.toLowerCase());assert.ok(created.post.createdAt);
     await Promise.all([
       store.vote(key, created.id, wallet, true),
       store.vote(key, created.id, wallet, true),

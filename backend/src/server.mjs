@@ -48,8 +48,8 @@ export function createApi({ databasePath, marketDatabasePath, origin, frontendDi
   const factoryAddress=process.env.FOUNDRY_FACTORY_ADDRESS;
   const deploymentBlock=process.env.FOUNDRY_DEPLOYMENT_BLOCK;
   const indexer=factoryAddress&&deploymentBlock?new MarketIndexer(reader.provider,{chainId:chain.id,factoryAddress,deploymentBlock:boundedBlock(deploymentBlock),collection:chain.collection,quote:chain.quote},{databasePath:marketDatabasePath,wsUrl:[...PUBLIC_WS_RPCS,...(process.env.ALCHEMY_WS_URL?[process.env.ALCHEMY_WS_URL]:[])],storeFactory:database?config=>new PostgresMarketStore(config,database):undefined}):null;
-  const community=communityApi({reader,database,auth,indexer,profileStore:store,body});
   const streams=new Set();
+  const community=communityApi({reader,database,auth,indexer,profileStore:store,body,streams});
   indexer?.start();
   const key = id => `${chain.id}:${chain.collection.toLowerCase()}:${id}`;
   const server = http.createServer(async (req, res) => {

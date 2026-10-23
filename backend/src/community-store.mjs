@@ -103,7 +103,7 @@ export class CommunityStore {
         fail(429, "POST_RATE_LIMIT", "Wait before posting more messages.");
       const row = (
         await c.query(
-          "INSERT INTO foundry.club_posts(studio_key,room,kind,author,title,content,image_url,proof_json) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id",
+          "INSERT INTO foundry.club_posts(studio_key,room,kind,author,title,content,image_url,proof_json) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,created_at",
           [
             key,
             input.room,
@@ -116,7 +116,7 @@ export class CommunityStore {
           ],
         )
       ).rows[0];
-      return { id: String(row.id) };
+      return {id:String(row.id),post:{id:String(row.id),author:wallet,title:input.title,content:input.content,imageUrl:input.imageUrl,kind:input.kind,createdAt:row.created_at,hidden:false,votes:'0',moderation:null,ownershipEvidence:proof}};
     });
   }
   async vote(key, id, wallet, active, currentOwner=null) {

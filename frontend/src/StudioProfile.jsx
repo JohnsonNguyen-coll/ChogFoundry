@@ -58,13 +58,9 @@ export default function StudioProfile({ studio, wallet, busy, run, onProfile }) 
     <div className="profile-actions">
       {!wallet && <p>Connect your wallet to sign in.</p>}
       {wallet&&!matches && <button disabled={busy||auth.busy||auth.checking} className="primary" onClick={() => run(signIn)}>{auth.busy?'Waiting for wallet…':'Sign in with wallet'} ↗</button>}
-      {session && <button disabled={busy||auth.busy} className="text-button" onClick={() => run(async () => {
-        await auth.signOut();setAccess(false);
-      })}>Sign out</button>}
       {matches && owner && <button disabled={busy} onClick={() => run(checkAccess)}>Verify edit access ↗</button>}
     </div>
     {auth.error&&<p className="message error" role="alert">{auth.error}</p>}
-    {session && <p className="note">Signed in as {session.wallet}. Expires {new Date(session.expiresAt).toLocaleTimeString('en-US')}. Smart contract wallets cannot sign in yet.</p>}
     {matches && !owner && <p className="note">Your connected wallet is not the owner at the displayed block.</p>}
     {access && matches && <form className="profile-form" onSubmit={save}>
       <label>Studio name<input required maxLength={80} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}/></label>

@@ -3,10 +3,12 @@ import WalletAction from './WalletAction.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { units } from './market-format.mjs';
 
-export default function FeeActionReview({token,wallet,signingWallet,cursor,quote=null,side=null,amount=null,onFinalized}){
+export default function FeeActionReview({token,wallet,signingWallet,quote=null,side=null,amount=null,onFinalized}){
   const [data,setData]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),pending=useRef(null);
   const approval=!!quote;
-  useEffect(()=>{pending.current?.abort();setData(null);setError('');setBusy(false);return()=>pending.current?.abort();},[token.address,wallet,cursor,quote,side,amount]);
+  // Live block updates must not erase a claim while it is being inspected or
+  // signed. WalletAction freshly verifies the action before opening the wallet.
+  useEffect(()=>{pending.current?.abort();setData(null);setError('');setBusy(false);return()=>pending.current?.abort();},[token.address,wallet,signingWallet,quote,side,amount]);
   async function inspect(){
     pending.current?.abort();const controller=new AbortController();pending.current=controller;setData(null);setError('');setBusy(true);
     try{

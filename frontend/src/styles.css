@@ -318,6 +318,10 @@ details[open] > summary {
 .studio-token-list { padding:24px; margin:24px 0; background:#161228; border:1px solid #ffffff15; border-radius:18px; }
 .studio-token-row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:18px 0; border-top:1px solid #ffffff15; flex-wrap:wrap; }
 .chog-choice > .primary { display:inline-flex; margin-top:16px; }
+.studio-choice-actions { display:flex; flex-direction:column; gap:12px; margin-top:20px; width:100%; }
+.studio-choice-actions > a { display:flex; align-items:center; justify-content:center; width:100%; min-height:48px; border-radius:10px; text-align:center; }
+.studio-choice-actions > .studio-open-button { justify-content:space-between; min-height:56px; padding:16px 20px; font-size:16px; font-weight:700; box-shadow:0 5px 18px #836ef92b; }
+.studio-open-button > span:last-child { font-size:23px; line-height:1; }
 .token-room-picker { max-width:380px; }
 .market-advanced { margin:24px 0; }
 .market-empty .profile-actions { justify-content:center; }

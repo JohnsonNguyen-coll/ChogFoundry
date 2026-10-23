@@ -1,4 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import {EventEmitter} from 'node:events';
+import {openClubStream} from './club-stream.mjs';
 import { AppError, tokenId, address } from "./validation.mjs";
 import { chain } from "./config.mjs";
 import { CommunityStore } from "./community-store.mjs";
@@ -33,11 +35,13 @@ export function communityApi({
   indexer,
   profileStore,
   body,
+  streams=new Set(),
 }) {
   const store = database ? new CommunityStore(database) : null,
     x = new XEngagement(),
     agentActive = new Set();
   let agentTotal = 0;
+  const clubEvents=new EventEmitter();clubEvents.setMaxListeners(16);
   const key = (id) => `${chain.id}:${chain.collection.toLowerCase()}:${id}`;
   function requireDb() {
     if (!store)
@@ -113,6 +117,13 @@ export function communityApi({
           "Free verified X engagement only. Points cannot be bought, transferred or earned from trade volume. One linked X account per wallet; this is not proof of one person.",
       });
     requireDb();
+    const clubStream=route.match(/^\/api\/clubs\/([^/]+)\/stream$/);
+    if(clubStream&&get){
+      const id=tokenId(clubStream[1]),selected=room(url.searchParams.get('room')||'lounge');
+      await liveRoom(id,selected);await reader.studio(id);
+      if(!res.destroyed)openClubStream(req,res,clubEvents,key(id),selected,streams);
+      return true;
+    }
     if (route === "/api/clubs" && get) {
       const result = await database.query(
         "SELECT token_id,profile_json,created_by FROM foundry.studio_profiles WHERE left(studio_key,length($1))=$1 ORDER BY updated_at DESC LIMIT 50",
@@ -157,9 +168,8 @@ export function communityApi({
           fail(400, "INVALID_MEMBERSHIP", "Choose follow or unfollow.");
         await reader.studio(id);
         auth.session(req, true);
-        return finish(
-          await store.follow(studioKey, session.wallet, input.following),
-        );
+        const result=await store.follow(studioKey,session.wallet,input.following);
+        clubEvents.emit('change',{key:studioKey});return finish(result);
       }
       if (write && op === "posts") {
         const input = postInput(await body(req));
@@ -170,9 +180,8 @@ export function communityApi({
             : null;
         const owner=proof?.owner??(await reader.studio(id)).nft.owner;
         auth.session(req, true);
-        return finish(
-          await store.post(studioKey, session.wallet, input, proof,owner),
-        );
+        const result=await store.post(studioKey,session.wallet,input,proof,owner);
+        clubEvents.emit('change',{key:studioKey,room:input.room,post:result.post});return finish(result);
       }
       if (write && op === "votes") {
         const input = await body(req);
@@ -181,9 +190,8 @@ export function communityApi({
           fail(400, "INVALID_VOTE", "Choose an explicit vote state.");
         const owner=(await reader.studio(id)).nft.owner;
         auth.session(req, true);
-        return finish(
-          await store.vote(studioKey, post, session.wallet, input.active,owner),
-        );
+        const result=await store.vote(studioKey,post,session.wallet,input.active,owner);
+        clubEvents.emit('change',{key:studioKey});return finish(result);
       }
       if (write && op === "moderation") {
         const input = await body(req),
@@ -191,9 +199,8 @@ export function communityApi({
           reason = text(input.reason, 500),
           proof = await reader.ownerProof(id, session);
         auth.session(req, true);
-        return finish(
-          await store.moderate(studioKey, post, session.wallet, reason, proof),
-        );
+        const result=await store.moderate(studioKey,post,session.wallet,reason,proof);
+        clubEvents.emit('change',{key:studioKey});return finish(result);
       }
     }
     const agent = route.match(/^\/api\/agent\/([^/]+)$/);
