@@ -57,7 +57,7 @@ export default function AgentPage() {
       <LoadState loading={directory.loading||owned.loading} error={directory.error||owned.error}/>
       <div className="assistant-studio-grid">{studioList.map(studio=><article className="assistant-studio-choice" key={studio.id}>
         {studio.mine&&owned.data?<NftArtwork id={studio.id} collection={owned.data.nfts.collection} collectionName={owned.data.nfts.collectionName}/>:<span className="assistant-studio-monogram">#{studio.id}</span>}
-        <div><span className="caption">{studio.mine?'YOUR STUDIO':'COMMUNITY STUDIO'}</span><h3>{studio.name}</h3><Link className="text-link" to={`/app/agent/${studio.id}?task=${task}`}>Open assistant ↗</Link></div>
+        <div className="assistant-studio-choice-body"><span className="caption">{studio.mine?'YOUR STUDIO':'COMMUNITY STUDIO'}</span><h3>{studio.name}</h3><Link className="primary assistant-open-button" to={`/app/agent/${studio.id}?task=${task}`} aria-label={`Open assistant for studio ${studio.id}`}>Open assistant</Link></div>
       </article>)}</div>
       {!directory.loading&&!owned.loading&&!directory.error&&!owned.error&&!studioList.length&&<div className="assistant-directory-empty"><span className="assistant-empty-mark" aria-hidden="true">✦</span><div><h3>Every idea needs a home.</h3><p>{auth.wallet?'No studios found yet. Open My studios to check the NFTs in your wallet.':'Connect your wallet to find your NFT studios, or explore a community studio.'}</p><Link className="secondary" to={auth.wallet?'/app/studios':'/app/explore'}>{auth.wallet?'Find my studio':'Explore studios'} ↗</Link></div></div>}
       <Modal open={pickerOpen} onClose={()=>setPickerOpen(false)} title="Choose a studio" eyebrow="FOUNDRY ASSISTANT" className="assistant-studio-modal">

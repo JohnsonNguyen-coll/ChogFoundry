@@ -88,59 +88,40 @@ export default function CampaignsPage() {
     return result;
   };
   return (
-    <>
-      {configuration.data?.raffleEscrowSupported === false && (
-        <p className="message" role="status">The Daks transfer validator currently blocks raffle escrow. Raffles are unavailable for this temporary collection. Studio launches and trading do not require NFT escrow.</p>
-      )}
-      <section className="page-intro">
-        <span className="eyebrow">CHOG FOUNDRY / COMMUNITY CAMPAIGNS</span>
-        <h1>Show up. Earn points. Join the draw.</h1>
+    <div className="campaign-page">
+      <div className="campaign-overview">
+      <section className="campaign-hero">
+        <span className="eyebrow">CHOG FOUNDRY / CAMPAIGNS</span>
+        <h1>A little action.<br/><span>A bigger community.</span></h1>
         <p>
-          Engage with{" "}
+          Support{" "}
           <a href="https://x.com/ChogNFT" target="_blank" rel="noreferrer">
             @ChogNFT on X
           </a>
-          , verify your actions and use earned points to enter free NFT raffles.
+          , complete community tasks and earn points for showing up.
         </p>
+        <a className="secondary campaign-browse" href="#engagement-tasks">Explore tasks</a>
+        <div className="campaign-hero-foot"><span>No purchase needed</span><span>You choose what to share</span></div>
       </section>
-      <WalletSession auth={auth} />
-      <LoadState
-        loading={tasks.loading || campaigns.loading || detail.loading}
-        error={
-          action.error ||
-          configuration.error ||
-          tasks.error ||
-          campaigns.error ||
-          points.error ||
-          detail.error ||
-          state.error
-        }
-      />
-      {action.notice && <p role="status">{action.notice}</p>}
-      <div className="campaign-flow">
-        <span>1. Link wallet + X</span>
-        <span>2. Verify engagement</span>
-        <span>3. Spend earned points</span>
-        <span>4. Onchain random draw</span>
-      </div>
-      <section className="community-account">
+      <section className="community-account campaign-account">
         <div>
-          <span className="caption">YOUR ENGAGEMENT POINTS</span>
+          <div className="campaign-account-heading"><span className="eyebrow">YOUR POINTS</span><span className={`campaign-badge ${points.data?.link?'is-linked':''}`}>{points.data?.link?'X connected':'Connect X to begin'}</span></div>
           <h2>
             {points.data
               ? points.data.balance
               : auth.matches
-                ? "Unavailable"
+                ? points.loading ? "Loading…" : "Unavailable"
                 : "Sign in to view"}
           </h2>
           <p>
             {points.data?.link
-              ? "Linked X: @" + points.data.link.username
-              : "Link an X account for read-only verification."}
+              ? "@" + points.data.link.username
+              : "Connect your X account to verify tasks and collect points."}
           </p>
+          <span className="note">Earned through verified community tasks.</span>
         </div>
         <button
-          className="secondary"
+          className={points.data?.link?"secondary":"primary"}
           disabled={
             linkControl.disabled
           }
@@ -155,34 +136,36 @@ export default function CampaignsPage() {
           {linkControl.label}
         </button>
       </section>
+      </div>
+      <WalletSession auth={auth} />
+      <LoadState loading={tasks.loading || campaigns.loading || detail.loading} error={action.error || configuration.error || tasks.error || campaigns.error || points.error || detail.error || state.error}/>
+      {action.notice && <p className="message" role="status">{action.notice}</p>}
+      <div className="campaign-steps">
+        <div><span>01</span><div><strong>Connect your X</strong><p>One account, linked to your wallet.</p></div></div>
+        <div><span>02</span><div><strong>Pick a task</strong><p>Follow, like, reply or repost on X.</p></div></div>
+        <div><span>03</span><div><strong>Verify & earn</strong><p>Return here to collect your points.</p></div></div>
+      </div>
       {auth.wallet&&!auth.matches&&!auth.checking&&<p className="note">Sign a wallet message to link X. This does not send a transaction or cost gas.</p>}
       {connection.error&&<p className="message error" role="alert">{connection.error} Reconnect your wallet using the account menu.</p>}
-      <p className="note">
-        Points cannot be bought, sold or transferred. No trading-volume rewards.
-        One linked X account per wallet is not proof of one person. X
-        permissions are read-only; actions are performed manually. API access or
-        an incomplete scan can prevent verification.
-      </p>
       {configuration.data && !configuration.data.xConfigured && (
         <p className="message">
-          X OAuth is not configured yet. No unverified actions receive points.
+          X connections are not available yet. Please check back later.
         </p>
       )}
-      <section>
+      <section className="campaign-task-section" id="engagement-tasks">
         <div className="section-heading">
-          <h2>Engagement tasks</h2>
-          <button onClick={() => setRefresh((n) => n + 1)}>Refresh</button>
+          <div><span className="eyebrow">SMALL ACTIONS, SHARED IDEAS</span><h2>Community tasks <span className="campaign-task-count">{tasks.data?.tasks.length??'—'}</span></h2><p>Choose a task, complete it on X, then verify it here.</p></div>
+          <button className="secondary" disabled={tasks.loading} onClick={() => setRefresh((n) => n + 1)}>{tasks.loading?'Refreshing…':'Refresh tasks'}</button>
         </div>
         <div className="engagement-grid">
           {tasks.data?.tasks.map((t) => (
             <article className="engagement-task" key={t.id}>
-              <span className="caption">{t.kind.toUpperCase()}</span>
-              <strong className="task-points">{t.points} points</strong>
+              <div className="campaign-task-top"><span className="campaign-badge">{t.kind.charAt(0).toUpperCase()+t.kind.slice(1)}</span><strong className="task-points">+{t.points} <small>pts</small></strong></div>
               <h3>{t.title}</h3>
               <p className="note">
                 {timestamp(t.starts_at)} to {timestamp(t.ends_at)}
               </p>
-              <a
+              <a className="secondary campaign-task-link"
                 href={
                   t.kind === "follow"
                     ? "https://x.com/ChogNFT"
@@ -205,6 +188,7 @@ export default function CampaignsPage() {
                 </label>
               )}
               <button
+                className="primary"
                 disabled={
                   !auth.matches ||
                   !points.data?.link ||
@@ -230,21 +214,19 @@ export default function CampaignsPage() {
                   })
                 }
               >
-                Verify action
+                {Date.parse(t.ends_at)<=Date.now()?'Task ended':Date.parse(t.starts_at)>Date.now()?'Starts soon':!points.data?.link?'Connect X to verify':action.busy?'Verifying…':'Verify & earn points'}
               </button>
             </article>
           ))}
         </div>
         {tasks.data && !tasks.data.tasks.length && (
-          <p className="empty">
-            No engagement tasks have been published. Point values are set
-            explicitly by the organizer.
-          </p>
+          <div className="campaign-empty"><span className="campaign-empty-symbol" aria-hidden="true">✦</span><h3>The next task starts here.</h3><p>No tasks have been published yet. Once the organizer adds one, you’ll find the action and points here.</p><a className="secondary" href="https://x.com/ChogNFT" target="_blank" rel="noreferrer">Visit @ChogNFT on X</a>{configuration.data?.admin&&<a className="text-link" href="#campaign-organizer">Publish your first task</a>}</div>
         )}
       </section>
       {!id && (
-        <section>
-          <h2>NFT raffles</h2>
+        <section className="campaign-raffles">
+          <div className="section-heading"><div><span className="eyebrow">PUT YOUR POINTS TO WORK</span><h2>NFT raffles</h2></div><span className="campaign-badge">{configuration.data?.raffleConfigured&&configuration.data?.campaignsEnabled?'Community rewards':'Currently unavailable'}</span></div>
+          {configuration.data?.raffleEscrowSupported===false&&<p className="campaign-raffle-note">Raffles are paused for The Daks because this collection does not currently allow prize transfers into the raffle. X tasks and points are separate from raffles.</p>}
           <div className="studio-grid">
             {campaigns.data?.campaigns.map((c) => (
               <Link
@@ -265,10 +247,7 @@ export default function CampaignsPage() {
             ))}
           </div>
           {campaigns.data && !campaigns.data.campaigns.length && (
-            <p className="empty">
-              No campaigns have been created yet. No fake prizes or placeholder
-              winners.
-            </p>
+            <p className="campaign-raffle-note">No raffles are open right now. Prize details and entry requirements will appear here when one is published.</p>
           )}
         </section>
       )}
@@ -465,8 +444,9 @@ export default function CampaignsPage() {
           ))}
         </details>
       )}
+      <details className="campaign-points-info"><summary>How points and verification work</summary><p className="note">Points are earned from verified X tasks. They cannot be bought, sold or transferred, and trading does not earn points. We only read your X activity; we never post for you. Each wallet can link one X account. Verification may be delayed if X is unavailable or the activity cannot be found.</p></details>
       {configuration.data?.admin && (
-        <details className="community-admin">
+        <details className="community-admin" id="campaign-organizer">
           <summary>Organizer configuration</summary>
           <form
             className="community-compose"
@@ -595,6 +575,6 @@ export default function CampaignsPage() {
           </form>
         </details>
       )}
-    </>
+    </div>
   );
 }

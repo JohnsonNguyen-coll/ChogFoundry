@@ -24,7 +24,7 @@ export default function NftArtwork({id,tokenURI,collection,collectionName='NFT'}
     const timer=setTimeout(()=>setImageIndex(n=>n+1),isPreview?18000:8000);
     return()=>clearTimeout(timer);
   },[source,loadedSource,key,isPreview]);
-  return <div className={`nft-artwork${isPreview?' nft-artwork-preview':''}`}>
+  return <div className="nft-artwork">
     {source?<><img key={`${key}:${source}`} src={source} alt={current?.name||`${collectionName} #${id}`} loading="eager" referrerPolicy="no-referrer" onLoad={()=>setLoadedSource(source)} onError={()=>setImageIndex(n=>n+1)}/>{loadedSource!==source&&<div className="nft-loading"><Spinner label="Loading artwork…"/></div>}</>:
       <div className="nft-artwork-status">{current?<span>NFT image unavailable</span>:<Spinner label="Loading artwork…"/>}{current&&<button type="button" onClick={e=>{e.preventDefault();setAttempt(n=>n+1);}} title={current.error||'Image gateway unavailable'}>Retry image</button>}</div>}
   </div>;
