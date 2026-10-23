@@ -45,13 +45,13 @@ try {
   const plan = await prepareDeployment(provider, deployer);
   stage = 'rehearsal and full funding';
   const rehearsal = JSON.parse(await readFile(new URL('../artifacts/mainnet-deployment-rehearsal.json', import.meta.url), 'utf8'));
-  check(rehearsal.deployer === deployer && rehearsal.mainnetWrites === false && rehearsal.bindingsVerifiedLocally === true);
-  check(rehearsal.collection.address.toLowerCase() === chain.collection.toLowerCase());
-  check(rehearsal.steps.length === plan.steps.length);
+  check(rehearsal.deployer === deployer && rehearsal.mainnetWrites === false && rehearsal.bindingsVerifiedLocally === true, 'Rehearsal is missing verified evidence for this deployer. Run npm run deploy:mainnet to rebuild it.');
+  check(rehearsal.collection.address.toLowerCase() === chain.collection.toLowerCase(), 'Rehearsal belongs to another NFT collection. Run npm run deploy:mainnet to rebuild it.');
+  check(rehearsal.steps.length === plan.steps.length, 'Rehearsal step count differs from the fresh deployment plan.');
   for (const [index, step] of plan.steps.entries()) {
     const rehearsed = rehearsal.steps[index];
-    check(rehearsed.nonce === step.nonce && rehearsed.calldataHash === step.calldataHash);
-    check(rehearsed.predictedAddress === step.creates);
+    check(rehearsed.nonce === step.nonce && rehearsed.calldataHash === step.calldataHash, 'Wallet nonce or compiled contract changed since rehearsal. Rebuild the plan and rehearsal.');
+    check(rehearsed.predictedAddress === step.creates, 'Predicted contract address changed since rehearsal. Rebuild the plan and rehearsal.');
   }
   const initialFees = await provider.getFeeData();
   check(initialFees.maxFeePerGas !== null);

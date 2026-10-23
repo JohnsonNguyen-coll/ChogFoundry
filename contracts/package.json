@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "compile": "node scripts/compile.mjs",
-    "deploy:mainnet": "npm run compile && node --env-file=.env scripts/deploy-mainnet.mjs --broadcast",
+    "deploy:mainnet": "npm run compile && node --env-file=.env scripts/mainnet-command.mjs --broadcast",
     "deploy:check": "node --env-file=.env scripts/deploy-mainnet.mjs --check-config",
+    "deploy:raffle:check": "node --env-file=.env --import=./scripts/chog-collection.mjs scripts/deploy-raffle.mjs --check-config",
+    "deploy:raffle": "npm run compile && node --env-file=.env --import=./scripts/chog-collection.mjs scripts/deploy-raffle.mjs --broadcast",
     "verify:source": "node scripts/verify-source.mjs --submit",
     "test:fork": "npm run compile && node --env-file-if-exists=../backend/.env --test --test-concurrency=1 tests/fee-vault.fork.test.mjs tests/chog-compatibility.fork.test.mjs tests/launch-coordinator.fork.test.mjs tests/curve-market.fork.test.mjs tests/v4-graduation.fork.test.mjs tests/v4-hook.fork.test.mjs tests/mainnet-config.fork.test.mjs tests/raffle.fork.test.mjs tests/custody-review.fork.test.mjs"
   },
