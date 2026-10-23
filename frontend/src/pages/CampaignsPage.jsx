@@ -109,7 +109,7 @@ export default function CampaignsPage() {
         <a className="secondary campaign-browse" href="#engagement-tasks">Explore tasks</a>
         <div className="campaign-hero-foot"><span>No purchase needed</span><span>You choose what to share</span></div>
         </div>
-        <div className="campaign-chog-art" aria-hidden="true"><ChogArtwork scene="activity" className="page-chog-portrait" eager/></div>
+        <div className="campaign-chog-art" aria-hidden="true"><ChogArtwork scene="campaigns" className="page-chog-portrait" eager/></div>
       </section>
       <section className="community-account campaign-account">
         <div>

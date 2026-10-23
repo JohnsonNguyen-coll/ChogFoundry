@@ -13,6 +13,7 @@ import art9 from "../../assets/chog/web/9.webp";
 import art10 from "../../assets/chog/web/10.webp";
 import art11 from "../../assets/chog/web/11.webp";
 import art12 from "../../assets/chog/web/12.webp";
+import art14 from "../../assets/chog/14.png";
 
 const artwork = {
   identity: { src: art3, width: 847, height: 858 },
@@ -28,6 +29,7 @@ const artwork = {
   spark: { src: spark, width: 712, height: 865 },
   explore: { src: explore, width: 772, height: 857 },
   guide: { src: guide, width: 812, height: 862 },
+  campaigns: { src: art14, width: 856, height: 863 },
 };
 
 // Editorial illustrations, never representations of a wallet's actual NFT.
