@@ -2275,10 +2275,12 @@ td small {
 .campaign-account p { font-size:14px; margin:0 0 12px; color:#ddd0f4; overflow-wrap:anywhere; }
 .campaign-account .note { font-size:11px; line-height:1.7; }
 .campaign-account > button { min-height:48px; width:100%; font-size:13px; border-radius:10px; }
-.campaign-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:24px 0 44px; padding:22px 0; border-bottom:1px solid var(--line); gap:24px; }
-.campaign-steps > div { display:flex; align-items:flex-start; gap:14px; }
+.campaign-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:24px 0 44px; padding:0; border:1px solid var(--line); border-radius:16px; gap:0; overflow:hidden; }
+.campaign-steps > div { display:grid; grid-template-columns:34px minmax(0,1fr); align-items:center; gap:14px; padding:22px 24px; min-width:0; }
+.campaign-steps > div + div { border-left:1px solid var(--line); }
+.campaign-steps > div > div { min-width:0; }
 .campaign-steps > div > span { display:grid; place-items:center; flex-shrink:0; width:34px; height:34px; border:1px solid #5c4778; border-radius:10px; color:#bda8ee; font-size:11px; background:#21192e; }
-.campaign-steps strong { font-size:13px; font-weight:600; }
+.campaign-steps strong { display:block; font-size:13px; font-weight:600; line-height:1.5; }
 .campaign-steps p { margin:6px 0 0; font-size:11px; color:var(--muted); line-height:1.7; }
 .campaign-task-section { scroll-margin-top:24px; }
 .campaign-task-section .section-heading { gap:20px; align-items:center; flex-wrap:wrap; margin-bottom:24px; }
@@ -2315,7 +2317,9 @@ td small {
 @media(max-width:600px) {
   .campaign-hero,.campaign-page .campaign-account { padding:24px; }
   .campaign-hero h1 { letter-spacing:-1px; }
-  .campaign-steps { grid-template-columns:minmax(0,1fr); gap:20px; margin-bottom:28px; }
+  .campaign-steps { grid-template-columns:minmax(0,1fr); gap:0; margin-bottom:28px; }
+  .campaign-steps > div { padding:18px 20px; }
+  .campaign-steps > div + div { border-left:0; border-top:1px solid var(--line); }
   .campaign-task-section .section-heading h2 { font-size:24px; }
   .campaign-empty { padding:30px 20px; }
   .campaign-raffles { padding:22px; }

@@ -11,6 +11,8 @@ import {useConnectModal,useChainModal,useAccountModal} from '@rainbow-me/rainbow
 import {useSelectedWallet} from '../WalletProvider.jsx';
 import {xLinkControl} from '../lib/x-link.mjs';
 import PaginatedList from '../components/PaginatedList.jsx';
+import BulkCampaignTasks from '../components/BulkCampaignTasks.jsx';
+import {canManageCampaigns} from '../lib/campaign-access.mjs';
 const date = (value) => new Date(value).toISOString();
 export default function CampaignsPage() {
   const { id } = useParams(),
@@ -27,7 +29,7 @@ export default function CampaignsPage() {
   const connection=useSelectedWallet(),{openConnectModal}=useConnectModal(),{openChainModal}=useChainModal(),{openAccountModal}=useAccountModal();
   const [linkIntent,setLinkIntent]=useState(null);
   const configuration = useApi(
-      "/community?wallet=" + (auth.session?.wallet || ""),
+      "/community?wallet=" + (auth.wallet || "") + "&session=" + (auth.matches ? auth.session?.expiresAt || "" : ""),
       refresh,
     ),
     tasks = useApi("/engagement/tasks", refresh),
@@ -44,6 +46,7 @@ export default function CampaignsPage() {
       refresh,
     ),
     manifest = detail.data?.campaign.manifest_json;
+  const isOrganizer = canManageCampaigns(auth, configuration.data);
   function startXLink(){
     action.run(async signal=>{
       const result=await communityRequest('/x/start',{},signal);
@@ -221,7 +224,7 @@ export default function CampaignsPage() {
           ))}
         </div>}</PaginatedList>
         {tasks.data && !tasks.data.tasks.length && (
-          <div className="campaign-empty"><span className="campaign-empty-symbol" aria-hidden="true">✦</span><h3>The next task starts here.</h3><p>No tasks have been published yet. Once the organizer adds one, you’ll find the action and points here.</p><a className="secondary" href="https://x.com/ChogNFT" target="_blank" rel="noreferrer">Visit @ChogNFT on X</a>{configuration.data?.admin&&<a className="text-link" href="#campaign-organizer">Publish your first task</a>}</div>
+          <div className="campaign-empty"><span className="campaign-empty-symbol" aria-hidden="true">✦</span><h3>The next task starts here.</h3><p>No tasks have been published yet. Once the organizer adds one, you’ll find the action and points here.</p><a className="secondary" href="https://x.com/ChogNFT" target="_blank" rel="noreferrer">Visit @ChogNFT on X</a>{isOrganizer&&<a className="text-link" href="#campaign-organizer">Publish your first task</a>}</div>
         )}
       </section>
       {!id && (
@@ -347,7 +350,7 @@ export default function CampaignsPage() {
               <pre>{JSON.stringify(manifest, null, 2)}</pre>
             </details>
           )}
-          {configuration.data?.admin && (
+          {isOrganizer && (
             <details className="community-admin">
               <summary>Raffle administration</summary>
               <p className="note">
@@ -445,9 +448,10 @@ export default function CampaignsPage() {
         </details>
       )}
       <details className="campaign-points-info"><summary>How points and verification work</summary><p className="note">Points are earned from verified X tasks. They cannot be bought, sold or transferred, and trading does not earn points. We only read your X activity; we never post for you. Each wallet can link one X account. Verification may be delayed if X is unavailable or the activity cannot be found.</p></details>
-      {configuration.data?.admin && (
+      {isOrganizer && (
         <details className="community-admin" id="campaign-organizer">
           <summary>Organizer configuration</summary>
+          <BulkCampaignTasks action={action} onPublished={()=>setRefresh(n=>n+1)}/>
           <form
             className="community-compose"
             onSubmit={(e) => {

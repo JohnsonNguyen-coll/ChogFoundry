@@ -113,6 +113,7 @@ export function communityApi({
           !!process.env.FOUNDRY_DEPLOYER_ADDRESS &&
           session.wallet.toLowerCase() ===
             process.env.FOUNDRY_DEPLOYER_ADDRESS.toLowerCase(),
+        sessionWallet: session?.wallet || null,
         pointsPolicy:
           "Free verified X engagement only. Points cannot be bought, transferred or earned from trade volume. One linked X account per wallet; this is not proof of one person.",
       });
