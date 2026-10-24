@@ -52,14 +52,20 @@ export class MarketStore {
   rollback(end) { this.transaction(()=>this.db.prepare('DELETE FROM market_chunks WHERE end_block>?').run(end)); }
   market(token,intervalSeconds=60,wallet=null) {
     if(![60,300,900,3600].includes(intervalSeconds)) throw new AppError(400,'INVALID_INTERVAL','Invalid candle interval.');
-    const rows=this.db.prepare('SELECT data_json FROM market_windows WHERE token=? ORDER BY end_block LIMIT 5001').all(token.toLowerCase());
+    const rows=this.db.prepare(`SELECT data_json FROM market_windows WHERE token=? AND (
+      end_block IN (SELECT min(end_block) FROM market_windows WHERE token=? UNION SELECT max(end_block) FROM market_windows WHERE token=?)
+      OR coalesce(json_array_length(data_json,'$.trades'),0)>0 OR coalesce(json_array_length(data_json,'$.transfers'),0)>0
+    ) ORDER BY end_block LIMIT 5001`).all(token.toLowerCase(),token.toLowerCase(),token.toLowerCase());
     if(!rows.length) throw new AppError(404,'TOKEN_NOT_INDEXED','No canonical launch for this token has been indexed yet.');
     if(rows.length>5000) throw new AppError(503,'INDEX_QUERY_LIMIT','This market exceeds the current local query budget.');
     return buildIndexedMarket(rows.map(r=>JSON.parse(r.data_json)),this.head(),this.revision(),intervalSeconds,wallet);
   }
 
   portfolio(wallet){
-    const rows=this.db.prepare('SELECT data_json FROM market_windows ORDER BY token,end_block LIMIT 5001').all();
+    const rows=this.db.prepare(`WITH bounds AS (SELECT token,min(end_block) AS first,max(end_block) AS last FROM market_windows GROUP BY token)
+      SELECT w.data_json FROM market_windows w JOIN bounds b ON w.token=b.token WHERE w.end_block IN (b.first,b.last)
+      OR coalesce(json_array_length(w.data_json,'$.trades'),0)>0 OR coalesce(json_array_length(w.data_json,'$.transfers'),0)>0
+      ORDER BY w.token,w.end_block LIMIT 5001`).all();
     return buildWalletPortfolio(rows.map(r=>JSON.parse(r.data_json)),this.head(),this.revision(),wallet);
   }
   close(){this.db.close();}
