@@ -1,8 +1,10 @@
 import { buildWalletPortfolio } from './wallet-portfolio.mjs';
 import { AppError } from './validation.mjs';
 import { buildIndexedMarket } from './indexed-market.mjs';
+import { IndexSnapshotCache } from './index-snapshot-cache.mjs';
 const headRow=r=>r?{...r,end_block:Number(r.end_block),start_block:Number(r.start_block)}:null;
 export class PostgresMarketStore {
+  snapshotCache=new IndexSnapshotCache();
   supportsEmptyHistory=true;
   constructor(config,database){this.config=config;this.database=database;this.source=database.provider==='supabase-postgres'?'Canonical RPC event index in Supabase PostgreSQL':'Canonical RPC event index in PostgreSQL test engine';this.key=`${config.chainId}:${config.factoryAddress.toLowerCase()}:${config.finality}`;this.initialized=false;}
   async initialize() {
@@ -72,7 +74,8 @@ export class PostgresMarketStore {
   async market(token,interval=60,wallet=null) {
     if(![60,300,900,3600].includes(interval))throw new AppError(400,'INVALID_INTERVAL','Invalid candle interval.');
     await this.initialize();
-    return this.database.transaction(async client=>{
+    const revisionAtRead=await this.revision();
+    return this.snapshotCache.read(revisionAtRead,`market:${token.toLowerCase()}:${interval}:${wallet?.toLowerCase()||''}`,()=>this.database.transaction(async client=>{
       // Quiet checkpoints are retained in storage for reorgs, but add no events to replay.
       // Always retain the first range and latest metadata as well as every event window.
       const rows=(await client.query(`WITH bounds AS (
@@ -86,11 +89,12 @@ export class PostgresMarketStore {
       const head=headRow((await client.query('SELECT * FROM foundry.market_chunks WHERE index_key=$1 ORDER BY end_block DESC LIMIT 1',[this.key])).rows[0]);
       const revision=Number((await client.query('SELECT revision FROM foundry.market_indexes WHERE index_key=$1',[this.key])).rows[0].revision);
       return buildIndexedMarket(rows.map(r=>r.data_json),head,revision,interval,wallet);
-    },{readOnly:true});
+    },{readOnly:true}));
   }
   async portfolio(wallet){
     await this.initialize();
-    return this.database.transaction(async client=>{
+    const revisionAtRead=await this.revision();
+    return this.snapshotCache.read(revisionAtRead,`portfolio:${wallet.toLowerCase()}`,()=>this.database.transaction(async client=>{
       const head=headRow((await client.query('SELECT * FROM foundry.market_chunks WHERE index_key=$1 ORDER BY end_block DESC LIMIT 1',[this.key])).rows[0]);
       const revision=Number((await client.query('SELECT revision FROM foundry.market_indexes WHERE index_key=$1',[this.key])).rows[0].revision);
       const rows=(await client.query(`WITH bounds AS (
@@ -100,7 +104,7 @@ export class PostgresMarketStore {
         w.end_block IN (b.first,b.last) OR coalesce(jsonb_array_length(w.data_json->'trades'),0)>0 OR coalesce(jsonb_array_length(w.data_json->'transfers'),0)>0
       ) ORDER BY w.token,w.end_block LIMIT 5001`,[this.key])).rows;
       return buildWalletPortfolio(rows.map(r=>r.data_json),head,revision,wallet);
-    },{readOnly:true});
+    },{readOnly:true}));
   }
   close(){}
 }

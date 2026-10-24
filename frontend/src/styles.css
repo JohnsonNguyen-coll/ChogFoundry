@@ -2204,7 +2204,7 @@ td small {
 .market-directory-filters button.active {color:#d0c2ff;background:#836ef91c;border-color:#836ef931}
 .market-directory-toolbar input {width:310px;max-width:100%;font-size:11px;padding:13px 15px;border-color:var(--line)}
 .market-directory-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
-.market-token-card {border:1px solid var(--line);border-radius:13px;background:linear-gradient(135deg,#1c162c,#141020);padding:22px 22px 0;min-width:0;transition:border-color .15s,transform .15s}
+.market-token-card {display:flex;flex-direction:column;border:1px solid #49395f;border-radius:18px;background:radial-gradient(ellipse at 0 0,#8060b51a,transparent 65%),linear-gradient(135deg,#1c162c,#141020);padding:24px;min-width:0;box-shadow:0 8px 24px #08051020;transition:border-color .15s,transform .15s}
 .market-token-card:hover {border-color:#78629d;transform:translateY(-2px)}
 .market-token-main {display:flex;align-items:center;gap:14px;min-width:0}
 .market-token-main .token-avatar {width:58px;height:58px;flex-basis:58px;border-radius:14px}
@@ -2212,16 +2212,16 @@ td small {
 .market-token-main h3 {font-size:20px;letter-spacing:-.5px;margin:0 0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .market-token-main>div>span {font-size:11px;color:var(--muted)}
 .market-token-arrow {color:#9e85d8;font-size:17px;flex-shrink:0}
-.market-token-meta {margin-top:23px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:10px}
+.market-token-meta {margin-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-size:11px}
 .market-token-meta a {color:#c4b4ed}
 .token-stage {font-size:9px;border-radius:4px;padding:5px 7px;white-space:nowrap}
 .token-stage.curve {color:#baa8f1;background:#a181ff12;border:1px solid #a181ff30}
 .token-stage.pool {color:var(--buy);background:#83d6ba0c;border:1px solid #83d6ba30}
-.market-token-card dl {display:grid;grid-template-columns:1fr auto;margin:22px 0;padding:18px 0 0;border-top:1px solid #332d4680;gap:10px;font-size:11px}
+.market-token-card dl {display:grid;grid-template-columns:minmax(0,1fr) auto;margin:22px 0 24px;padding:16px;border:1px solid #43335480;border-radius:12px;background:#0f0b1980;gap:16px;font-size:11px}
 .market-token-card dl dt {border:0;padding:0;margin-bottom:7px;color:var(--muted);font-size:10px}
 .market-token-card dl dd {border:0;padding:0;margin:0;font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}
 .market-token-card dl>div:last-child {text-align:right}
-.market-token-open {display:flex;justify-content:space-between;align-items:center;min-height:48px;margin-top:12px;padding:12px 16px;border-radius:9px;font-size:14px;font-weight:700;color:#fff}
+.market-token-open {display:flex;justify-content:center;align-items:center;min-height:48px;margin-top:auto;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:700;color:#fff;text-align:center}
 .market-token-open:hover {color:#fff}
 .market-directory-loading {min-height:260px;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px}
 .market-directory-empty {padding:55px 25px;text-align:center;border:1px dashed var(--line);border-radius:12px;background:#161125}

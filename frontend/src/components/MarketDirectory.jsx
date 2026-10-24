@@ -38,7 +38,7 @@ export default function MarketDirectory({collection}) {
         <Link className="market-token-main" to={`/app/markets/${token.address}`}><TokenAvatar collection={collection} nftId={launch.nftId} name={token.name}/><div><h3>{token.name}</h3><span>{token.symbol} / CHOG</span></div><span className="market-token-arrow" aria-hidden="true">↗</span></Link>
         <div className="market-token-meta"><Link to={`/app/studios/${launch.nftId}`}>Studio #{launch.nftId} ↗</Link><span className={`token-stage ${launch.graduated?'pool':'curve'}`}>{launch.graduated?'Liquidity pool':'Bonding curve'}</span></div>
         <dl><div><dt>Supply</dt><dd>{token.supplyRaw?units(token.supplyRaw,token.decimals):'Unavailable'}</dd></div><div><dt>Token address</dt><dd title={token.address}>{token.address.slice(0,6)}…{token.address.slice(-4)}</dd></div></dl>
-        <Link className="primary market-token-open" to={`/app/markets/${token.address}`}>Open market <span>→</span></Link>
+        <Link className="primary market-token-open" to={`/app/markets/${token.address}`}>Open market</Link>
       </article>)}</div>}</PaginatedList>
       {data&&!visible.length&&<div className="market-directory-empty"><h3>{query||filter!=='all'?'No matching tokens':data.index?.caughtUp?'The next launch could be yours.':'Launch history is syncing…'}</h3><p>{query||filter!=='all'?'Try a different search or choose another filter.':data.index?.caughtUp?'Launch a token from your studio to open its market here.':'Tokens appear as their launches are confirmed.'}</p>{query||filter!=='all'?<button onClick={()=>{setQuery('');setFilter('all');}}>Show all tokens</button>:<Link className="secondary" to="/app/launch">Start a launch ↗</Link>}</div>}
     </>}
